@@ -1,18 +1,83 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchDataTQ } from "../components/Udaje";
+import { useQuery } from "@tanstack/react-query";
+import filter from 'lodash.filter'
 
-type Song = {
+interface SongVerse {
+  cisloS: string;
+  textik: string;
+}
+
+interface Song {
   cisloP: string;
   nazov: string;
-};
-
+  slohy: SongVerse[];
+}
 export default function Home() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredData, setFilteredData] = useState<Song[]>([]);
   const [selectedItem, setSelectedItem] = useState("");
+ 
+  const {data, isLoading,  isSuccess} = useQuery({
+    queryFn:()=>fetchDataTQ(searchQuery),
+    queryKey:["songs"] 
+    });
+    
+    if(isLoading){
+        return (<div><span>Loading....</span></div>)
+    }
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if(isSuccess){
+       /*
+        const filtrdData = filter(data, (piesen:Song)=>{
+            return contains(piesen, "");
+          }); 
+          
+        setFilteredData(filtrdData);
+       
+        */
+        
+     }
+ 
+     function contains(song: Song, formatedQuery: string): boolean {
+        return Object.values(song).some(value =>
+          typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
+     
+    }
+
+    function vyfiltruj(filtr:string){
+        const formatedQuery = filtr?.toLocaleLowerCase();
+        const filteredData = filter(data, (piesen:Song)=>{
+            return contains(piesen, formatedQuery);
+          });    
+        setFilteredData(filteredData);
+        console.log('pocet - ', searchQuery);
+    }
+
+    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('som tu ', e.target.value );
+        setSearchQuery(e.target.value);
+        vyfiltruj(e.target.value);
+        console.log('aky je sqarchQuery', searchQuery);     
+    };
+
+    const handleClick = (item: Song) => {
+        // Tvoja logika pre kliknutie na položku
+        console.log('selitemmm:',item.cisloP,"-",selectedItem,item.cisloP===selectedItem );
+        setSelectedItem(item.cisloP);
+        console.log('selitem:',item.cisloP,"-",selectedItem,item.cisloP===selectedItem );
+        const piesen: Song = {
+          cisloP: item.cisloP,
+          nazov: item.nazov,
+          slohy:item.slohy,
+        };
+        navigate("/akordy", { state: piesen });
+    };
+/*
+
+    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     //    console.log("som tu ", e.target.value);
     //    setSearchQuery(e.target.value);
     //    vyfiltruj(e.target.value);
@@ -38,82 +103,100 @@ export default function Home() {
     //console.log(item.cisloP);
     // navigate("./Detail.tsx");
   };
-
+*/
   return (
-    <div style={styles.container}>
-      <div style={styles.topSection}>
-        {/* TextInput komponent */}
-        <input
-          type="text"
-          style={styles.input}
-          placeholder="zadaj číslo alebo textik..."
-          onChange={handleSearch}
-          value={searchQuery}
-        />
-      </div>
-      <div style={styles.bottomSection}>
-        {/* Unsorted list komponent */}
-        <ul style={{ listStyleType: "none", padding: 0 }}>
-          {filteredData.map((item) => (
-            <li
-              key={item.cisloP}
-              onClick={() => handleClick(item)}
+    <div id="body" style={{
+            margin: 0,
+            padding: 0,
+            height: "100%",
+            width: "100%",
+        }}>
+
+    
+      <div id="container" style={{display:"flex", 
+            flexDirection: "column",
+            height: "100vh", // Rozdelí stránku na dve časti s rovnakou výškou
+            width:"100vw",
+            backgroundColor:"white",
+            padding:0,
+            margin:0,
+
+            position:"absolute",
+            top:0,
+            left:0,
+          
+          }}>
+        <div id="inputBox" style={{
+            flex: 1, // Zaberá dostupný voľný priestor
+            backgroundColor: "#f0f0f0", // Nastav farbu pozadia, ak potrebuješ
+           margin:10, // Prispôsob vzhľad podľa potreby
+           padding:0
+            
+            }}>
+          {/* TextInput komponent */}
+          <input
+              type="text"
               style={{
-                fontSize: 25,
-                padding: "1px",
-                marginTop: "5px",
-                cursor: "pointer",
-                color: "green",
+                width: "100%", // Zaberá celú šírku topSection
+                height: "100%", // Prispôsob výšku podľa potreby
+                fontSize: 20,
+                backgroundColor: "lightGray",
                 borderRadius: 15,
-                backgroundColor:
-                  selectedItem === item.cisloP ? "orange" : "transparent",
-                listStylePosition: "inside",
-                border: "3px ridge black",
+                padding: 0,
+                color: "black",
               }}
-            >
-              <div>
+              placeholder="zadaj číslo alebo textik..."
+              onChange={handleSearch}
+              value={searchQuery}
+          />
+        </div>
+      
+        <div id="listBox" style={{
+               flex: 10, // Zaberá dostupný voľný priestor
+               backgroundColor: "#e0e0e0", // Nastav farbu pozadia, ak potrebuješ
+               padding: 0, // Prispôsob vzhľad podľa potreby
+               margin:10,
+               marginTop:0,
+               overflowY:"auto",
+               borderRadius: 15,
+              }} >
+          {/* Unsorted list komponent */}
+          <ul style={{ listStyleType: "none", padding: 0 }}>
+            {filteredData.map((item) => (
+              <li
+                key={item.cisloP}
+                onClick={() => handleClick(item)}
+                style={{
+                  fontSize: 25,
+                  padding: "1px",
+                  marginTop: "5px",
+                  cursor: "pointer",
+                  color: "black",
+                  borderRadius: 15,
+                  backgroundColor:
+                    selectedItem === item.cisloP ? "orange" : "lightblue",
+                  listStylePosition: "inside",
+                  border: "3px ridge black",
+                }}
+              >
                 <div>
-                  <p style={{ margin: 5 }}>
-                    {item.cisloP}. {item.nazov}
-                  </p>
+                  <div>
+                    <p style={{ margin: 5 }}>
+                      {item.cisloP}. {item.nazov}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            ))}
         </ul>
+
+        </div>
+      
+      
+      
       </div>
+
     </div>
+    
   );
 }
-const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    height: "100vh", // Rozdelí stránku na dve časti s rovnakou výškou
-  },
-  topSection: {
-    flex: 1, // Zaberá dostupný voľný priestor
-    backgroundColor: "#f0f0f0", // Nastav farbu pozadia, ak potrebuješ
-    padding: 10, // Prispôsob vzhľad podľa potreby
-  },
-  input: {
-    width: "100%", // Zaberá celú šírku topSection
-    height: "100%", // Prispôsob výšku podľa potreby
-    fontSize: 20,
-    backgroundColor: "lightGray",
-    borderRadius: 15,
-    padding: 0,
-    color: "black",
-  },
-  bottomSection: {
-    flex: 10, // Zaberá dostupný voľný priestor
-    backgroundColor: "#e0e0e0", // Nastav farbu pozadia, ak potrebuješ
-    padding: 20, // Prispôsob vzhľad podľa potreby
-    overflowY: "auto",
-  },
-  list: {
-    listStyleType: "none", // Odstráň odrážky zo zoznamu, ak potrebuješ
-    margin: 0, // Odstráň margin zoznamu, ak potrebuješ
-    padding: 0, // Odstráň padding zoznamu, ak potrebuješ
-  },
-};
