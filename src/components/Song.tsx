@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface Chord {
   chord: string;
@@ -17,7 +17,7 @@ interface SongLineProps {
 }
 
 function parseSong(text: string): SongPart[][] {
-  return text.split('\n').map((line) => {
+  return text.split("\n").map((line) => {
     const parts: SongPart[] = [];
     let currentIndex = 0;
 
@@ -44,12 +44,17 @@ function parseSong(text: string): SongPart[][] {
 const SongLine: React.FC<SongLineProps> = ({ parts, showChords, velkost }) => (
   <div style={getStyles(velkost).line}>
     {parts.map((part, index) =>
-      'chord' in part ? (
+      "chord" in part ? (
         showChords ? (
-          <span key={index} style={getStyles(velkost).chord}>{`${part.chord}`}</span>
+          <span
+            key={index}
+            style={getStyles(velkost).chord}
+          >{`${part.chord}`}</span>
         ) : null
       ) : (
-        <span key={index} style={getStyles(velkost).lyrics}>{part.text}</span>
+        <span key={index} style={getStyles(velkost).lyrics}>
+          {part.text}
+        </span>
       )
     )}
   </div>
@@ -67,7 +72,12 @@ const Song: React.FC<SongProps> = ({ text, showChords, zadanaVelkost }) => {
   return (
     <div>
       {songData.map((parts, index) => (
-        <SongLine key={index} parts={parts} showChords={showChords ?? false} velkost={zadanaVelkost} />
+        <SongLine
+          key={index}
+          parts={parts}
+          showChords={showChords ?? false}
+          velkost={zadanaVelkost}
+        />
       ))}
     </div>
   );
@@ -75,20 +85,20 @@ const Song: React.FC<SongProps> = ({ text, showChords, zadanaVelkost }) => {
 
 const getStyles = (velkost: number) => ({
   line: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
   },
   chord: {
-    fontWeight: 'bold',
-    color: 'blue',
+    fontWeight: "bold",
+    color: "blue",
     fontSize: 20 + velkost,
-    lineHeight: 20 + velkost + 'px',
+    lineHeight: (20 + velkost) / 2 + "px",
   },
   lyrics: {
     fontSize: 20 + velkost,
-    lineHeight: 35 + velkost + 'px',
+    lineHeight: 35 + velkost + "px",
   },
 });
 
