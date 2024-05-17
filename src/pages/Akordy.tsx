@@ -1,6 +1,11 @@
 import { useLocation } from "react-router-dom";
 import Song from "../components/Song";
 import { MouseEvent, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMugHot, faStepBackward, faThLarge } from "@fortawesome/free-solid-svg-icons";
+import { faFonticons } from "@fortawesome/free-brands-svg-icons/faFonticons";
+import { FaBeer } from "react-icons/fa";
+import { LuArrowBigDownDash, LuArrowBigUpDash } from "react-icons/lu";
 
 interface SongVerse {
   cisloS: string;
@@ -47,6 +52,79 @@ export default function Akordy() {
           left: 0,
         }}
       >
+        
+          <div id="nadpis-container"style={{
+            flex: 1, // Zaberá dostupný voľný priestor
+            backgroundColor: "transparent", // Nastav farbu pozadia, ak potrebuješ
+            padding: 0, // Prispôsob vzhľad podľa potreby
+            marginLeft: 10,
+            marginRight: 10,
+            marginTop: 0,
+            borderRadius: 15,
+          }}
+          >
+            <div style={{
+              display: "flex",
+              flexDirection:"row",
+              backgroundColor: "white",
+              
+              height:"100%",
+              padding: 0,
+              marginLeft: 0,
+              marginRight:0,
+              borderRadius:15,
+              
+              }}>
+
+
+                <div style={{
+                  flex:10,
+                  borderRadius:15,
+                  
+                  height:"100%", 
+                  backgroundColor:"brown"}}>
+                   <button style={{height:"100%", width:"100%", backgroundColor:"gray",
+                          border:"1px solid black",
+                          textAlign:"left",
+                          fontSize:20}}>
+                            {piesenka?.cisloP}.{piesenka?.nazov}
+                    </button>
+                </div>
+                <div style={{
+                  flex:1,
+                  borderRadius:15,
+                  height:"100%", 
+                  backgroundColor:"gray"}}>
+                    <button style={{height:"100%", width:"100%", 
+                        backgroundColor:"gray", 
+                        border:"1px solid black"}}
+                    >
+                     
+                      <LuArrowBigDownDash size={30}/>
+                    </button>
+
+                </div>
+                <div style={{
+                  flex:1,
+                  borderRadius:15,
+                  height:"100%", 
+                  backgroundColor:"gray"}}>
+                    <button style={{height:"100%", width:"100%", 
+                        backgroundColor:"gray", 
+                        border:"1px solid black"}}
+                    >
+                     
+                      <LuArrowBigUpDash size={30}/>
+                    </button>
+
+                </div>
+
+                
+                
+            </div>
+              
+          </div>
+        
         <div
           id="listBox"
           style={{
@@ -59,6 +137,7 @@ export default function Akordy() {
             borderRadius: 15,
             alignContent: "center",
             alignItems: "center",
+            border:"1px solid black",
             justifyContent: "center",
           }}
         >
@@ -69,8 +148,12 @@ export default function Akordy() {
               height: "100%",
               justifyContent: "center",
               alignItems: "center",
-              backgroundColor: "white",
+              backgroundColor: "yellow",
               color: "black",
+              padding:0,
+              margin:0,
+              
+              borderRadius:15
             }}
           >
             <Song
