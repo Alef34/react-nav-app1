@@ -86,9 +86,7 @@ const Song: React.FC<SongProps> = ({ text, showChords, zadanaVelkost }) => {
 const getStyles = (velkost: number) => ({
   line: {
     display: "flex",
-    flexDirection: "row",
     alignItems: "flex-start",
-    flexWrap: "wrap",
   },
   chord: {
     fontWeight: "bold",

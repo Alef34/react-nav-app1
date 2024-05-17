@@ -129,6 +129,7 @@ export default function Home() {
         padding: 0,
         height: "100%",
         width: "100%",
+        paddingTop: "20px",
       }}
     >
       <div
@@ -141,7 +142,7 @@ export default function Home() {
           backgroundColor: "white",
           padding: 0,
           margin: 0,
-
+          paddingTop: "20px",
           position: "absolute",
           top: 0,
           left: 0,

@@ -4,8 +4,6 @@ import About from "./pages/About";
 import Home from "./pages/Home";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import Page1 from "./pages/Page1";
-import Page2 from "./pages/Page2";
 import Akordy from "./pages/Akordy";
 
 function App() {
@@ -17,7 +15,7 @@ function App() {
           <Routes>
             <Route path={"/"} element={<Home />} />
             <Route path={"/about"} element={<About />} />
-            <Route path={"/akordy"} element={<Akordy/>} />
+            <Route path={"/akordy"} element={<Akordy />} />
           </Routes>
         </Router>
       </QueryClientProvider>

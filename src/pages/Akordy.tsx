@@ -19,7 +19,7 @@ export default function Akordy() {
   const location = useLocation();
   const navigate = useNavigate();
   // Kontrola, či má location.state definovaný typ LocationState
-  const piesenka: Song | null = location.state;
+  const piesenka: Song = location.state;
   const slohy = piesenka?.slohy.map((sloha) => sloha.cisloS);
   const [selectedView, setSelectedView] = useState(0);
   const [fontSize, setFontSize] = useState(0);
@@ -30,6 +30,7 @@ export default function Akordy() {
       style={{
         margin: 0,
         padding: 0,
+        paddingTop: "40px",
         height: "100%",
         width: "100%",
         backgroundColor: "red",
@@ -44,6 +45,7 @@ export default function Akordy() {
           width: "100vw",
           backgroundColor: "white",
           padding: 0,
+          paddingTop: "20px",
           margin: 0,
           marginTop: 0,
 
@@ -123,7 +125,7 @@ export default function Akordy() {
                   setFontSize(fontSize - 5);
                 }}
               >
-                <LuArrowBigDownDash size={30} />
+                <LuArrowBigDownDash size={30} color="black" />
               </button>
             </div>
             <div
@@ -145,7 +147,7 @@ export default function Akordy() {
                   setFontSize(fontSize + 5);
                 }}
               >
-                <LuArrowBigUpDash size={30} />
+                <LuArrowBigUpDash size={30} color="black" />
               </button>
             </div>
           </div>
@@ -183,7 +185,7 @@ export default function Akordy() {
             }}
           >
             <Song
-              text={piesenka?.slohy[selectedView].textik}
+              text={piesenka.slohy[selectedView].textik}
               showChords={true}
               zadanaVelkost={fontSize}
             />
@@ -214,6 +216,7 @@ export default function Akordy() {
             {slohy?.map(function (object, i) {
               function handleClick() {
                 setSelectedView(i);
+                console.log(object.length);
               }
               return (
                 <div
