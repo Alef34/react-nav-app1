@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
-import filter from 'lodash.filter'
+import filter from "lodash.filter";
 
 interface SongVerse {
   cisloS: string;
@@ -19,18 +19,22 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredData, setFilteredData] = useState<Song[]>([]);
   const [selectedItem, setSelectedItem] = useState("");
- 
-  const {data, isLoading,  isSuccess} = useQuery({
-    queryFn:()=>fetchDataTQ(searchQuery),
-    queryKey:["songs"] 
-    });
-    
-    if(isLoading){
-        return (<div><span>Loading....</span></div>)
-    }
 
-    if(isSuccess){
-       /*
+  const { data, isLoading, isSuccess } = useQuery({
+    queryFn: () => fetchDataTQ(searchQuery),
+    queryKey: ["songs"],
+  });
+
+  if (isLoading) {
+    return (
+      <div>
+        <span>Loading....</span>
+      </div>
+    );
+  }
+
+  if (isSuccess) {
+    /*
         const filtrdData = filter(data, (piesen:Song)=>{
             return contains(piesen, "");
           }); 
@@ -38,44 +42,57 @@ export default function Home() {
         setFilteredData(filtrdData);
        
         */
-        
-     }
- 
-     function contains(song: Song, formatedQuery: string): boolean {
-        return Object.values(song).some(value =>
-          typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
-     
-    }
+  }
 
-    function vyfiltruj(filtr:string){
-        const formatedQuery = filtr?.toLocaleLowerCase();
-        const filteredData = filter(data, (piesen:Song)=>{
-            return contains(piesen, formatedQuery);
-          });    
-        setFilteredData(filteredData);
-        console.log('pocet - ', searchQuery);
-    }
+  function contains(song: Song, formatedQuery: string): boolean {
+    return Object.values(song).some(
+      (value) =>
+        typeof value === "string" &&
+        value.toLowerCase().includes(formatedQuery?.toLowerCase())
+    );
+  }
 
-    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        console.log('som tu ', e.target.value );
-        setSearchQuery(e.target.value);
-        vyfiltruj(e.target.value);
-        console.log('aky je sqarchQuery', searchQuery);     
+  function vyfiltruj(filtr: string) {
+    const formatedQuery = filtr?.toLocaleLowerCase();
+    const filteredData = filter(data, (piesen: Song) => {
+      return contains(piesen, formatedQuery);
+    });
+    setFilteredData(filteredData);
+    console.log("pocet - ", searchQuery);
+  }
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("som tu ", e.target.value);
+    setSearchQuery(e.target.value);
+    vyfiltruj(e.target.value);
+    console.log("aky je sqarchQuery", searchQuery);
+  };
+
+  const handleClick = (item: Song) => {
+    // Tvoja logika pre kliknutie na položku
+    console.log(
+      "selitemmm:",
+      item.cisloP,
+      "-",
+      selectedItem,
+      item.cisloP === selectedItem
+    );
+    setSelectedItem(item.cisloP);
+    console.log(
+      "selitem:",
+      item.cisloP,
+      "-",
+      selectedItem,
+      item.cisloP === selectedItem
+    );
+    const piesen: Song = {
+      cisloP: item.cisloP,
+      nazov: item.nazov,
+      slohy: item.slohy,
     };
-
-    const handleClick = (item: Song) => {
-        // Tvoja logika pre kliknutie na položku
-        console.log('selitemmm:',item.cisloP,"-",selectedItem,item.cisloP===selectedItem );
-        setSelectedItem(item.cisloP);
-        console.log('selitem:',item.cisloP,"-",selectedItem,item.cisloP===selectedItem );
-        const piesen: Song = {
-          cisloP: item.cisloP,
-          nazov: item.nazov,
-          slohy:item.slohy,
-        };
-        navigate("/akordy", { state: piesen });
-    };
-/*
+    navigate("/akordy", { state: piesen });
+  };
+  /*
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     //    console.log("som tu ", e.target.value);
@@ -105,61 +122,70 @@ export default function Home() {
   };
 */
   return (
-    <div id="body" style={{
-            margin: 0,
-            padding: 0,
-            height: "100%",
-            width: "100%",
-        }}>
+    <div
+      id="body"
+      style={{
+        margin: 0,
+        padding: 0,
+        height: "100%",
+        width: "100%",
+      }}
+    >
+      <div
+        id="container"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh", // Rozdelí stránku na dve časti s rovnakou výškou
+          width: "100vw",
+          backgroundColor: "white",
+          padding: 0,
+          margin: 0,
 
-    
-      <div id="container" style={{display:"flex", 
-            flexDirection: "column",
-            height: "100vh", // Rozdelí stránku na dve časti s rovnakou výškou
-            width:"100vw",
-            backgroundColor:"white",
-            padding:0,
-            margin:0,
-
-            position:"absolute",
-            top:0,
-            left:0,
-          
-          }}>
-        <div id="inputBox" style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+        }}
+      >
+        <div
+          id="inputBox"
+          style={{
             flex: 1, // Zaberá dostupný voľný priestor
             backgroundColor: "#f0f0f0", // Nastav farbu pozadia, ak potrebuješ
-           margin:10, // Prispôsob vzhľad podľa potreby
-           padding:0
-            
-            }}>
+            margin: 10, // Prispôsob vzhľad podľa potreby
+            padding: 0,
+          }}
+        >
           {/* TextInput komponent */}
           <input
-              type="text"
-              style={{
-                width: "100%", // Zaberá celú šírku topSection
-                height: "100%", // Prispôsob výšku podľa potreby
-                fontSize: 20,
-                backgroundColor: "lightGray",
-                borderRadius: 15,
-                padding: 0,
-                color: "black",
-              }}
-              placeholder="zadaj číslo alebo textik..."
-              onChange={handleSearch}
-              value={searchQuery}
+            type="text"
+            style={{
+              width: "100%", // Zaberá celú šírku topSection
+              height: "100%", // Prispôsob výšku podľa potreby
+              fontSize: 20,
+              backgroundColor: "lightGray",
+              borderRadius: 15,
+              padding: 0,
+              color: "black",
+            }}
+            placeholder="zadaj číslo alebo textik..."
+            onChange={handleSearch}
+            value={searchQuery}
           />
         </div>
-      
-        <div id="listBox" style={{
-               flex: 10, // Zaberá dostupný voľný priestor
-               backgroundColor: "#e0e0e0", // Nastav farbu pozadia, ak potrebuješ
-               padding: 0, // Prispôsob vzhľad podľa potreby
-               margin:10,
-               marginTop:0,
-               overflowY:"auto",
-               borderRadius: 15,
-              }} >
+
+        <div
+          id="listBox"
+          style={{
+            flex: 10, // Zaberá dostupný voľný priestor
+            backgroundColor: "#e0e0e0", // Nastav farbu pozadia, ak potrebuješ
+            padding: 0, // Prispôsob vzhľad podľa potreby
+            margin: 10,
+            marginTop: 0,
+            overflowY: "auto",
+            borderRadius: 15,
+          }}
+        >
           {/* Unsorted list komponent */}
           <ul style={{ listStyleType: "none", padding: 0 }}>
             {filteredData.map((item) => (
@@ -173,30 +199,27 @@ export default function Home() {
                   cursor: "pointer",
                   color: "black",
                   borderRadius: 15,
+
                   backgroundColor:
                     selectedItem === item.cisloP ? "orange" : "lightblue",
                   listStylePosition: "inside",
                   border: "3px ridge black",
                 }}
               >
-                <div>
-                  <div>
-                    <p style={{ margin: 5 }}>
-                      {item.cisloP}. {item.nazov}
-                    </p>
-                  </div>
+                <div
+                  style={{
+                    textAlign: "start",
+                  }}
+                >
+                  <span style={{ margin: 5 }}>
+                    {item.cisloP}. {item.nazov}
+                  </span>
                 </div>
               </li>
             ))}
-        </ul>
-
+          </ul>
         </div>
-      
-      
-      
       </div>
-
     </div>
-    
   );
 }

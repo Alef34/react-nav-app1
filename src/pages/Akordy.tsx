@@ -1,10 +1,7 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Song from "../components/Song";
-import { MouseEvent, useState } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMugHot, faStepBackward, faThLarge } from "@fortawesome/free-solid-svg-icons";
-import { faFonticons } from "@fortawesome/free-brands-svg-icons/faFonticons";
-import { FaBeer } from "react-icons/fa";
+import { useState } from "react";
+
 import { LuArrowBigDownDash, LuArrowBigUpDash } from "react-icons/lu";
 
 interface SongVerse {
@@ -20,11 +17,12 @@ interface Song {
 
 export default function Akordy() {
   const location = useLocation();
-
+  const navigate = useNavigate();
   // Kontrola, či má location.state definovaný typ LocationState
   const piesenka: Song | null = location.state;
   const slohy = piesenka?.slohy.map((sloha) => sloha.cisloS);
   const [selectedView, setSelectedView] = useState(0);
+  const [fontSize, setFontSize] = useState(0);
 
   return (
     <div
@@ -34,6 +32,7 @@ export default function Akordy() {
         padding: 0,
         height: "100%",
         width: "100%",
+        backgroundColor: "red",
       }}
     >
       <div
@@ -46,85 +45,112 @@ export default function Akordy() {
           backgroundColor: "white",
           padding: 0,
           margin: 0,
+          marginTop: 0,
 
           position: "absolute",
           top: 0,
           left: 0,
         }}
       >
-        
-          <div id="nadpis-container"style={{
+        <div
+          id="nadpis-container"
+          style={{
             flex: 1, // Zaberá dostupný voľný priestor
             backgroundColor: "transparent", // Nastav farbu pozadia, ak potrebuješ
             padding: 0, // Prispôsob vzhľad podľa potreby
             marginLeft: 10,
             marginRight: 10,
-            marginTop: 0,
+            marginTop: 10,
             borderRadius: 15,
           }}
-          >
-            <div style={{
+        >
+          <div
+            style={{
               display: "flex",
-              flexDirection:"row",
+              flexDirection: "row",
               backgroundColor: "white",
-              
-              height:"100%",
+
+              height: "100%",
               padding: 0,
               marginLeft: 0,
-              marginRight:0,
-              borderRadius:15,
-              
-              }}>
-
-
-                <div style={{
-                  flex:10,
-                  borderRadius:15,
-                  
-                  height:"100%", 
-                  backgroundColor:"brown"}}>
-                   <button style={{height:"100%", width:"100%", backgroundColor:"gray",
-                          border:"1px solid black",
-                          textAlign:"left",
-                          fontSize:20}}>
-                            {piesenka?.cisloP}.{piesenka?.nazov}
-                    </button>
-                </div>
-                <div style={{
-                  flex:1,
-                  borderRadius:15,
-                  height:"100%", 
-                  backgroundColor:"gray"}}>
-                    <button style={{height:"100%", width:"100%", 
-                        backgroundColor:"gray", 
-                        border:"1px solid black"}}
-                    >
-                     
-                      <LuArrowBigDownDash size={30}/>
-                    </button>
-
-                </div>
-                <div style={{
-                  flex:1,
-                  borderRadius:15,
-                  height:"100%", 
-                  backgroundColor:"gray"}}>
-                    <button style={{height:"100%", width:"100%", 
-                        backgroundColor:"gray", 
-                        border:"1px solid black"}}
-                    >
-                     
-                      <LuArrowBigUpDash size={30}/>
-                    </button>
-
-                </div>
-
-                
-                
+              marginTop: 0,
+              marginRight: 0,
+              borderRadius: 15,
+            }}
+          >
+            <div
+              style={{
+                flex: 10,
+                borderRadius: 15,
+                height: "100%",
+                backgroundColor: "brown",
+              }}
+            >
+              <button
+                style={{
+                  height: "100%",
+                  width: "100%",
+                  backgroundColor: "lightGray",
+                  border: "1px solid black",
+                  color: "black",
+                  textAlign: "left",
+                  fontSize: 20,
+                  fontWeight: "bold",
+                }}
+                onClick={() => {
+                  navigate("/");
+                }}
+              >
+                {piesenka?.cisloP}.{piesenka?.nazov}
+              </button>
             </div>
-              
+            <div
+              style={{
+                flex: 1,
+                borderRadius: 15,
+                height: "100%",
+                backgroundColor: "gray",
+              }}
+            >
+              <button
+                style={{
+                  height: "100%",
+                  width: "100%",
+                  backgroundColor: "gray",
+                  border: "1px solid black",
+                }}
+                onClick={() => {
+                  setFontSize(fontSize - 5);
+                }}
+              >
+                <LuArrowBigDownDash size={30} />
+              </button>
+            </div>
+            <div
+              style={{
+                flex: 1,
+                borderRadius: 15,
+                height: "100%",
+                backgroundColor: "gray",
+              }}
+            >
+              <button
+                style={{
+                  height: "100%",
+                  width: "100%",
+                  backgroundColor: "gray",
+                  border: "1px solid black",
+                }}
+                onClick={() => {
+                  setFontSize(fontSize + 5);
+                }}
+              >
+                <LuArrowBigUpDash size={30} />
+              </button>
+            </div>
           </div>
-        
+        </div>
+
         <div
           id="listBox"
           style={{
@@ -137,7 +163,7 @@ export default function Akordy() {
             borderRadius: 15,
             alignContent: "center",
             alignItems: "center",
-            border:"1px solid black",
+            border: "1px solid black",
             justifyContent: "center",
           }}
         >
@@ -148,18 +174,18 @@ export default function Akordy() {
               height: "100%",
               justifyContent: "center",
               alignItems: "center",
-              backgroundColor: "yellow",
+              backgroundColor: "white",
               color: "black",
-              padding:0,
-              margin:0,
-              
-              borderRadius:15
+              padding: 0,
+              margin: 0,
+
+              borderRadius: 15,
             }}
           >
             <Song
               text={piesenka?.slohy[selectedView].textik}
               showChords={true}
-              zadanaVelkost={0}
+              zadanaVelkost={fontSize}
             />
           </div>
         </div>
