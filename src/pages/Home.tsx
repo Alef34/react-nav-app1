@@ -42,10 +42,15 @@ export default function Home() {
      
 
   function contains(song: Song, formatedQuery: string): boolean {
-    return Object.values(song).some(value =>
-      typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
-  
+   // return Object.values(song).some(value =>
+    //  typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
+ 
+    return song.cisloP.toLowerCase().includes(formatedQuery?.toLowerCase())||
+      song.nazov.toLowerCase().includes(formatedQuery?.toLowerCase());
+    
   }
+
+
 
   function vyfiltruj(filtr: string) {
     const formatedQuery = filtr?.toLocaleLowerCase();
@@ -53,7 +58,7 @@ export default function Home() {
       return contains(piesen, formatedQuery);
     });
     setFilteredData(filteredData);
-    console.log("pocet - ", searchQuery);
+   // console.log("pocet - ", searchQuery);
   }
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
