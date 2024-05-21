@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Song from "../components/Song";
 import { useState } from "react";
 
-import { LuArrowBigDownDash, LuArrowBigUpDash } from "react-icons/lu";
+import { LuAirVent, LuArrowBigDownDash, LuArrowBigUpDash } from "react-icons/lu";
 
 interface SongVerse {
   cisloS: string;
@@ -15,6 +15,19 @@ interface Song {
   slohy: SongVerse[];
 }
 
+const localData = {
+  set(key:string, value:any) {
+      localStorage.setItem(key, JSON.stringify(value));
+  },
+  get(key:string) {
+      const stored = localStorage.getItem(key);
+      return stored == null ? undefined : JSON.parse(stored);
+  },
+  remove(key:string) {
+      localStorage.removeItem(key);
+  }
+}
+
 export default function Akordy() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -22,7 +35,8 @@ export default function Akordy() {
   const piesenka: Song = location.state;
   const slohy = piesenka?.slohy.map((sloha) => sloha.cisloS);
   const [selectedView, setSelectedView] = useState(0);
-  const [fontSize, setFontSize] = useState(0);
+  const [fontSize, setFontSize] = useState(localData.get("fontSize")||0);
+  const [showAkordy, setShowAkordy] = useState(localData.get("showAkordy")||true);
 
   return (
     <div
@@ -106,6 +120,33 @@ export default function Akordy() {
                 {piesenka?.cisloP}.{piesenka?.nazov}
               </button>
             </div>
+            
+            <div
+              style={{
+                flex: 1,
+                borderRadius: 15,
+                height: "100%",
+                backgroundColor: "gray",
+              }}
+            >
+              <button
+                style={{
+                  height: "100%",
+                  width: "100%",
+                  backgroundColor: "red",
+                  border: "1px solid black",
+                }}
+                onClick={() => {
+                  setShowAkordy(!showAkordy);
+                  localData.set("showAkordy", !showAkordy);
+                }}
+              >
+                <LuAirVent size={30} color="black" />
+              </button>
+            </div>
+            
+            
+            
             <div
               style={{
                 flex: 1,
@@ -123,6 +164,7 @@ export default function Akordy() {
                 }}
                 onClick={() => {
                   setFontSize(fontSize - 5);
+                  localData.set("fontSize", fontSize - 5);
                 }}
               >
                 <LuArrowBigDownDash size={30} color="black" />
@@ -145,6 +187,7 @@ export default function Akordy() {
                 }}
                 onClick={() => {
                   setFontSize(fontSize + 5);
+                  localData.set("fontSize", fontSize + 5);
                 }}
               >
                 <LuArrowBigUpDash size={30} color="black" />
@@ -186,7 +229,7 @@ export default function Akordy() {
           >
             <Song
               text={piesenka.slohy[selectedView].textik}
-              showChords={true}
+              showChords={showAkordy}
               zadanaVelkost={fontSize}
             />
           </div>
