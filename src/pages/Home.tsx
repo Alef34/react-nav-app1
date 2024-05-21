@@ -27,31 +27,25 @@ export default function Home() {
   
 
   const {data, isLoading,  isSuccess} = useQuery<SongsData>({
-    queryFn:()=>fetchDataTQ(searchQuery),
+    queryFn:()=>fetchDataTQ(),
     queryKey:["songs"] 
-    });
-  /*  
-    useEffect(() => {
-      if (isSuccess && data) {
-        setFilteredData(data);
-      }
-    }, [isSuccess, data]);
-*/
+  });
+ 
   const [filteredData, setFilteredData] = useState<SongsData>(() => data || []);
-    if (isLoading) return <div>Loading...</div>;
-    if (!isSuccess) return <div>Error loading data</div>;
+  if (isLoading) return <div>Loading...</div>;
+  if (!isSuccess) return <div>Error loading data</div>;
     
-    if (isSuccess && data && !nacitane) {
-      setNacitane(true);
-      setFilteredData(data);
-    }
+  if (isSuccess && data && !nacitane) {
+    setNacitane(true);
+    setFilteredData(data);
+  }
      
 
-     function contains(song: Song, formatedQuery: string): boolean {
-        return Object.values(song).some(value =>
-          typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
-     
-    }
+  function contains(song: Song, formatedQuery: string): boolean {
+    return Object.values(song).some(value =>
+      typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
+  
+  }
 
   function vyfiltruj(filtr: string) {
     const formatedQuery = filtr?.toLocaleLowerCase();
@@ -68,22 +62,8 @@ export default function Home() {
   };
 
   const handleClick = (item: Song) => {
-    // Tvoja logika pre kliknutie na položku
-    console.log(
-      "selitemmm:",
-      item.cisloP,
-      "-",
-      selectedItem,
-      item.cisloP === selectedItem
-    );
-    setSelectedItem(item.cisloP);
-    console.log(
-      "selitem:",
-      item.cisloP,
-      "-",
-      selectedItem,
-      item.cisloP === selectedItem
-    );
+      setSelectedItem(item.cisloP);
+    
     const piesen: Song = {
       cisloP: item.cisloP,
       nazov: item.nazov,
@@ -91,35 +71,7 @@ export default function Home() {
     };
     navigate("/akordy", { state: piesen });
   };
-  /*
-
-    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    //    console.log("som tu ", e.target.value);
-    //    setSearchQuery(e.target.value);
-    //    vyfiltruj(e.target.value);
-    //    console.log("aky je sqarchQuery", searchQuery);
-
-    const piesen: Song = {
-      cisloP: "123",
-      nazov: "Jane Doe",
-    };
-    navigate("/about", { state: piesen });
-  };
-
-  const handleClick = (item: Song) => {
-    // Tvoja logika pre kliknutie na položku
-    const piesen: Song = {
-      cisloP: item.cisloP,
-      nazov: item.nazov,
-    };
-    navigate("/about", { state: piesen });
-    //  setSelectedItem(item.cisloP);
-    // alert(item.cisloP);
-    // alert(selectedItem);
-    //console.log(item.cisloP);
-    // navigate("./Detail.tsx");
-  };
-*/
+  
   return (
     <div
       id="body"
