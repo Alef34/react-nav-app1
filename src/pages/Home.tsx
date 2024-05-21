@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
@@ -14,33 +14,39 @@ interface Song {
   nazov: string;
   slohy: SongVerse[];
 }
+
+type SongsData = Song[];
+
 export default function Home() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredData, setFilteredData] = useState<Song[]>([]);
+  //const [filteredData, setFilteredData] = useState<SongsData>([]);
   const [selectedItem, setSelectedItem] = useState("");
+  const [nacitane, setNacitane] = useState(false);
  
-  const {data, isLoading,  isSuccess} = useQuery({
+  
+
+  const {data, isLoading,  isSuccess} = useQuery<SongsData>({
     queryFn:()=>fetchDataTQ(searchQuery),
     queryKey:["songs"] 
     });
+  /*  
+    useEffect(() => {
+      if (isSuccess && data) {
+        setFilteredData(data);
+      }
+    }, [isSuccess, data]);
+*/
+  const [filteredData, setFilteredData] = useState<SongsData>(() => data || []);
+    if (isLoading) return <div>Loading...</div>;
+    if (!isSuccess) return <div>Error loading data</div>;
     
-    if(isLoading){
-        return (<div><span>Loading....</span></div>)
+    if (isSuccess && data && !nacitane) {
+      setNacitane(true);
+      setFilteredData(data);
     }
+     
 
-    if(isSuccess){
-       /*
-        const filtrdData = filter(data, (piesen:Song)=>{
-            return contains(piesen, "");
-          }); 
-          
-        setFilteredData(filtrdData);
-       
-        */
-        
-     }
- 
      function contains(song: Song, formatedQuery: string): boolean {
         return Object.values(song).some(value =>
           typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
