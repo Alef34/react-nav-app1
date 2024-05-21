@@ -11,6 +11,22 @@ interface Song {
   slohy: SongVerse[];
 }
 
+export const fetchDataTQ = async (): Promise<Song[]> => {
+  //await query:any
+
+  //new Promise((resolve)=>setTimeout(resolve, 1000));
+
+  //const queryna = query.trim();
+  const poslaneData = novePiesne.filter((piesen) =>
+    Object.values(piesen).some(
+      (value) => typeof value === "string" && value.toLowerCase().includes("")
+    )
+  );
+  //queryna.toLowerCase()
+  //console.log("UUUA:", "+", "", "+", poslaneData.length);
+  return [...poslaneData];
+};
+
 const novePiesne = [
   {
     cisloP: "1",
@@ -2424,20 +2440,3 @@ const novePiesne = [
   },
 ];
 //export default novePiesne;
-export const fetchDataTQ = async (query: any): Promise<Song[]> => {
-  //await
-
-  //new Promise((resolve)=>setTimeout(resolve, 1000));
-
-  const queryna = query.trim();
-  const poslaneData = novePiesne.filter((piesen) =>
-    Object.values(piesen).some(
-      (value) =>
-        typeof value === "string" &&
-        value.toLowerCase().includes(queryna.toLowerCase())
-    )
-  );
-
-  console.log("UUUA:", "+", queryna.toLowerCase(), "+", poslaneData.length);
-  return [...poslaneData];
-};

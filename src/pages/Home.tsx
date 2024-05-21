@@ -20,8 +20,8 @@ export default function Home() {
   const [filteredData, setFilteredData] = useState<Song[]>([]);
   const [selectedItem, setSelectedItem] = useState("");
 
-  const { data, isLoading, isSuccess } = useQuery({
-    queryFn: () => fetchDataTQ(searchQuery),
+  const { data, isLoading, isSuccess, isFetched } = useQuery({
+    queryFn: () => fetchDataTQ(),
     queryKey: ["songs"],
   });
 
@@ -42,6 +42,10 @@ export default function Home() {
         setFilteredData(filtrdData);
        
         */
+    //setSearchQuery("");
+    //vyfiltruj("");
+    //setFilteredData(data);
+    console.log("udaje su ready", filteredData.length);
   }
 
   function contains(song: Song, formatedQuery: string): boolean {
@@ -62,10 +66,8 @@ export default function Home() {
   }
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("som tu ", e.target.value);
     setSearchQuery(e.target.value);
     vyfiltruj(e.target.value);
-    console.log("aky je sqarchQuery", searchQuery);
   };
 
   const handleClick = (item: Song) => {
