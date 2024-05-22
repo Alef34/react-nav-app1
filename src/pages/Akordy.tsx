@@ -2,7 +2,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Song from "../components/Song";
 import { useState } from "react";
 
-import { LuAirVent, LuArrowBigDownDash, LuArrowBigUpDash } from "react-icons/lu";
+import {
+  LuArrowBigDownDash,
+  LuArrowBigUpDash,
+  LuMinus,
+  LuPlus,
+} from "react-icons/lu";
 
 interface SongVerse {
   cisloS: string;
@@ -16,17 +21,17 @@ interface Song {
 }
 
 const localData = {
-  set(key:string, value:any) {
-      localStorage.setItem(key, JSON.stringify(value));
+  set(key: string, value: any) {
+    localStorage.setItem(key, JSON.stringify(value));
   },
-  get(key:string) {
-      const stored = localStorage.getItem(key);
-      return stored == null ? undefined : JSON.parse(stored);
+  get(key: string) {
+    const stored = localStorage.getItem(key);
+    return stored == null ? undefined : JSON.parse(stored);
   },
-  remove(key:string) {
-      localStorage.removeItem(key);
-  }
-}
+  remove(key: string) {
+    localStorage.removeItem(key);
+  },
+};
 
 export default function Akordy() {
   const location = useLocation();
@@ -35,8 +40,10 @@ export default function Akordy() {
   const piesenka: Song = location.state;
   const slohy = piesenka?.slohy.map((sloha) => sloha.cisloS);
   const [selectedView, setSelectedView] = useState(0);
-  const [fontSize, setFontSize] = useState(localData.get("fontSize")||0);
-  const [showAkordy, setShowAkordy] = useState(localData.get("showAkordy")||true);
+  const [fontSize, setFontSize] = useState(
+    () => localData.get("fontSize") || 0
+  );
+  const [showAkordy, setShowAkordy] = useState(localData.get("showAkordy"));
 
   return (
     <div
@@ -120,7 +127,7 @@ export default function Akordy() {
                 {piesenka?.cisloP}.{piesenka?.nazov}
               </button>
             </div>
-            
+
             <div
               style={{
                 flex: 1,
@@ -133,7 +140,7 @@ export default function Akordy() {
                 style={{
                   height: "100%",
                   width: "100%",
-                  backgroundColor: "red",
+                  backgroundColor: "gray",
                   border: "1px solid black",
                 }}
                 onClick={() => {
@@ -141,12 +148,14 @@ export default function Akordy() {
                   localData.set("showAkordy", !showAkordy);
                 }}
               >
-                <LuAirVent size={30} color="black" />
+                {showAkordy ? (
+                  <LuMinus size={30} color="black" />
+                ) : (
+                  <LuPlus size={30} color="black" />
+                )}
               </button>
             </div>
-            
-            
-            
+
             <div
               style={{
                 flex: 1,
@@ -168,6 +177,7 @@ export default function Akordy() {
                 }}
               >
                 <LuArrowBigDownDash size={30} color="black" />
+                <pencil.tip.crop.circle.badge.plus
               </button>
             </div>
             <div

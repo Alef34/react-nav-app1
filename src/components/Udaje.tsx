@@ -140,7 +140,7 @@ const novePiesne = [
       {
         cisloS: "V1",
         textik:
-          "[a]Pánovi nech znie v [e]nebesiach [a]sláva, [G]svätému [C]Bohu [G]česť nech [e]sa [a]vzdáva! [F]Velebte [G/D]Pána, [a]mocnos[e]ti [a]neba, velebte [e]Pána, zástupy v [a]nebi!",
+          "[a]Pánovi nech znie v [e]nebesiach [a]sláva, \n[G]svätému [C]Bohu [G]česť nech [e]sa [a]vzdáva! \n[F]Velebte [G/D]Pána, [a]mocnos[e]ti [a]neba, \nvelebte [e]Pána, zástupy v [a]nebi!",
       },
       {
         cisloS: "V2",
