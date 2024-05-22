@@ -204,7 +204,7 @@ const novePiesne = [
       {
         cisloS: "V1",
         textik:
-          "[d]Vzdávame [g]vďaku, [C]chválu, [F]česť, \n[B]všemo[C]húci [d]Bo[A]že[d]náš, \n[d]že si sa [g]ujal [C4]svojej veľkej [F]moci \n[B]a za[C]čal si [d]kra[A]ľo[d]vať.",
+          "[d]Vzdávame [g]vďaku, [C]chválu, [F]česť, \n[B]všemo[C]húci [d]Bo[A]že [d]náš, \n[d]že si sa [g]ujal [C4]svojej veľkej [F]moci \n[B]a za[C]čal si [d]kra[A]ľo[d]vať.",
       },
       {
         cisloS: "V2",

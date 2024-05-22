@@ -8,6 +8,9 @@ import {
   LuMinus,
   LuPlus,
 } from "react-icons/lu";
+import { TbLetterCaseLower, TbLetterCaseUpper } from "react-icons/tb";
+import { PiGuitarDuotone, PiGuitarFill, PiGuitarLight } from "react-icons/pi";
+import { MdNotes } from "react-icons/md";
 
 interface SongVerse {
   cisloS: string;
@@ -62,7 +65,7 @@ export default function Akordy() {
         style={{
           display: "flex",
           flexDirection: "column",
-          height: "100vh", // Rozdelí stránku na dve časti s rovnakou výškou
+          height: "98vh", // Rozdelí stránku na dve časti s rovnakou výškou
           width: "100vw",
           backgroundColor: "white",
           padding: 0,
@@ -149,9 +152,9 @@ export default function Akordy() {
                 }}
               >
                 {showAkordy ? (
-                  <LuMinus size={30} color="black" />
+                  <MdNotes size={40} color="black" />
                 ) : (
-                  <LuPlus size={30} color="black" />
+                  <PiGuitarLight size={40} color="black" />
                 )}
               </button>
             </div>
@@ -176,8 +179,8 @@ export default function Akordy() {
                   localData.set("fontSize", fontSize - 5);
                 }}
               >
-                <LuArrowBigDownDash size={30} color="black" />
-                <pencil.tip.crop.circle.badge.plus
+                <TbLetterCaseLower size={30} color="black" />
+                
               </button>
             </div>
             <div
@@ -200,7 +203,7 @@ export default function Akordy() {
                   localData.set("fontSize", fontSize + 5);
                 }}
               >
-                <LuArrowBigUpDash size={30} color="black" />
+                <TbLetterCaseUpper size={30} color="black" />
               </button>
             </div>
           </div>

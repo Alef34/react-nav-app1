@@ -94,12 +94,13 @@ export default function Home() {
         style={{
           display: "flex",
           flexDirection: "column",
-          height: "100vh", // Rozdelí stránku na dve časti s rovnakou výškou
+          height: "98vh", // Rozdelí stránku na dve časti s rovnakou výškou
           width: "100vw",
           backgroundColor: "white",
           padding: 0,
           margin: 0,
           paddingTop: "20px",
+          
           position: "absolute",
           top: 0,
           left: 0,
