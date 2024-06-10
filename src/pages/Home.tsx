@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchDataTQ } from "../components/Udaje";
+import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
 import filter from "lodash.filter";
-import { localData } from "../components/MyStorage";
+
+import novePiesne1 from "../components/Udaje1";
 
 interface SongVerse {
   cisloS: string;
@@ -24,12 +25,15 @@ export default function Home() {
   //const [filteredData, setFilteredData] = useState<SongsData>([]);
   const [selectedItem, setSelectedItem] = useState("");
   const [nacitane, setNacitane] = useState(false);
+  const [ktoraDB, setKtoraDB]= useState(novePiesne1);
+  const [ktoraDBstr, setKtoraDBstr]= useState("novePiesne1");
   
   
 
+
   const {data, isLoading,  isSuccess} = useQuery<SongsData>({
-    queryFn:()=>fetchDataTQ(),
-    queryKey:["songs"] 
+    queryFn:()=>fetchDataTQ(ktoraDB),
+    queryKey:["songs", ktoraDB] 
   });
  
   const [filteredData, setFilteredData] = useState<SongsData>(() => data || []);
@@ -41,7 +45,27 @@ export default function Home() {
     setFilteredData(data);
   }
      
+  function handleSelectDb(){
+    setNacitane(false);
+    if (ktoraDBstr=="novePiesne1")
+      {
+        setKtoraDB(novePiesne);
+        setKtoraDBstr("novePiesne");
+      } 
+    else
+    {
+      setKtoraDB(novePiesne1);
+      setKtoraDBstr("novePiesne1");
+    } 
 
+    
+  }
+
+  function handleSelectDb1(){
+    setNacitane(false);
+    setKtoraDB(novePiesne1);
+    
+  }
   function contains(song: Song, formatedQuery: string): boolean {
    // return Object.values(song).some(value =>
     //  typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
@@ -119,7 +143,7 @@ export default function Home() {
           <input
             type="text"
             style={{
-              width: "100%", // Zaberá celú šírku topSection
+              width: "90%", // Zaberá celú šírku topSection
               height: "100%", // Prispôsob výšku podľa potreby
               fontSize: 20,
               backgroundColor: "lightGray",
@@ -131,6 +155,7 @@ export default function Home() {
             onChange={handleSearch}
             value={searchQuery}
           />
+          <button  onClick={handleSelectDb}>AA</button>
         </div>
 
         <div
