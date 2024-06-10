@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import filter from "lodash.filter";
 
 import novePiesne1 from "../components/Udaje1";
+import { GiHamburgerMenu } from "react-icons/gi";
 
 interface SongVerse {
   cisloS: string;
@@ -124,7 +125,6 @@ export default function Home() {
           padding: 0,
           margin: 0,
           paddingTop: "20px",
-          
           position: "absolute",
           top: 0,
           left: 0,
@@ -133,35 +133,59 @@ export default function Home() {
         <div
           id="inputBox"
           style={{
-            flex: 1, // Zaberá dostupný voľný priestor
-            backgroundColor: "#f0f0f0", // Nastav farbu pozadia, ak potrebuješ
+             // Zaberá dostupný voľný priestor
+             flex: 1,
+             display:"flex",
+            backgroundColor: "red", // Nastav farbu pozadia, ak potrebuješ
             margin: 10, // Prispôsob vzhľad podľa potreby
             padding: 0,
+            flexDirection:"row"
           }}
         >
-          {/* TextInput komponent */}
-          <input
-            type="text"
-            style={{
-              width: "90%", // Zaberá celú šírku topSection
-              height: "100%", // Prispôsob výšku podľa potreby
-              fontSize: 20,
-              backgroundColor: "lightGray",
-              borderRadius: 15,
-              padding: 0,
-              color: "black",
-            }}
-            placeholder="zadaj číslo alebo textik..."
-            onChange={handleSearch}
-            value={searchQuery}
-          />
-          <button  onClick={handleSelectDb}>AA</button>
+          <div id="searchBox" style={{flex:10, backgroundColor:"transparent"}}>
+              <input
+                type="text"
+                style={{
+                  width: "98%", // Zaberá celú šírku topSection
+                  height: "98%", // Prispôsob výšku podľa potreby
+                  fontSize: 20,
+                  backgroundColor: "lightGray",
+                  borderRadius: 15,
+                  padding: 0,
+                  color: "black",
+                }}
+                placeholder="zadaj číslo alebo textik..."
+                onChange={handleSearch}
+                value={searchQuery}
+              />
+          </div>
+          <div id="Hamb" style={{
+                              flex:1, 
+                              backgroundColor:"transparent",
+                              justifyContent:"center",
+                              alignItems:"center"
+                            }}>
+            <button  onClick={handleSelectDb} style={{backgroundColor:"white", borderColor:"black", borderRadius:30, width:"100%", height:"100%"}}>AA</button>
+          </div>
+          <div id="Hamb" style={{
+                              flex:1, 
+                              backgroundColor:"transparent",
+                              justifyContent:"center",
+                              alignItems:"center"
+                            }}>
+            <button  onClick={handleSelectDb} style={{backgroundColor:"white", borderColor:"black", borderRadius:30, width:"100%", height:"100%"}}>
+              <GiHamburgerMenu style={{width:40, height:40, borderColor:"black"}}/>
+            </button>
+            
+
+          </div>
+          
         </div>
 
         <div
           id="listBox"
           style={{
-            flex: 10, // Zaberá dostupný voľný priestor
+            flex: 15, // Zaberá dostupný voľný priestor
             backgroundColor: "#e0e0e0", // Nastav farbu pozadia, ak potrebuješ
             padding: 0, // Prispôsob vzhľad podľa potreby
             margin: 10,
