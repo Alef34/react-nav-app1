@@ -9,17 +9,15 @@ import Akordy from "./pages/Akordy";
 function App() {
   const queryClient = new QueryClient();
   return (
-    <div className="App">
-      <QueryClientProvider client={queryClient}>
-        <Router>
-          <Routes>
-            <Route path={"/"} element={<Home />} />
-            <Route path={"/about"} element={<About />} />
-            <Route path={"/akordy"} element={<Akordy />} />
-          </Routes>
-        </Router>
-      </QueryClientProvider>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <Routes>
+          <Route path={"/"} element={<Home />} />
+          <Route path={"/about"} element={<About />} />
+          <Route path={"/akordy"} element={<Akordy />} />
+        </Routes>
+      </Router>
+    </QueryClientProvider>
   );
 }
 

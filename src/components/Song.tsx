@@ -74,7 +74,7 @@ const Song: React.FC<SongProps> = ({ text, showChords, zadanaVelkost }) => {
   return (
     <div>
       {songData.map((parts, index) => (
-        <SongLine 
+        <SongLine
           key={index}
           parts={parts}
           showChords={showChords ?? false}
@@ -88,18 +88,22 @@ const Song: React.FC<SongProps> = ({ text, showChords, zadanaVelkost }) => {
 const getStyles = (velkost: number) => ({
   line: {
     display: "flex",
-    alignItems: "flex-start",
-    whiteSpace: "pre-wrap",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "10px",
+    flexWrap: "wrap",
+    border: "solid 2px black",
   },
   chord: {
     fontWeight: "normal",
     color: "blue",
     fontSize: 20 + velkost,
-    lineHeight: (20 + velkost) / 2 + "px",
+    marginBottom: "1em",
+    border: "solid 2px black",
   },
   lyrics: {
     fontSize: 20 + velkost,
-    lineHeight: 35 + velkost + "px",
+    border: "solid 2px black",
   },
 });
 

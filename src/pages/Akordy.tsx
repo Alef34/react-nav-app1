@@ -73,7 +73,6 @@ export default function Akordy() {
           margin: 0,
           marginTop: 0,
 
-          position: "absolute",
           top: 0,
           left: 0,
         }}
@@ -180,7 +179,6 @@ export default function Akordy() {
                 }}
               >
                 <TbLetterCaseLower size={30} color="black" />
-                
               </button>
             </div>
             <div
