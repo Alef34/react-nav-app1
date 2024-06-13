@@ -17,6 +17,18 @@ export const fetchDataTQ = async (suborSdatami:Song[]): Promise<Song[]> => {
   //new Promise((resolve)=>setTimeout(resolve, 1000));
 
   //const queryna = query.trim();
+
+const storedData = localStorage.getItem('apiData');
+if (storedData) {
+  const songs: Song[] = JSON.parse(storedData) as Song[];
+  console.log(songs);
+  return [...songs];
+} else {
+  console.log('No data found in localStorage');
+}
+
+
+
   const poslaneData = suborSdatami.filter((piesen) =>
     Object.values(piesen).some(
       (value) => typeof value === "string" && value.toLowerCase().includes("")

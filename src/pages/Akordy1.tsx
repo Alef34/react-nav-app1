@@ -29,7 +29,7 @@ const localData = {
   },
 };
 
-export default function Akordy() {
+export default function Akordy1() {
   const location = useLocation();
   const navigate = useNavigate();
   // Kontrola, či má location.state definovaný typ LocationState
@@ -42,77 +42,48 @@ export default function Akordy() {
   const [showAkordy, setShowAkordy] = useState(localData.get("showAkordy"));
 
   return (
-    <div
-      id="body"
-      style={{
-        margin: 0,
-        padding: 0,
-        paddingTop: "40px",
-        height: "100%",
-        width: "100%",
-        backgroundColor: "red",
-      }}
-    >
+   
       <div
         id="container"
         style={{
-          display: "flex",
-          flexDirection: "column",
-          height: "98vh", // Rozdelí stránku na dve časti s rovnakou výškou
-          width: "100vw",
-          backgroundColor: "white",
-          padding: 0,
-          paddingTop: "20px",
-          margin: 0,
-          marginTop: 0,
-
-          top: 0,
-          left: 0,
-        }}
+            display: "flex",
+            flexDirection: "column",
+            padding: 0,
+            margin: 0,
+            height: "100%",
+            paddingTop: "20px",
+            top: 0,
+            left: 0,
+            color: "black",
+            backgroundColor:"yellow"
+          }}
       >
         <div
           id="nadpis-container"
           style={{
-            flex: 1, // Zaberá dostupný voľný priestor
+            //flex: 1, // Zaberá dostupný voľný priestor
+            display:"flex",
+            flexDirection: "row",
             backgroundColor: "transparent", // Nastav farbu pozadia, ak potrebuješ
             padding: 0, // Prispôsob vzhľad podľa potreby
             marginLeft: 10,
             marginRight: 10,
-            marginTop: 10,
+            marginTop: 0,
             borderRadius: 15,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              backgroundColor: "white",
-
-              height: "100%",
-              padding: 0,
-              marginLeft: 0,
-              marginTop: 0,
-              marginRight: 0,
-              borderRadius: 15,
-            }}
-          >
-            <div
-              style={{
-                flex: 10,
-                borderRadius: 15,
-                height: "100%",
-                backgroundColor: "brown",
-              }}
-            >
+          
+            
               <button
                 style={{
                   height: "100%",
                   width: "100%",
                   backgroundColor: "lightGray",
                   border: "1px solid black",
+                  borderRadius:15,
                   color: "black",
                   textAlign: "left",
-                  fontSize: 20,
+                  fontSize: 30,
                   fontWeight: "bold",
                 }}
                 onClick={() => {
@@ -121,27 +92,13 @@ export default function Akordy() {
               >
                 {piesenka?.cisloP}.{piesenka?.nazov}
               </button>
-            </div>
+          
 
-            <div
-              style={{
-                flex: 1,
-                borderRadius: 15,
-                height: "100%",
-                backgroundColor: "gray",
-              }}
-            >
-              <button
-                style={{
-                  height: "100%",
-                  width: "100%",
-                  backgroundColor: "gray",
-                  border: "1px solid black",
-                }}
-                onClick={() => {
-                  setShowAkordy(!showAkordy);
-                  localData.set("showAkordy", !showAkordy);
-                }}
+           
+              <button style={getStyles(40).button} onClick={() => {
+                                                        setShowAkordy(!showAkordy);
+                                                        localData.set("showAkordy", !showAkordy);
+                                                        }}
               >
                 {showAkordy ? (
                   <MdNotes size={40} color="black" />
@@ -149,65 +106,36 @@ export default function Akordy() {
                   <PiGuitarLight size={40} color="black" />
                 )}
               </button>
-            </div>
-
-            <div
-              style={{
-                flex: 1,
-                borderRadius: 15,
-                height: "100%",
-                backgroundColor: "gray",
-              }}
-            >
-              <button
-                style={{
-                  height: "100%",
-                  width: "100%",
-                  backgroundColor: "gray",
-                  border: "1px solid black",
-                }}
-                onClick={() => {
-                  setFontSize(fontSize - 5);
-                  localData.set("fontSize", fontSize - 5);
-                }}
+                      
+              <button style={getStyles(40).button} onClick={() => {
+                                                        setFontSize(fontSize - 5);
+                                                        localData.set("fontSize", fontSize - 5);
+                                                        }}
               >
                 <TbLetterCaseLower size={30} color="black" />
               </button>
-            </div>
-            <div
-              style={{
-                flex: 1,
-                borderRadius: 15,
-                height: "100%",
-                backgroundColor: "gray",
-              }}
-            >
-              <button
-                style={{
-                  height: "100%",
-                  width: "100%",
-                  backgroundColor: "gray",
-                  border: "1px solid black",
-                }}
-                onClick={() => {
-                  setFontSize(fontSize + 5);
-                  localData.set("fontSize", fontSize + 5);
-                }}
+            
+           
+              <button style={getStyles(40).button} onClick={() => {
+                                                        setFontSize(fontSize + 5);
+                                                        localData.set("fontSize", fontSize + 5);
+                                                        }}
               >
                 <TbLetterCaseUpper size={30} color="black" />
               </button>
-            </div>
-          </div>
+         
         </div>
 
         <div
           id="listBox"
           style={{
-            flex: 10, // Zaberá dostupný voľný priestor
+            flexGrow:1 , // Zaberá dostupný voľný priestor
             backgroundColor: "#e0e0e0", // Nastav farbu pozadia, ak potrebuješ
             padding: 0, // Prispôsob vzhľad podľa potreby
             margin: 10,
-            marginTop: 0,
+            marginTop: 10,
+            marginBottom:0,
+
             overflowY: "auto",
             borderRadius: 15,
             alignContent: "center",
@@ -239,25 +167,15 @@ export default function Akordy() {
           </div>
         </div>
 
-        <div
-          id="slohacik"
-          style={{
-            flex: 1, // Zaberá dostupný voľný priestor
-            backgroundColor: "transparent", // Nastav farbu pozadia, ak potrebuješ
-            padding: 0, // Prispôsob vzhľad podľa potreby
-            margin: 30,
-            marginTop: 0,
-            overflowY: "auto",
-            borderRadius: 15,
-          }}
-        >
+        
           <div
             id="slohy-container"
             style={{
-              height: "100%",
               backgroundColor: "white",
               display: "flex",
               flexDirection: "row",
+              margin:10,
+              
             }}
           >
             {slohy?.map(function (object, i) {
@@ -296,7 +214,7 @@ export default function Akordy() {
                   >
                     <span
                       style={{
-                        fontSize: 25,
+                        fontSize: 40,
                       }}
                     >
                       {piesenka?.slohy[i].cisloS}
@@ -306,8 +224,18 @@ export default function Akordy() {
               );
             })}
           </div>
-        </div>
+     
       </div>
-    </div>
+ 
   );
 }
+const getStyles= (velkost: number) => ({
+    button:{
+        backgroundColor: "white",
+        borderColor: "black",
+        borderRadius: velkost,
+        width: (2*velkost).toString()+"px",
+        height: (2*velkost).toString()+"px",
+        padding:velkost/3
+    }
+});

@@ -40,6 +40,7 @@ export default function Home() {
 
   if (isSuccess && data && !nacitane) {
     setNacitane(true);
+    localStorage.setItem('apiData', JSON.stringify(data));
     setFilteredData(data);
   }
 
@@ -55,8 +56,10 @@ export default function Home() {
   }
 
   function handleSelectDb1() {
-    setNacitane(false);
-    setKtoraDB(novePiesne1);
+    const storedData = JSON.parse(localStorage.getItem('apiData')!);
+    setFilteredData(storedData);
+    console.log(data?.length);
+    
   }
   function contains(song: Song, formatedQuery: string): boolean {
     // return Object.values(song).some(value =>
@@ -106,6 +109,7 @@ export default function Home() {
         top: 0,
         left: 0,
         color: "black",
+        backgroundColor:"yellow"
       }}
     >
       <div
@@ -121,10 +125,10 @@ export default function Home() {
         <input
           type="text"
           style={{
-            fontSize: 20,
+            fontSize: 30,
             flexGrow: 1,
             backgroundColor: "lightGray",
-            borderRadius: 30,
+            borderRadius: 15,
             padding: "0 20px",
             color: "black",
           }}
@@ -134,25 +138,13 @@ export default function Home() {
         />
 
         <button
-          onClick={handleSelectDb}
-          style={{
-            backgroundColor: "white",
-            borderColor: "black",
-            borderRadius: 30,
-            width: "60px",
-            height: "60px",
-          }}
+          onClick={handleSelectDb1}
+          style={getStyles(40).button}
         ></button>
 
         <button
           onClick={handleSelectDb}
-          style={{
-            backgroundColor: "white",
-            borderColor: "black",
-            borderRadius: 30,
-            width: "60px",
-            height: "60px",
-          }}
+          style={getStyles(40).button}
         >
           <GiHamburgerMenu
             style={{
@@ -211,3 +203,13 @@ export default function Home() {
     </div>
   );
 }
+const getStyles= (velkost: number) => ({
+  button:{
+      backgroundColor: "white",
+      borderColor: "black",
+      borderRadius: velkost,
+      width: (2*velkost).toString()+"px",
+      height: (2*velkost).toString()+"px",
+      padding:velkost/3
+  }
+});

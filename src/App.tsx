@@ -4,7 +4,7 @@ import About from "./pages/About";
 import Home from "./pages/Home";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import Akordy from "./pages/Akordy";
+import Akordy1 from "./pages/Akordy1";
 
 function App() {
   const queryClient = new QueryClient();
@@ -14,7 +14,7 @@ function App() {
         <Routes>
           <Route path={"/"} element={<Home />} />
           <Route path={"/about"} element={<About />} />
-          <Route path={"/akordy"} element={<Akordy />} />
+          <Route path={"/akordy"} element={<Akordy1 />} />
         </Routes>
       </Router>
     </QueryClientProvider>
