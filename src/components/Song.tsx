@@ -92,20 +92,21 @@ const getStyles = (velkost: number) => ({
     justifyContent: "center",
     margin: "10px",
     flexWrap: "wrap",
-    //border: "solid 2px black",
+    border: "solid 2px black",
   },
   chord: {
     fontWeight: "normal",
     color: "blue",
     fontSize: 20 + velkost,
     //marginBottom: "1em",
-    marginTop:-velkost,
-    //border: "solid 2px black",
+    marginTop: -velkost,
+    paddingBottom: "1em",
+    border: "solid 2px red",
   },
   lyrics: {
     fontSize: 20 + velkost,
-    //border: "solid 2px black",
-    color:"gray"
+    border: "solid 2px black",
+    color: "gray",
   },
 });
 
