@@ -1,3 +1,4 @@
+import { height } from "@fortawesome/free-brands-svg-icons/fa42Group";
 import React from "react";
 
 interface Chord {
@@ -51,7 +52,9 @@ const SongLine: React.FC<SongLineProps> = ({ parts, showChords, velkost }) => (
             style={getStyles(velkost).chord}
           >{`${part.chord}`}</span>
         ) : (
-          <React.Fragment key={index}></React.Fragment>
+          <React.Fragment key={index}>
+            <p>&nbsp;&nbsp;&nbsp;</p>
+          </React.Fragment>
         )
       ) : (
         <span key={index} style={getStyles(velkost).lyrics}>
@@ -92,20 +95,21 @@ const getStyles = (velkost: number) => ({
     justifyContent: "center",
     margin: "10px",
     flexWrap: "wrap",
-    border: "solid 2px black",
+    //  border: "solid 2px black",
   },
   chord: {
     fontWeight: "normal",
     color: "blue",
     fontSize: 20 + velkost,
     //marginBottom: "1em",
-    marginTop: -velkost,
+    marginTop: -2 * velkost,
     paddingBottom: "1em",
-    border: "solid 2px red",
+    //  border: "solid 2px red",
+    height: "1em",
   },
   lyrics: {
     fontSize: 20 + velkost,
-    border: "solid 2px black",
+    // border: "solid 2px black",
     color: "gray",
   },
 });
