@@ -2805,6 +2805,513 @@ const novePiesne = [
       ]
 },
 
+{"cisloP":"239","nazov":"Vybral som si vás",
+  "slohy":[
+    {"cisloS":"V1","textik":"[fis]Vybral som si [D]vás, \naby [E]oheň nezha[A]sol, \n[h]vy ste svetlo [fis]sviec, \nste [D]ako v chlebe [Cis]soľ. \n[fis]Ak ste vsade[cis]ní \ndo [h]môjho prame[fis]ňa, \ntak [D]vo vás dozre[h]jú \nplody spa[Cis]se[fis]nia."}, 
+    {"cisloS":"V2","textik":"Dotknite sa rúk, vložte prsty do boku, umyte sa v láske ako v potoku. Áno, vzkriesený som prišiel medzi vás, kým ma zavolá k sebe Otcov hlas. "}, 
+{"cisloS":"V3","textik":"Svojho Ducha vám pošlem v znaku pokoja, bratov povzbudzujte, nech sa neboja. Zložte na paténu život s nadšením, hladným vás rozdám, keď vás premením."},
+    {"cisloS":"V4","textik":"Zhromaždite môj ľud, nech nie je mnoho stád, žiarte radosťou, veď všetkých vás mám rád. Nadľahčujte láskou, v duši každý tieň a s bázňou očakávajte Pánov deň."}
+
+  ]
+},
+
+
+{"cisloP":"240","nazov":"Za nás vzal si kríž",
+  "slohy":[
+    {"cisloS":"V1","textik":"Za [A]nás vzal si [A/Cis]kríž, \nsi [D]hoden všetkej [h]slá[E]vy, \n[D]ty, Baránok [A/Cis]náš, \nčo [h7]v nebi má svoj [E/Gis]trón. "},
+{"cisloS":"V2","textik":"[D]„Múdrosť a [Cis4]moc!“ volám \n[Cis/Eis]tebe, [fis]Ví[E]ťaz, [A/Cis]Kráľ. \nTebe [D]sláva vždy [E4]atrí. [E]A[fis]men. \n[A/Cis]Tebe [D]sláva vždy [E4]patrí. [E]A[A]men."}, 
+
+  ]
+},
+
+
+
+
+{"cisloP":"241","nazov":"Zohni kolená",
+  "slohy":[
+    {"cisloS":"V1","textik":"[G] Zohni kole[C] ná, \n[D/C] Pán prichádza [h] k nám,\n[e7] spájaj sa [C] s ním \n[h] tichou [a7] modlit[D] bou."},
+{"cisloS":"V2","textik":"[G] Sám uvi[C] díš, \n[D/C] on sa poze[h] rá,\n[e] piesňami [C] ví[h] tame \n[a7] Kráľa [D4-D] krá[G]ľov."}, 
+
+  ]
+},
+
+
+
+
+{"cisloP":"242","nazov":"Tebe chvála navždy znie",
+  "slohy":[
+    {"cisloS":"V1","textik":"/: Tebe [B]chvála navždy [g]znie. \nTebe [A]sláva vždy pat[D]rí, \npocta, [g]víťaz[d]stvo i [Es]vláda. \nLen [B]sám si Kráľ, [F]Syn Boží! \nTy si [g]zvíťa[d]zil, náš [Es]Pán. \nPrijmi [c]úctu, Baránok [F]náš. :/"},
+{"cisloS":"R","textik":"/: A[B]men, a[g]men, \nty si [Es]zvíťa[c7]zil, náš [F4 - F]Pán. :/"}, 
+
+  ]
+},
+
+{"cisloP":"243","nazov":"Môj Otče, keď biedny som",
+  "slohy":[
+    {"cisloS":"R","textik":"[hmi]Mocný Boh zástupov, [G9]záchranca môj,\n[D]spievam ti chválospev, [A4]viem, že som [A-A/Fis]tvoj.\n[hmi]Najvyšší, sláva ti [G9]k nebu volám:\n'[D]Ó, [A/Cis]kráľov [hmi] Kráľ,' život [G9]svoj ti [A4]s lás[A]kou [D4-D]dám."}, 
+    {"cisloS":"V1","textik":"Môj [D9]Otče, keď biedny som, [fismi7]na zem padám.\nTy [G9]počuješ hlas, čo [D9/Fis]z hĺbky volá: 'Príď, [emi7]uzdrav ma zo všetkých [A4]rán!'\n[A]Ó, [D9]Ježiš, si spásou, si [fismi7]Boh môj a Pán, keď [G9]kráčam nocou,\nsi             [D/Fis]stále so mnou, ja [C2]do tvojich [C/H]rúk život [A4-A]dám."}, 
+    {"cisloS":"V2","textik":"Ja túžim žiť s milosťou, o dar prosím: 'Ó, Duch Svätý, príď, si ohnivý štít. Chráň vieru, čo v srdci nosím.'Hoc bázeň vždy mám, tak pristúpiť smiem. Keď duša bolí, o pomoc prosí, ty vždy pri mne blízko si, viem."}, 
+{"cisloS":"B","textik":"[hmi]Vzácni sme, vieme, ty [G9]nad nami bdieš.\n[D]V dlaniach sme vpísaní, [A]o každom vieš.\n[G]Svieť v našich tmách, [D]premáhaj strach,\naž [A4]kým domov nás prive[A]dieš. [A/G - A/Fis]"}
+  ]
+},
+
+
+{"cisloP":"244","nazov":"Láskavý Pane",
+  "slohy":[
+    {"cisloS":"R","textik":"[D]Láska[A/Cis]vý Pane, [hmi7]prijmi [G2]nás, [D/Fis]biedni [emi]sme, vieš [A4-A]sám.\n[D]Príď a [A/Cis]láskou [hmi7]premeň [G2]nás, chceme [emi7]kráčať [A4]k vý[A]ši[D]nám."}, 
+    {"cisloS":"V1","textik":"[G]Pri[A]niesť ti [fismi7]smiem [G2]dar [A]vína, [hmi7]chlieb,\n[G]v nich [A]dávaš [fismi7]seba [hmi]nám, [emi7]chvála [G]nech [emi7]ti [A4-A]znie."}, 
+    {"cisloS":"V2","textik":"Skláňaš sa k nám, láskou horíš, si Kráľom našich sŕdc, rád ich premeníš."}
+  ]
+},
+
+
+{"cisloP":"245","nazov":"Ó, môj Ježiš",
+  "slohy":[
+    {"cisloS":"R","textik":"[D]Je[E]žiš, \n[cis]Je[fis]žiš, \n[D]Je[E]žiš, adoramus [A]te"}, 
+    {"cisloS":"V1","textik":"Ó, [A]môj Ježiš, Pán môj [D]milovaný,\n[E]táto [fis]dôverná [A/E]chvíľa [D]slasťou je mi.\n[E]Potichu [fis]kľaknem [cis]na kolená [D] [A/Cis] \na táto [hmi]chvíľa [D]je radostná.[E]"}, 
+    {"cisloS":"V2","textik":"Tvoja láska mi vnútro rozochvieva. Aký žalm, Ježiš môj, smiem tebe spievať? Srdce mi žasne na tisíckrát: Si pre mňa všetkým, teba mám rád."}, 
+{"cisloS":"V3","textik":"Keď som skľúčený, dávaš odpustenie, keď som strápený, núkaš ovlaženie. Na moje hriechy nepozeráš, ale ma nesieš na ramenách."}, 
+    {"cisloS":"V4","textik":"Žiadna pieseň tú krásu neobsiahne, ktorú sám v Božom Srdci ponúkaš mne. Cítim sa láskou pohladený, do tvojej krásy ponorený."}, 
+    {"cisloS":"V5","textik":"Ježiš môj, s tebou vchádza radostný čas, svojou prítomnosťou vždy zaplavíš nás. Ja týmto chvíľam neodolám a plný lásky mocne volám:"},
+    {"cisloS":"V6","textik":"V tebe, Pán môj, som šťastný nekonečne, si mi slnkom, čo v lúčoch vie byť večné. Zažiar mi v tmách, môj Milovaný, nech môžem kráčať do nových dní."} 
+  ]
+},
+
+
+
+
+{"cisloP":"246","nazov":"Posvätný raj",
+  "slohy":[
+    {"cisloS":"R","textik":"[D]Posvätný raj, zem [A]nádherná več[]hminá,\nmesto [G]miest, kde [emi]smieme bývať s [A4]ním.\n[A]Baránkov [D]kraj, v ňom [A]víta nás Boh [hmi]sám, \nnebo [G]krásne, Jeruzal[D]em."}, 
+    {"cisloS":"V1","textik":"[D]Baránok [G]sám je v ňom pochodňou[D/Fis], \ntam slnko [emi]svietiť viac nemusí[A4]. \n[A]A žiadnu [G]vládu noc nemá.[D/Fis] \nNáš Boh je [emi]ten, kto v ňom žiari [A]sám."}, 
+    {"cisloS":"V2","textik":"V ňom máme príbytok spolu s ním. On zotrieť nám každú slzu vie. Tam nie je plač a trápenie, veď starý svet už v ňom neplatí."}, 
+{"cisloS":"V3","textik":"Na spásu hľaď, veď zrieť sa už dá. Kráľovstvo Kráľa nás preniká. Nech radosť má, kto raj pozná, lebo dal Pán do sŕdc nebo nám."}
+  ]
+},
+
+
+
+
+{"cisloP":"247","nazov":"Spásou si mojou",
+  "slohy":[
+    {"cisloS":"V1","textik":"[F]Spásou si [ami]mojou, [dmi]Ježiš, môj [C]Kráľ. \n[F]K tebe sa [ami]modlím a k [dmi]tebe volám[gmi].\n[C]Pane [F]môj, pieseň ti [B]hrám, \nkaždým dňom, no[F/A]cou stále teba hľadám.[C]"}, 
+    {"cisloS":"V2","textik":"[F]Ku mne príď, [ami]ty ma chráň[dmi], \ntvoje slová[B] dnes mi [gmi]do srdca vpíš.\n[C]Daj nech [F]tvoj [ami]Duch Svätý \n[dmi]ma premení[B] a [gmi]život mi dá."}, 
+{"cisloS":"V3","textik":"[C]Ježiš môj [B]Kráľ, ty si ma [F/A]spasil, teba mám rád.[gmi][C7] \nJežiš môj [B]Kráľ, ty si ma [F]spasil, teba mám rád.[gmi][F]"}
+  ]
+},
+
+
+
+
+{"cisloP":"248","nazov":" Tou láskou ako Otec môj",
+  "slohy":[
+    {"cisloS":"R","textik":"Tou [C]láskou [G]ako Otec [ami]môj,\nja [F]milujem [dmi]všetkých [G]vás. \n/: [G]Zachovajte [ami]lás[emi]ku, zachovajte [F]lás[C]ku! \n[F]Zostaňte vo mne, [C/E]ako som ja v ňom, \n[dmi]buďte v mojej [F/G][G]láske! :/"}, 
+{"cisloS":"V1","textik":"[ami]Ja som ten vinič z Božích [emi]záhrad, \nOtec [F]môj je vinohradník v [G]nich. \n[emi]Každého, kto ostal vo mne [ami]rásť, \nOtec [F]ošetrí a v[dmi]zrastom požehná[G]."}, 
+    {"cisloS":"V2","textik":"Ratolesť bez viniča vädne, nikdy svieže plody nerodí. Márne hľadá zmysel svojich dní, kto sa rozhodol svoj život žiť len sám."}, 
+{"cisloS":"V3","textik":"Ak vo vás moje slovo vzklíči a vy stále zotrváte v ňom, potom Otec všetko splní vám, v ťažkých námahách on odmenou je sám."},
+    {"cisloS":"V4","textik":"Navzájom milujte sa bratsky, takou láskou, akú ja mám k vám. Tento zákon lásky dávam vám, aby vaša radosť bola úplná."}, 
+    {"cisloS":"V5","textik":"Vyberám si teba pre svoj plán, nech je láska dar pre celú zem. Lebo väčšej lásky svet nemá, ako keď svoj život za priateľov dáš."}
+
+  ]
+},
+
+
+
+
+{"cisloP":"401","nazov":"Duch pravdy príď k nám",
+  "slohy":[
+    {"cisloS":"V1","textik":"[F]Prosím, Duch Svätý príď[C]k nám, \nsvoje [d]deti láskou [F/A]chráň, \nDuchu [B]Svätý, ty [F]zažni oheň [C]v nás. \nVojdi [F]k nám a svieť, keď [C]v tmách \n[g/B]srdce [A]blúdi, nevie kam [d], \nDuchu [B]Svätý, dnes [F]premeň život[C]náš. "}, 
+{"cisloS":"R","textik":"Duch pravdy, príď [F]k nám \n[C/E]-a v srdci nám [d]svieť, \n[dmi/C]nech radosť, [B]láska, \n[F/A]tvoj oheň horí [C]v nás. \nTy, pravdivý [F]lúč, \n[C/E]-presvieť každý [d]kút, \n[d]ty, oheň [B]lásky, čo [C]zapáli [F4]nás. [F] "}, 
+    {"cisloS":"V2","textik":"Čo je strápené, to kries, čo je zlámané, to lieč, Duchu Svätý, ty zažni oheň v nás. Znova svoj pokoj daj nám, svoju svätosť v nás ochráň, Duchu Svätý, dnes premeň život náš."}, 
+{"cisloS":"B","textik":"[F]Veni [C]Sancte [d]Spiri[B]tus, \n[F/C]veni [C4]Sancte [C7]Spiri[F]tus."},
+    {"cisloS":"V3","textik":"Daj, nech láska miesto má, pravde zostáva verná, Duchu Svätý, ty zažni oheň v nás. Tvoje svetlo dvíha nás, smieme slobodne zas rásť, Duchu Svätý, dnes premeň život náš."}
+  ]
+},
+
+
+
+
+
+{"cisloP":"402","nazov":"Duch Svätý Otcom nám daný",
+  "slohy":[
+    {"cisloS":"R","textik":"[d]Duch Svätý, Otcom [C]nám daný, \nsi [F]ohňom v nás, buď [C4]víta[A7]ný. \n[d]Túžiš v nás stavať [a]chrám svätý, \n[B]my svoje [d]srdcia [A]dáme [d]ti."}, 
+    {"cisloS":"V1","textik":"[F]Zrodení z lásky [C4]Páno[C]vej \n[d]synovia svet[g6]la, [A4]soľ pre [A]zem,\n[B]chránený kvas, čo [C]rozmno[d]ží \n[g]lásku pre svet [g/C]i pre [C4]nás[C]."}, 
+    {"cisloS":"V2","textik":"Na obraz svoj nás Boh stvoril, milovať smieme, on je v nás. Veď jeho tvár sa zrkadlí v tých, čo lásku spoznajú."}, 
+{"cisloS":"V3","textik":"Tí, v ktorých vládne Duch Svätý, nemajú strach, sú chránení. Otec ich láskou vyzbrojil Božiu nádej hlásajú."}, 
+    {"cisloS":"V4","textik":"Nemajme strach byť v ňom svätí, Ježiš prichádza v ústrety. Otvorme brány, vchádza k nám, on je svetlo svieti nám."}, 
+    {"cisloS":"V5","textik":"Pred nami kráča Mária, Matka Božia i nás, ľudí. Počujme hlas, čo Pán vraví, cez Máriu vedie nás."}
+  ]
+},
+
+
+{"cisloP":"403","nazov":"Duch Svätý, vojdi do našich sŕdc",
+  "slohy":[
+    {"cisloS":"R","textik":""}, 
+    {"cisloS":"V1","textik":"[D]Duch Svätý, [A]vojdi \n[h]do našich [fis]sŕdc, \n[G]láskou [D/Fis]zažni \n[e]knôt [(D)]našich [A]sviec,\n[fis]lúče [h]sln[(e)]ka \n[Fis4]ob[Fis]ráť [h]k nám. \n[G]Veni [fis]Sanc[(h)]te [G]Spi[A]ri[D]tus!"}, 
+    {"cisloS":"V2","textik":"Vojdi, ty, Otče ponížených, Darca darov sľúbených, ohňom lásky rozpáľ nás. Veni Sancte Spiritus!"}, 
+{"cisloS":"V3","textik":"Najlepší Tešiteľ, zdroj všetkých krás, príď a dýchaj nám do duší, vzácnym vánkom osviež nás. Veni Sancte Spiritus!"}, 
+    {"cisloS":"V4","textik":"Pri ťažkej práci si poľahčenie, v každej súši nás ovlažíš, chlieb rodí sa z horkých sĺz. Veni Sancte Spiritus!"}, 
+    {"cisloS":"V5","textik":"Jas Božej radosti zažiari z nás, nádejou keď nás naplníš, múdrosť Pána ty nám dáš. Veni Sancte Spiritus!"},
+    {"cisloS":"V6","textik":"Škvŕn našich duší si očistenie, v súžení nás rád pohladíš, s útechou dnes objím nás. Veni Sancte Spiritus!"},
+    {"cisloS":"V7","textik":"Skrytý vo vánku blížiš sa k nám, tíško vchádza dych tvojich úst, krajšiu vôňu nepoznám. Veni Sancte Spiritus! Amen."}
+  ]
+},
+
+
+{"cisloP":"404","nazov":"K prameňom nás priveď",
+  "slohy":[
+    {"cisloS":"R","textik":"[B]K prame[A7]ňom [d]nás priveď, \n[C]nauč [C7]nás [F]žiť, \n[B]Duch Svä[A7]tý, [d]príď, prosím, \n[g]Duch Svä[C7]tý, [F]príď! "}, 
+    {"cisloS":"V1","textik":"[d]Zavej tichým [B]vánkom, \n[C7]prenikni do [F]sŕdc, \n[d]príď a [a]obnov [B]nás, \nnech [G]oži[C4]je[C]me.\n[d]Zavej tichým [B]vánkom, \n[C7]pozdvihni si [F]nás, \n[g]daj,[A7] nech [d]zahorí \n[g]každý [gmi7/C]z nás            [C]."}, 
+    {"cisloS":"V2","textik":"Z hrobov vyveď nás, nový život daj, obnov našu nádej v Boží život. K sebe priviň nás, vyučuj a bráň, láskou obdaruj všetkých nás. "}, 
+{"cisloS":"V3","textik":"Príď a prenes nás na vrch posvätný, v tvojich rukách len sa povznesieme. Príď a prenes nás, nech sa rozodní, v náruč velebnú prijmi nás."}
+  ]
+},
+
+{"cisloP":"405","nazov":"Oslávený, buď ty, Duch",
+  "slohy":[
+    {"cisloS":"R","textik":"[F]Osláve[B]ný, \n[F]buď ty, Duch, kto[C7]rý máš \n[d]oheň, čo [B]nás spá[C]ja. \n[F]Spievam a [B]hrám, \n[d]nech celý vesmír [a7]vie, \nže si [B]Pán. [C7]Alelu[F]ja."}, 
+    {"cisloS":"V1","textik":"Duch Svä[F]tý, \nroznieť [B]posvätné [C]ohne \npre [d]nás za[B]pále[C]né. \nSlužob[d]níka [F]neobíď, [B]prosím ťa, \n[a7]vojdi, srdce [B]mám [C7]priprave[F]né."}, 
+    {"cisloS":"V2","textik":"Duch Svätý, odhaľ tajomstvo Otcovej lásky nám dané. Bože príď a uzdravuj zranené, vojdi, srdce mám pripravené."}, 
+{"cisloS":"V3","textik":"Duch Svätý, príď a rozviaž v nás to, čo je hriechom spútané. Naprav k láske chodníky zblúdené, vojdi, srdce mám pripravené."}, 
+    {"cisloS":"V4","textik":"Duch Svätý, vezmi môj život \ndo svojich rúk a sám ho chráň. Novú pieseň zaspievam, v náručí tvojom zaplesám, srdce ti dám."}      ]
+},
+
+
+{"cisloP":"406","nazov":"Príď, do srdca nám sa vlej",
+  "slohy":[
+    {"cisloS":"R","textik":"[d]Príď, do srdca [g]nám sa [C7]vlej, \nDuch [F]lás[A7]ky. \n[d]Príď, nech do nás [g]prúdi \n[C]po[a7]koj [d]tvoj."}, 
+    {"cisloS":"V1","textik":"[g7]Príď a Božiu [C7]lásku \n[F]vlej do [A]nás, \n[d]príď, rozpaľuj [C]túžbou \n[F]za [A7]te[d]bou."}, 
+    {"cisloS":"V2","textik":"Príď, zdroj Božej lásky, príď a lieč, daj radostnú nádej všetkým nám."}, 
+{"cisloS":"V3","textik":"Príď a obnov vieru, lásku nám, sám sprevádzaj nás vždy na cestách."}
+  ]
+},
+
+
+{"cisloP":"407","nazov":"Príď, Duch Svätý, vojdi do našich sŕdc",
+  "slohy":[
+    {"cisloS":"R","textik":"[A]Príď, Duch Svätý, \n[G/A]vojdi do našich sŕdc, \n[D/A]príď, ó, Duch Svätý, [A]príď! \n[A]Príď, Duch Svätý, \n[G]príď a obnoviť ráč \n[D]tvárnosť zeme [A]láskou!"}, 
+    {"cisloS":"V1","textik":"Duchu [A]Svätý, spájaj [G]nás, \nDuchu [D]Svätý, vyučuj [A]nás. \nTy si múdrosť, prihovor sa [G]nám. \nDuchu, [D]príď a zažni oheň [A]v nás."}, 
+    {"cisloS":"V2","textik":"Duchu Svätý, k nám dnes príď, Duchu Svätý, posilňuj nás. Ty si láska, oheň, pravdy zdroj, radosť dáš, čo nikdy nekončí."} 
+  ]
+},
+
+
+{"cisloP":"408","nazov":"Príď, Duchu Svätý, ako oheň",
+  "slohy":[
+    {"cisloS":"R","textik":"[e]Príď, Duchu Svä[A]tý, \n[C]ako oheň [a]na ce[D4]lú [D]Zem. \n[G]Príď, Duchu Svä[A]tý, \n[C]príď a [D]naplň [e]nás."}, 
+    {"cisloS":"V1","textik":"[G]Lásku daruj [D]nám, \nnech [a]viera život [F]má, \ntak [e]príď a [fis7]ohňom zapáľ [H4]nás[H]!"}, 
+    {"cisloS":"V2","textik":"Pravdou obnov nás a Syna nám ukáž, tak príď a ohňom zapáľ nás!"}, 
+{"cisloS":"V3","textik":"Silu daruj nám, do sveta pošli nás, tak príď a ohňom zapáľ nás!"}, 
+    {"cisloS":"V4","textik":"Príď a pomôž nám žiť život slobodný, nech pozná svet: Kristus žije v nás!"} 
+ ]
+},
+
+
+
+{"cisloP":"409","nazov":"Príď, Duchu Svätý, príď, naplň nás",
+  "slohy":[
+    {"cisloS":"R","textik":"[e]Príď, Duchu [h]Svätý, \n[e]príď, naplň [D]nás, \n[G]príď, Duchu [D]Svätý, \n[e]Ute[h]šiteľ [e]náš."}, 
+    {"cisloS":"V1","textik":"[e]Príď, Duchu Svätý [D]tvorivý, \npríď svojich [D7]verných [G]navštíviť.\nNaplň nám srdcia [D]milosťou, \n[e]ktoré si [C]stvoril [D]múdrosťou."},
+    {"cisloS":"V2","textik":"Tešiteľom si nazvaný, dar Boží z neba nám daný, zdroj živý, láska, oheň v nej i pomazanie duchovné."}, 
+    {"cisloS":"V3","textik":"Ty, darca darov sedmorých, prst Boží v dielach stvorených, ty, prisľúbenie Otcovo, dávaš reč, slovo Pánovo."}, 
+{"cisloS":"V4","textik":"Osvieť nás, ducha posilňuj, do sŕdc vlej lásku ohnivú. Keď telo klesá v slabosti, vzpriamuj ho silou milosti."}, 
+    {"cisloS":"V5","textik":"Pred nepriateľom ochráň nás, svoj pokoj daj nám v každý čas. Nech vždy pod tvojím vedením vyhneme vplyvom škodlivým."}, 
+    {"cisloS":"V6","textik":"Nauč nás Otca poznávať a jeho Syna milovať. A v teba, Ducha obidvoch, daj veriť vždy, vo všetkých dňoch."}
+
+  ]
+},
+
+
+
+
+{"cisloP":"410","nazov":"Príď, Duchu Svätý, Tešiteľ",
+  "slohy":[
+    {"cisloS":"R","textik":"Zjav [a]pravdu [G]nám a [F]stále [C]svieť, \nvlej [a]lásku [G]do našich [F]sŕdc. \n[E]Keď [a]príde [G]pád, ty [F]dvíhaj [C]nás, \n[F]príď, [G]uzdravuj [A]nás. \nTak [F]príď, Duchu [G]Svätý, [C]príď!"}, 
+    {"cisloS":"V1","textik":"[C]Príď, Duchu [C4]Svätý, \n[C]príď, Tešiteľ [B]náš! \n[C]Príď, Duchu [C4]Svätý, \nskúmaj [D]nás, pretvor [G]nás."}, 
+    {"cisloS":"V2","textik":"Príď, Duchu Svätý, príď, sprevádzaj nás! Príď, Duchu Svätý, keď sme v tmách, zažiar nám."}, 
+{"cisloS":"V3","textik":"Príď, Duchu Svätý, lásku rozmnožuj v nás! Príď, Duchu Svätý, plameň tvoj zapáľ v nás."}
+  ]
+},
+
+
+{"cisloP":"411","nazov":"Príď, Duchu Svätý, zjav sa nám",
+  "slohy":[
+    {"cisloS":"R","textik":"[e]Príď, Duchu [C]Svätý, [h]zjav sa nám,\n[C]príď, Duchu Svätý, [G]lásky prúd.\n[e]Príď, Duchu [C]Svätý, [h]skloň sa [e]k nám,\n[a]vstúp do na[h]šich [e]sŕdc."}, 
+    {"cisloS":"V1","textik":"[e]Ó, Duch Bo[h]ží, Otcom nám zosla[D]ný,\nty, [e]učiteľu [C]náš, ty [a]pravdy [D]lúč,\n[G]prosíme, [e]príď, [a]láskou [e]pre[a]meň [H]nás."}, 
+    {"cisloS":"V2","textik":"Tvoj živý prúd vody nás uzdraví, ty, lekár nebeský a radca náš, rozpáľ a príď vieru pozdvihnúť."}, 
+{"cisloS":"V3","textik":"Daj, nech sa nádej aj v nás rozhorí, a zaplav naše vnútro plesaním. Pretváraj nás, nádej obnov v nás."}
+  ]
+},
+
+
+{"cisloP":"412","nazov":"Príď k nám, Duch Svätý",
+  "slohy":[
+    {"cisloS":"R","textik":"[e]Príď k nám, Duch Svä[a]tý, \n[D]ty, ktorý napĺňaš ves[H4]mír[H],\n[e]príď ako Pán, vojdi [C]do našich sŕdc, \n[a]poznať daj sa [H4]nám. [H]\n[e]Príď k nám, Duch Svä[a]tý, \n[D]ty, ktorý napĺňaš ves[H4]mír[H],\n[e]daj, nech z [C]Božích polí \n [a]radostný spev [H7]zahlaho[e]lí."}, 
+    {"cisloS":"V1","textik":"[e]Oheň Boží, \nvánok [C]z presvätých úst,\nty, [a]darca náde[H7]jí,\n[e]svojou mocou \nzbav ma [C]únavných pút,\n[a]hneď sa pristro[H7]jím."}, 
+    {"cisloS":"V2","textik":"Viem, že poznáš pravdy aj tajomstvá, tak pomôž cestu nájsť, vyučuj nás láske, ujmi sa nás, príď a stoj pri nás."}, 
+{"cisloS":"V3","textik":"Silou, nehou, láskou, darom Božím len ty nás zahalíš. Otec slabých, Duch môj, Utešiteľ, vstúp do našich tiel."}
+  ]
+},
+
+
+
+
+{"cisloP":"413","nazov":"Príď ku nám, ó, Duch Svätý",
+  "slohy":[
+    {"cisloS":"R","textik":"[g]Príď ku nám, ó, [g]Duch Svä[d]tý, \n[g]príď, buď svetlom pre [F]náš svet, \n[B]príď a dvíhaj [F]nás, \n[d]príď, plameň svä[g]tý."}, 
+    {"cisloS":"V1","textik":"[g]Príď [d]Zástanca [g]dávny, \n[d]príď nás o[g]brániť, \n[F]zrak túžobne [B]dvíham, \n[F]vstúp [g]dnes, [d]môj [g]Pán."}, 
+    {"cisloS":"V2","textik":"Príď, ty prameň lásky, nápoj si vzácny. Prúd liečivej rieky, vlej lásku nám."}, 
+{"cisloS":"V3","textik":"Príď, Tešiteľ vzácny, vstúp k nám do chrámu. V nás rozdúchaj túžbu ísť k výšinám."}, 
+    {"cisloS":"V4","textik":"Príď, Učiteľ slávny, daj nám dar viery. S ňou môžeme spúšťať siete na lov."}      ]
+},
+
+
+
+
+{"cisloP":"414","nazov":"Príď, Svätý Duch",
+  "slohy":[
+    {"cisloS":"R","textik":"[h]Príď, Svätý Duch, \nja ti [A]srdce otvo[D]rím. \n[G]Vojdi, ty [D]Posvätiteľ [e7]sláv[Fis]ny. \n[h]Príď, svätý Duch, \nnežný [A]Utešiteľ [D]môj. \n[G]Naplň moje [D]srdce tvojou [e]ra[Fis]dos[h]ťou."}, 
+    {"cisloS":"V1","textik":"[h]V skľúčených srdciach [fis]vládni, \n[G]z nás malých radosť [D]máš. \n[D]Duch Svätý, oheň [e]lásky, \n[h]múdros[G]ťou pretvor [Fis4]nás[Fis]. \n[h]Príď, uzdrav bolesť [fis]vnútra, \n[G]následky ťažkých [D]rán. \n[D]Múr, čo nás delí, [e]zbúraj, \n[e]raj Boží otvor [Fis4]nám[Fis]."}, 
+    {"cisloS":"V2","textik":"Dar v tebe Otec sľúbil, krásu daj vidieť nám. Zjednotil si nás láskou, dnes tvoj krst mení nás. V mystickom tele spájaš tých, čo chcú s Kristom ísť. Pred tebou kľačím s túžbou: Duch Svätý, s ohňom príď!"}, 
+{"cisloS":"V3","textik":"Zmeň skleslý pohľad smútku, nech radosť horí v nás, svet zbadá na nás hĺbku, tá mení život náš. Sám otváraj nám vnútro, dávaním sa dá rásť, Duch, pomáhaj nech smieme hľadaním teba nájsť. "}
+  ]
+},
+
+
+
+{"cisloP":"415","nazov":"Spolu s Máriou",
+  "slohy":[
+    {"cisloS":"R","textik":"[G]Príď, Duchu Bo[D4]ží[D], \n[e]ó, [h]príď, ty, [G]Boh, tak než[A4]ný[A]. \n[D/Fis]Oheň, čo [G]tlie, rozpaľuj [D4]v nás[D], \n[e]ó, [h]príď a [G]ty miluj [A4]v nás[A]."}, 
+    {"cisloS":"V1","textik":"[D]Spolu s Mári[D9/Fis]ou \n[G]k nebu oči [D]dví[A/Cis]ham, \n[h7]večeradlo [G9]túžbou ho[A4]rí[A]. \n[D]Pane, rozžiar [D9/Fis]nás \n[G]jasom svojej [D]lás[A/Cis]ky, \n[h7]svetlom viery [G9]svieť, \nkeď sme [A4]v tmách[A]."}, 
+    {"cisloS":"V2","textik":"Otvor dokorán naše skleslé srdcia, prosím, znovu príď, objať nás. Dotyk tvojich úst otvorí nám ústa, hlásať chceme vždy: 'Ty si Pán!' "}, 
+{"cisloS":"V3","textik":"Vlej do našich sŕdc pravú bratskú lásku, nemeškaj a príď, zjednoť nás. Si vždy prítomný v našej skromnej chvále. Príď a obnov nás radosťou."}
+  ]
+},
+
+
+
+{"cisloP":"416","nazov":"Túžime po tebe, Duchu Svätý",
+  "slohy":[
+    {"cisloS":"R","textik":""}, 
+    {"cisloS":"V1","textik":"[F]Túžime po tebe, [B]Duchu Svä[F]tý, \n[g]príď, len príď a [d]konaj [A]v nás, \n[g]posilňuj slabých a [B]ovlažuj [C]tých, \nčo [d]púšťou [a]kráča[d]jú."}, 
+    {"cisloS":"V2","textik":"Vlahou si v púšti a svetlom si v  tmách, príď, len príď a pomôž nám prekonať úzkosti, temno i strach na ceste k výšinám."}, 
+{"cisloS":"V3","textik":"Bez teba, Duch Boží, prázdno je v nás, príď, len príď a naplň nás. Tvoj oheň vdýchni do zamdlených sŕdc, nech rozhoria sa zas."}, 
+    {"cisloS":"V4","textik":"S dôverou voláme unavení, príď, len príď a pomôž nám rozpoznať, čo plameň Ducha hasí, čo pravda je, čo klam."}, 
+    {"cisloS":"V5","textik":"Zostúp k nám tak, ako k apoštolom, príď, len príď a zapáľ nás, aby sme vstali a šli s odvahou. Ty svedčiť nás voláš."},
+    {"cisloS":"V6","textik":"S Otcom i Synom si jediný Pán, príď, len príď a svoj ľud veď. Nech ti je oddaný, ochotný ísť a vôľu Otca žiť."}
+  ]
+},
+
+
+{"cisloP":"417","nazov":"Veni Sancte Spiritus",
+  "slohy":[
+    {"cisloS":"R","textik":"[E]Veni [cis]Sancte [fis7]Spiri[H]tus, \n[E]veni [cis]Sancte [fis7]Spiri[H]tus.\n[E]Veni [cis]Sancte [fis7]Spiri[H]tus, \n[E]veni [A]Sanc[fis7]te [H]Spiri[E]tus."}, 
+    {"cisloS":"V1","textik":"[fis]Duch Boží, Duch [fis7]láskavý, \nty, [H4]oheň žiari[H]vý,\n[fis]príď a [fis7]jasným svetlom [H4]svieť[H]. \n[gis]Príď ku nám a [gis7]vlievaj nádej, \n[cis]ona oživí\n[fis]vieru, [fis7]ktorá musí [H4]vrieť[H]."}, 
+    {"cisloS":"V2","textik":"Príď ku nám nech obnoví sa v našich srdciach mier, príď a milosťou ži v nás. Príď ku nám, nech stále zneje chvála z našich pier, spieva duša slobodná."}, 
+{"cisloS":"V3","textik":"Príď ku nám, vo veľkej láske zjav Otcovu tvár,\npríď, nech srdce zahorí. Otvor náruč, nádenníkov svojich obdaruj, láska Cirkev obnoví."}
+  ]
+},
+
+
+
+{"cisloP":"418","nazov":"Duchu Svätý, príď z neba (Ako víchor)",
+  "slohy":[
+    {"cisloS":"R","textik":"Ako víchor, čo vládu má, ako dážď mocný, príď! Ako búrka nespútaná, ó, Duchu Boží, prebývaj v nás."}, 
+    {"cisloS":"V1","textik":"Duchu Svätý, príď z neba a vyšli nám zo seba žiaru svetla pravého."}, 
+    {"cisloS":"V2","textik":"Príď k nám Otče chudobných, Darca darov sľúbených, svetlo srdca bôľneho."}, 
+{"cisloS":"V3","textik":"Tešiteľ si najlepší, ó, hosť duše najsladší, ty, sladké občerstvenie."}, 
+    {"cisloS":"V4","textik":"V práci si poľahčenie, v sparne si ovlaženie, v plači si potešenie."}, 
+    {"cisloS":"V5","textik":"Svetlo oblažujúce, naplň myseľ i srdce ľudu tebe verného."}, 
+    {"cisloS":"V6","textik":"Bez pomocnej milosti, človek žije v hriešnosti, nie je v ňom nič dobrého."}, 
+{"cisloS":"V7","textik":"Očisť čo je skalené, zavlaž, čo je znavené, uzdrav, čo je zranené."}, 
+    {"cisloS":"V8","textik":"Ohni, čo je stŕpnuté, zohrej, čo je skrehnuté, naprav, čo je zblúdené."}, 
+    {"cisloS":"V9","textik":"Daruj svojim veriacim, s dôverou ťa prosiacim, svätú milosť sedmorú."}, 
+    {"cisloS":"V10","textik":"Daj za čnosti odmenu, daj smrť dobrú, blaženú, daj nám radosť trvalú."}
+  ]
+},
+
+{"cisloP":"501","nazov":"Ave Maria, gratia plena",
+  "slohy":[
+    {"cisloS":"R","textik":""}, 
+    {"cisloS":"V1","textik":"[D-A/Cis]A[h-D/A]ve Ma[G-h/Fis]ri[e7-A]a, \n[D]gra[A/Cis]tia [h]ple[D/A]na, \n[G]Do[e7]minus [A]tecum. \n[G]Benedicta [D]tu in [fis]muli[e]eri[A]bus, \net [G]bene[A/Cis]dictus [D]fructus \n[e]ventris [A]tui, [D4]Je[D]sus."}, 
+    {"cisloS":"V2","textik":"[D]Sancta Ma[fis]ria, \n[G]Ma[A/G]ter [D4]De[D]i, \n[G]ora pro [D]nobis [e7]pecca[D]tori[A4]bus[A] \n[G]nunc et in [D/A]hora \nmortis [A4-A]no[D]strae. \n[D-A/Cis]A[hmi - D/A]ve Ma[A4-A]ri [D4-D]a."}
+  ]
+},
+
+
+
+{"cisloP":"502","nazov":"Ave, Mária, skláňaš sa k nám",
+  "slohy":[
+    {"cisloS":"R","textik":"[D–A/D]Ave, [D]Mári[A]a, \n[h]sklá[fis]ňaš sa [h4]k nám[h], \n[G]naše [A]modlit[e]by [h]prenes \n[G]pred [D]Bo[A]žiu [D]tvár."}, 
+    {"cisloS":"V1","textik":"[G]Tys’ naša [fis]Mat[h]ka, \n[G]za ruku [A]nás [D]veď, \n[G]zaodetá [fis]slá[h]vou \n[E4]na ces[E]tu nám [A]svieť."}, 
+    {"cisloS":"V2","textik":"Milosti plná, dcéra sionská, vyvolená Otcom, Matka nebeská!"}, 
+{"cisloS":"V3","textik":"Ty, Archa zmluvy, vieru živú máš, pomôž, aby Ježiš narodil sa v nás."}, 
+    {"cisloS":"V4","textik":"Ty, naša nádej, stále si nás chráň, vyučuj nás láske, so Synom nás spoj."}, 
+    {"cisloS":"V5","textik":"Presvätá Matka, biednych zastávaš, k Otcovi nás láskou svojou privádzaš."}
+  ]
+},
+
+
+{"cisloP":"503","nazov":"Buď pozdravená",
+  "slohy":[
+    {"cisloS":"R","textik":"[e]Buď pozdrave[a]ná, \nty, [h]Pani presvä[G]tá[h], \n[e]tysʼ korunou [C]hviezd, \ncelá [a]slnkom ode[D]tá. \n[G]Ku tvojim no[e]hám \nsi [a]mesiac sklonil [D]tvár, \n[D7]ty [H7]v lone svojom [e]máš \nten [a]dar, čo [h]Boh dal [e]nám."}, 
+    {"cisloS":"V1","textik":"[G]Odveká radosť [D4]Pá[D]na, \n[e]tysʼ novou Evou [h]nám,\n[C]z rúk tvojich ku nám [G/H]vstáva \n[a]Syn Boží, tvoj [D4]Pán[D].\n[G]On otvára nám [D]brány, \n[e]môžeš nás domov [h]viesť,\n[C]slávna hviezda [(H7)]ran[e]ná, \nchcem[a]s tebou [h7]cestu [e]prejsť."}, 
+    {"cisloS":"V2","textik":"Dnes zostávaš pod krížom, tam ťa vídame stáť, nám nesieš novú nádej, Matka, chráň v nás chrám. Viem, držíš v rukách žriedlo, v ňom živá voda vrie, vyliata svätá krv, čo spásu prinesie."}, 
+{"cisloS":"V3","textik":"Aj prvá Eva vstáva, úžasnú radosť má, veď to jej svätá dcéra je oslávená. Ó, aká radosť vládne, Panna Mária, v nás, keď necháme sa viesť ku nebeským dverám."}, 
+    {"cisloS":"V4","textik":"Ó, svätá Matka, Pán ťa chcel nepoškvrnenú, on ťa vzal tam, ku trónu, s telom aj dušou. Tys` vyzdvihnutá v sláve, presvätá Kráľovná, snáď privítaš aj nás, tam, kde prebýva Pán."}      ]
+},
+
+
+{"cisloP":"504","nazov":"Dnes prijímam ťa rád, ó, Mária",
+  "slohy":[
+    {"cisloS":"R","textik":"[B]Mári[F]a, [C7]Kráľovná pokor[F]ná, \n[B]Mári[F]a, [C7]cez teba prišiel [F]Pán."}, 
+    {"cisloS":"V1","textik":"Dnes [F]prijímam ťa [A7]rád, ó, [B]Mári[F]a, \nmne [F]vzácna si, [C7]Matka pokor[F]ná. \n[F7]Sám [B]Boh teba [C]láskou [F]na[C]pl[d]nil \na [g]vstúpil [C9]k nám náš [F]Pán."}, 
+    {"cisloS":"V2","textik":"Dnes prijímam ťa rád, ó, Mária, veď Pán si ťa zo žien vyvolil. On - Kráľ svätý, plod tvojho života; ty Panna presvätá."}, 
+{"cisloS":"V3","textik":"Dnes prijímam ťa rád, ó, Mária, veď dal mi ťa Vykupiteľ môj. Ja som dnes ten Ján, tam pod krížom, a vzácnu matku mám."}
+  ]
+},
+
+
+{"cisloP":"505","nazov":"Kráľovná nebeská",
+  "slohy":[
+    {"cisloS":"R","textik":"[A]Kráľovná [D]nebeská, \n[A]Matka ľu[E/Gis]dí, \n[fis]niesla si [D]toho, čo [h]povznáša [E]nás, \n[A]ak už nás [D]jeho hlas [A]nezobu[E/Gis]dí, \n[fis]pros za [h]nás, Mári[E]a, pros za [A]nás."}, 
+    {"cisloS":"V1","textik":"[A]'Boh vy[D]bral ťa [E]spomedzi [A]žien,' \n[h]anjel hovo[E]rí, \n[A]'z teba [D]vzíde [E]Knieža a [fis]Pán, \n[D]ak mu [h]otvo[E]ríš.'"}, 
+    {"cisloS":"V2","textik":"Nám pod krížom darovaná, Matka presvätá, ty nás môžeš za ruku viesť, svetlom odetá."}, 
+{"cisloS":"V3","textik":"Božou láskou naplnená, silou pokorných, spomeň tam aj naše mená v sieňach nebeských."}
+  ]
+},
+
+
+
+{"cisloP":"506","nazov":"Mária, Panna pokorná",
+  "slohy":[
+    {"cisloS":"R","textik":"[d]Mária, [g]Panna pokor[d]ná, \n[g]ty si poro[d]dila [g7]Ježiša [A]nám,\n[d]Mária [g]blahoslave[d]ná, \n[g]Matka, pro[d]síme, po[A]môž [d]nám."}, 
+    {"cisloS":"V1","textik":"[d]Mária, v prítomnosti \ncelého nebeského [C]dvora \nvolíme si ťa [F]dnes \nza svoju Matku a [g]Krá[A7]ľov[d]nú."}, 
+    {"cisloS":"V2","textik":"[d]V úplnej podriadenosti a láske \nzverujeme a zasväcujeme [C]ti \n[C]svoje telo a dušu, \nsvoje vonkajšie i vnútorné [F]dary, \n[F]ako aj hodnotu svojich \nminulých, terajších \ni bu[g]dúcich [A7]dobrých [d]skutkov."}, 
+{"cisloS":"V3","textik":"[d]Nechávame ti úplné právo \ndisponovať [C]nami \n[C]a všetkým, čo nám patrí bez výnimky \npodľa tvojej ľubo[F]vôle,\n[F]na väčšiu Božiu slávu \nteraz i [g]vo več[A7]nosti. [d]Amen."}
+  ]
+},
+
+
+{"cisloP":"507","nazov":"Mária, vyvolená",
+  "slohy":[
+    {"cisloS":"R","textik":"[e]Mária, [G]vyvole[D]ná, \nMária, [h]požehna[e]ná,\n[e]Mária, [G]ujmi sa[D]nás, \nMária, [h]ochraňuj[e]nás,"}, 
+    {"cisloS":"V1","textik":"[G]Cez teba príde [D]Pán, \nty si [H7]prostrednicou [e]našou,\n[G]rád tebe [D]srdce o[a]tvo[H7]rím."}, 
+    {"cisloS":"V2","textik":"Boh v tebe má svoj chrám, v tebe máme nový život, ľúbeznú vďaku tebe vzdám."}
+  ]
+},
+
+
+{"cisloP":"508","nazov":"Ó, Mária",
+  "slohy":[
+    {"cisloS":"R","textik":"Ó, [C]Mári[e7]a, \nskrze [F]'áno'[E7/9]prišiel [a]k nám \nBožej [Fmaj]lásky [e7]lúč, \naby [d]telom sa [C]stal, \n[Fmaj]Ježiš, náš [G4]Pán[G]."}, 
+    {"cisloS":"R1","textik":"Ó, Mária, modlitbami prepoj nás. Matka, nalaď nám srdcia na jednu niť. Duchu Svätý, príď!"}, 
+    {"cisloS":"V1","textik":"Vtedy [a]anjel niesol [e]správu tebe: \n[F]'Syn sa naro[C]dí, \nje to [As]Boh, ktorý \nsvoj [Es]ľud navštíviť [d7]prí[G]de. \nTeba [a]Duch Svätý za[e]tôni láskou, \n[F]tak neboj sa, [C]ver! \nNa zem [As]vchádza Boží [Es]Syn, \nEmanu[d7]el[G].'"}, 
+    {"cisloS":"V2","textik":"Matka, smieme láske znovu veriť, sľúbenej aj nám, ona vládu, moc má premôcť slabosť v nás. Toho dôkazom je láska, ktorá pretvoriť nás vie, lebo Božej moci všetko sa poddá."}, 
+{"cisloS":"V3","textik":"Pane, daj aj nám dnes tvojho Ducha podľa prísľubov, s tvojou drahou Matkou vrúcne ťa prosíme. Vezmi strach, ktorý dnes bráni ľuďom hlásať s odvahou to, že spása prišla, čaká, kto ju prijme."}, 
+    {"cisloS":"V4","textik":"Moje vnútro v bázni tebe plesá, Boh a Pán verný, veď ty ľúbiš nás, my slúžime ti s láskou. Mocným zrútiš piedestály, ty sám dvíhaš strápených, neopustíš tých, čo milujú ťa s bázňou."}      
+]
+},
+
+
+{"cisloP":"509","nazov":"Ó, Matka nášho Pána",
+  "slohy":[
+    {"cisloS":"R","textik":"Ó, [G]Matka nášho [h7]Pána, \n[C-a]Mári[D4]a[D], \nsi [G]najvzácnejším [h7]chrámom, \n[C]nesieš Boha [D4]nám[D]. \nCez [G]tvoje [D]áno \n[C]prišlo Svetlo [C/D]sve[D]ta. \n[a]Mária, [G]ty si radosť [D4]Pá[D]na, \nvždy [C]pros Boha [D4]Ot[D]ca za [G4]nás[G]!"}, 
+    {"cisloS":"V1","textik":"[C]Buď pozdrave[G/H]ná, \n[a]milosti [D4]pl[D]ná, \n[C]s tebou je tvoj [G/H]Pán, \nčo [C]zostupuje [D4]k nám[D]. \n[H/Dis]Nebesá žiaria, plesa[e]jú, \n[e/D]oroduj za [C]nás, \n[a]ty, Hviez[D]da ran[G4]ná[G]."}, 
+    {"cisloS":"V2","textik":"Buď pozdravená, ty, Archa zmluvy, pod tvojím srdcom sa Boh stal človekom. Emanuela dávaš nám, oroduj za nás, Brána nebeská."}, 
+{"cisloS":"V3","textik":"Buď pozdravená, ó, Pani naša, Ježiš, nebies Kráľ, bol tebou zrodený. Spása je darovaná nám, oroduj za nás, ty, milovaná."}, 
+    {"cisloS":"V4","textik":"Buď pozdravená, Panna prečistá, Boh ti život dal a ty ho dávaš nám. Bránu otváraš do raja, oroduj za nás, Nepoškvrnená."}, 
+    {"cisloS":"V5","textik":"Buď pozdravená, ty, nová Eva, ľudstvo zblúdené je znovuzrodené. Dala si Spasiteľa nám, oroduj za nás, nás, Nádej hriešnikov."},
+    {"cisloS":"V6","textik":"Buď pozdravená, Panna pokorná, zaznej pieseň chvál, buď zvelebený Pán! Duchom Božím naplnená, oroduj za nás, ty, požehnaná."}, 
+    {"cisloS":"V7","textik":"Buď pozdravená, Kráľovná naša, milovaný Syn ťa slávou zaodel. Sám Boh ťa prijal do nebies, oroduj za nás, Kráľovná svätých."}
+
+  ]
+},
+
+{"cisloP":"510","nazov":"Totus tuus",
+  "slohy":[
+    {"cisloS":"R","textik":"[g]Totus [d]tuus, Ma[Es - F]ri[B]a. \n[g]Gratia [d]plena, \n[C]Dominus [Es]te[F]cum. \n[B]Totus [F]tuus, \n[Des]ora pro [As]nobis, \nMa[c7]ri[F]a, Ma[c7]ri[F]a."}, 
+    {"cisloS":"V1","textik":""}
+  ]
+},
+
+
+
+{"cisloP":"511","nazov":"Veď nás, Mária",
+  "slohy":[
+    {"cisloS":"R","textik":"[g]Veď nás, Mária, tam, \nkde [g]prebýva tvoj Pán. \n[F]S dôverou [d7]tvoj ľud \n[F]ku tebe vo[g]lá."}, 
+    {"cisloS":"V1","textik":"[g]Spomeň si, svätá Panna Mária, \nže nikdy nebolo počuť, \nže by bol niekto opus[F]tený, \n[F]kto sa utiekal pod tvoju [d]ochranu, \nteba o pomoc alebo príhovor [g]žiadal."}, 
+    {"cisloS":"V2","textik":"[g]Povzbudený touto dôverou \naj ja sa utiekam k tebe, \nMatka, Panna [F]panien, \n[F]k tebe prichádzam, pred tebou [d]stojím, \nako úbohý a kajúci [g]hriešnik."}, 
+{"cisloS":"V3","textik":"[g]Matka večného Slova, \nneodmietni moje [F]slová, \n[F]ale ma [d]vypočuj \na vyslyš. [g]Amen."}
+  ]
+},
+
+
+{"cisloP":"512","nazov":"Zdravas buď, Mária",
+  "slohy":[
+    {"cisloS":"R","textik":"[e]Zdravas buď, Mária, \n[h]milosti [e]plná, \nPán s tebou, [?]\nsi [D]požehna[G]ná [G]medzi [D]ženami, \n[e]požehna[h]ný je [e]plod tvojho [D]života, \n[C]Ježiš, [h]tvoj [e]Pán."}, 
+    {"cisloS":"R1","textik":"[G]Svätá Mária, Matka Bo[D]žia, \n[e]pros za nás hriešnych tu, na ze[H]mi, \n[G]teraz i v hodinu smrti na[D]šej. \n[e]Amen, [D]amen, [C]ale[h]lu[e]ja."}
+  ]
+},
+
+
+
+{"cisloP":"702","nazov":"Sviatosť tela tajomného",
+  "slohy":[
+    {"cisloS":"R","textik":"[Es]Je[F]žiš, [D/Fis]Je[g]žiš, \n[Es]klania[c7]me sa [F]te[B]be."}, 
+    {"cisloS":"V1","textik":"[B]Sviatosť [F/A]tela [g7]tajom[Es]ného\nveleb, [g7/D]jazyk, [c7]vďačne [F]chváľ!\n[B]Veleb [F/A]predra[g7]hú krv [Es]jeho,\nktorú [g7/D]za nás [c7]vylie[D]va\n[g]on, plod [d/F]lona [c/Es]panen[g]ského,\n[Es]slávny, [c7]dobrý, [F]večný [B]Pán."}, 
+    {"cisloS":"V2","textik":"Nám je daný, narodený z čistej Panny Boh a Kráľ, chodieval po tejto zemi, slovo pravdy rozsieval; deň pred svojím umučením zjavil, jak nás miloval."}, 
+{"cisloS":"V3","textik":"Keď si sadol večer k stolu, s učeníkmi večeral a baránka jedli spolu, jak zákon predpisoval; poslednú im zjavil vôľu: za pokrm sa všetkým dal."}, 
+    {"cisloS":"V4","textik":"Slovo v tele slovu dáva moc chlieb v telo premeniť, z vína sa krv Krista stáva, akože to pochopiť? Čisté srdce viera pravá sama stačí presvedčiť."}, 
+    {"cisloS":"V5","textik":"Ctime túto sviatosť slávnu, zbožne skloňme kolená, bohoslužbu starodávnu nahraď nová, vznešená; pomôž zmyslom, ktoré slabnú, viera s láskou spojená."},
+{"cisloS":"V6","textik":"Otcu, Synu jedinému chvála buď a plesanie, sláva, moc a česť ich menu, tak aj dobrorečenie; od obidvoch Poslanému rovnaké buď uctenie."}
+
+  ]
+},
+
+
+{"cisloP":"703","nazov":"Zrel som tečúcu vodu",
+  "slohy":[
+    {"cisloS":"R","textik":""}, 
+    {"cisloS":"V1","textik":"[g]Zrel som tečúcu [C]vodu, \nalelu[Es]ja, a[F]lelu[B]ja, \nprúdiť [g]z pravej strany [C]chrámu, \nalelu[Es]ja, a[F]lelu[g]ja."}, 
+    {"cisloS":"V2","textik":"Zrel som prameň chrámu, aleluja, aleluja, ako rastie vo veľkú rieku, aleluja, aleluja."}, 
+{"cisloS":"V3","textik":"Tí, ktorých obmýva voda, aleluja, aleluja, budú chváliť tvoje meno, aleluja, aleluja."}, 
+    {"cisloS":"V4","textik":"Tvoje srdce je prameň, aleluja, aleluja, odkiaľ prúdia pramene živé, aleluja, aleluja,"}      ]
+},
+
+
+
+{"cisloP":"704","nazov":"Hľa, v zástupoch prichádzajú",
+  "slohy":[
+    {"cisloS":"R","textik":"Hľa, v zástupoch prichádzajú ku Kráľovi pred jeho trón všetci svätí, sväté, lebo zvíťazil nad smrťou Baránok náš."}, 
+    {"cisloS":"V1","textik":"Ja zrel som najvyšší trón a na tróne Kráľa slávy. Spása, moc je v ňom, všade vôkol stúpa chvála: 'Svätý, svätý, svätý náš Pán!'"}, 
+    {"cisloS":"V2","textik":"Ja zrel som, ako Boh Syn živý kráča sieňou slávy. Víťazom je Pán, iba v ňom sa núka spása. 'Svätý, svätý, svätý náš Pán!'"}, 
+{"cisloS":"V3","textik":"Ja zrel som Otcov dar nám, je to láska, Duch Svätý. On sa dáva nám, iba v ňom sme synmi Kráľa. 'Svätý, svätý, svätý náš Pán!'"}
+  ]
+},
+
+{"cisloP":"901","nazov":"Modlitba zasvätenia",
+  "slohy":[
+    {"cisloS":"V1","textik":"Mária, v prítomnosti celého nebeského dvora, volíme si ťa dnes za svoju Matku a Kráľovnú.V úplnej podriadenosti a láske zverujeme a  zasväcujeme ti svoje telo a dušu,"}, 
+    {"cisloS":"V2","textik":"svoje vonkajšie i vnútorné dary, ako aj hodnotu svojich minulých, terajších i budúcich dobrých skutkov.Nechávame ti úplné právo disponovať nami a všetkým,"}, 
+{"cisloS":"V3","textik":"čo nám patrí, bez výnimky, podľa tvojej ľubovôle, na väčšiu Božiu slávu teraz i vo večnosti.Amen."}
+  ]
+},
+
+
+{"cisloP":"902","nazov":"Modlitba za blahorečenie Pierra Goursata",
+  "slohy":[
+    {"cisloS":"V1","textik":"Pane Ježišu, prosíme ťa za  blahorečenie Pierra Goursata. Poháňaný silnou túžbou po spáse duší a veľkou láskou k Cirkvi"}, 
+    {"cisloS":"V2","textik":"pracoval s vierou a nádejou na jej duchovnej a apoštolskej obnove. Prosíme ťa, na jeho príhovor, daruj nám, Pane, milosť úplne ti dôverovať, "}, 
+{"cisloS":"V3","textik":"štedro ti slúžiť a plniť tvoju vôľu. Daj nám srdcia otvorené pre adoráciu, pretekajúce súcitením ku všetkým  ľuďom, a zapáľ nás ohňom svojej lásky "}, 
+    {"cisloS":"V4","textik":"pre evanjelizáciu sveta.Na príhovor Božieho služobníka Pierra Goursata prosíme ťa naliehavo, Pane, aby si udelil všetkým našim  bratom a sestrám "}, 
+    {"cisloS":"V5","textik":"množstvo milostí v bratských vzťahoch, obzvlášť milosť stáť pri chudobných a zranených životom, milosť utešovať utláčaných, posilňovať slabých, uzdravovať chorých."},
+    {"cisloS":"V6","textik":"Osobitne ti zverujeme..."}, 
+    {"cisloS":"V7","textik":"Pane Ježišu, prosíme ťa, ukáž všetkým, ktorí sa vzdialili od teba alebo ťa ešte nepoznajú, nekonečnú lásku svojho tichého a pokorného Srdca."}
+
+
+  ]
+},
 
 
 
