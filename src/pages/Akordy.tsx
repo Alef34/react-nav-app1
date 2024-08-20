@@ -1,8 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import Song from "../components/Song";
 import { useState } from "react";
-import { TbLetterCaseLower, TbLetterCaseUpper } from "react-icons/tb";
-import {  PiGuitarLight } from "react-icons/pi";
+import {
+  TbColorFilter,
+  TbLetterCaseLower,
+  TbLetterCaseUpper,
+} from "react-icons/tb";
+import { PiGuitarLight } from "react-icons/pi";
 import { MdNotes } from "react-icons/md";
 
 interface SongVerse {
@@ -177,7 +181,7 @@ export default function Akordy() {
             <div
               style={{
                 flex: 1,
-                borderRadius: 15,
+                borderRadius: 1,
                 height: "100%",
                 backgroundColor: "gray",
               }}
@@ -195,6 +199,29 @@ export default function Akordy() {
                 }}
               >
                 <TbLetterCaseUpper size={30} color="black" />
+              </button>
+            </div>
+
+            <div
+              style={{
+                flex: 1,
+                borderRadius: 15,
+                height: "100%",
+                backgroundColor: "gray",
+              }}
+            >
+              <button
+                style={{
+                  height: "100%",
+                  width: "100%",
+                  backgroundColor: "gray",
+                  border: "1px solid black",
+                }}
+                onClick={() => {
+                  alert("tuuu");
+                }}
+              >
+                <TbColorFilter size={30} color="black" />
               </button>
             </div>
           </div>

@@ -53,7 +53,7 @@ const SongLine: React.FC<SongLineProps> = ({ parts, showChords, velkost }) => (
           >{`${part.chord}`}</span>
         ) : (
           <React.Fragment key={index}>
-            <p>&nbsp;&nbsp;&nbsp;</p>
+            <p></p>
           </React.Fragment>
         )
       ) : (
@@ -95,7 +95,7 @@ const getStyles = (velkost: number) => ({
     justifyContent: "center",
     margin: "10px",
     flexWrap: "wrap",
-    //  border: "solid 2px black",
+    //border: "solid 2px black",
   },
   chord: {
     fontWeight: "normal",
@@ -109,7 +109,7 @@ const getStyles = (velkost: number) => ({
   },
   lyrics: {
     fontSize: 20 + velkost,
-    // border: "solid 2px black",
+    //border: "solid 2px black",
     color: "gray",
   },
 });

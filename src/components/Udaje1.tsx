@@ -1,12 +1,8 @@
-
-
-
 const novePiesne1 = [
   {
     cisloP: "1",
     nazov: "Čo o mne vieš?",
     slohy: [
-      
       {
         cisloS: "V1",
         textik:
@@ -14,7 +10,8 @@ const novePiesne1 = [
       },
       {
         cisloS: "R",
-        textik: "Čo o mne [G]vieš, skúšať ma [Gmaj7/H]smieš\n na hodine [C]lásky\nČo o mne [G]vieš, ja dúfam, že [Gmaj7/H]tiež\nnerob si v[C] rásky\nTen starý [hmi]song zo starej [D]pásky\nv kúte [G]hrá",
+        textik:
+          "Čo o mne [G]vieš, skúšať ma [Gmaj7/H]smieš\n na hodine [C]lásky\nČo o mne [G]vieš, ja dúfam, že [Gmaj7/H]tiež\nnerob si v[C] rásky\nTen starý [hmi]song zo starej [D]pásky\nv kúte [G]hrá",
       },
       {
         cisloS: "V2",
@@ -28,8 +25,5 @@ const novePiesne1 = [
       },
     ],
   },
-
-  
-
 ];
 export default novePiesne1;

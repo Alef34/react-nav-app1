@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
 import filter from "lodash.filter";
-
 import novePiesne1 from "../components/Udaje1";
 import { GiHamburgerMenu } from "react-icons/gi";
 
@@ -26,8 +25,8 @@ export default function Home() {
   //const [filteredData, setFilteredData] = useState<SongsData>([]);
   const [selectedItem, setSelectedItem] = useState("");
   const [nacitane, setNacitane] = useState(false);
-  const [ktoraDB, setKtoraDB] = useState(novePiesne1);
-  const [ktoraDBstr, setKtoraDBstr] = useState("novePiesne1");
+  const [ktoraDB, setKtoraDB] = useState(novePiesne);
+  const [ktoraDBstr, setKtoraDBstr] = useState("novePiesne");
 
   const { data, isLoading, isSuccess } = useQuery<SongsData>({
     queryFn: () => fetchDataTQ(ktoraDB),
@@ -38,28 +37,40 @@ export default function Home() {
   if (isLoading) return <div>Loading...</div>;
   if (!isSuccess) return <div>Error loading data</div>;
 
+  console.log("isSUcc-", isSuccess);
+  console.log("data-", data);
+  console.log("nacitane-", nacitane);
+
   if (isSuccess && data && !nacitane) {
     setNacitane(true);
-    localStorage.setItem('apiData', JSON.stringify(data));
+    console.log("Mazem");
+    localStorage.removeItem("apiData");
+    localStorage.setItem("apiData", JSON.stringify(data));
+    console.log("halooo");
+    console.log(data);
     setFilteredData(data);
+  } else {
+    console.log("tuuuuu", isSuccess && !nacitane);
+    localStorage.removeItem("apiData");
+    localStorage.setItem("apiData", JSON.stringify(data));
   }
-
   function handleSelectDb() {
     setNacitane(false);
     if (ktoraDBstr == "novePiesne1") {
       setKtoraDB(novePiesne);
       setKtoraDBstr("novePiesne");
+      console.log("0");
     } else {
       setKtoraDB(novePiesne1);
       setKtoraDBstr("novePiesne1");
+      console.log("1");
     }
   }
 
   function handleSelectDb1() {
-    const storedData = JSON.parse(localStorage.getItem('apiData')!);
+    const storedData = JSON.parse(localStorage.getItem("apiData")!);
     setFilteredData(storedData);
     console.log(data?.length);
-    
   }
   function contains(song: Song, formatedQuery: string): boolean {
     // return Object.values(song).some(value =>
@@ -93,6 +104,7 @@ export default function Home() {
       nazov: item.nazov,
       slohy: item.slohy,
     };
+    //localStorage.removeItem("colorScheme");
     navigate("/akordy", { state: piesen });
   };
 
@@ -104,12 +116,12 @@ export default function Home() {
         flexDirection: "column",
         padding: 0,
         margin: 0,
-        height: "100%",
+        //height: "100%",
         paddingTop: "20px",
         top: 0,
         left: 0,
         color: "black",
-        backgroundColor:"yellow"
+        backgroundColor: "gray",
       }}
     >
       <div
@@ -136,16 +148,8 @@ export default function Home() {
           onChange={handleSearch}
           value={searchQuery}
         />
-
-        <button
-          onClick={handleSelectDb1}
-          style={getStyles(40).button}
-        ></button>
-
-        <button
-          onClick={handleSelectDb}
-          style={getStyles(40).button}
-        >
+        <button onClick={handleSelectDb1} style={getStyles(40).button}></button>
+        <button onClick={handleSelectDb} style={getStyles(40).button}>
           <GiHamburgerMenu
             style={{
               width: 20,
@@ -182,7 +186,7 @@ export default function Home() {
                 borderRadius: 15,
 
                 backgroundColor:
-                  selectedItem === item.cisloP ? "orange" : "lightblue",
+                  selectedItem === item.cisloP ? "orange" : "orange",
                 listStylePosition: "inside",
                 border: "3px ridge black",
               }}
@@ -203,13 +207,13 @@ export default function Home() {
     </div>
   );
 }
-const getStyles= (velkost: number) => ({
-  button:{
-      backgroundColor: "white",
-      borderColor: "black",
-      borderRadius: velkost,
-      width: (2*velkost).toString()+"px",
-      height: (2*velkost).toString()+"px",
-      padding:velkost/3
-  }
+const getStyles = (velkost: number) => ({
+  button: {
+    backgroundColor: "white",
+    borderColor: "black",
+    borderRadius: velkost,
+    width: (2 * velkost).toString() + "px",
+    height: (2 * velkost).toString() + "px",
+    padding: velkost / 3,
+  },
 });
