@@ -40,3 +40,21 @@
 .read-the-docs {
   color: #888;
 }
+.modalDiv {
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  background-color: rgba(189, 195, 199, 0.7);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.modal {
+  width: 350px;
+  height: 400px;
+  opacity: 100;
+  background-color: darkblue;
+  border-radius: 5px;
+}

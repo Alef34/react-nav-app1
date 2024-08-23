@@ -21,21 +21,21 @@ export const fetchDataTQ = async (suborSdatami: Song[]): Promise<Song[]> => {
   const storedData = localStorage.getItem("apiData");
   if (storedData) {
     const songs: Song[] = JSON.parse(storedData) as Song[];
-    console.log("kraaasa");
-    console.log(storedData);
-    console.log(songs);
+    //console.log("kraaasa");
+    //console.log(storedData);
+    //console.log(songs);
     return [...songs];
   } else {
-    console.log("No data found in localStorage");
+    //console.log("No data found in localStorage");
   }
-  console.log("UUUA:");
+  //console.log("UUUA:");
   const poslaneData = suborSdatami.filter((piesen) =>
     Object.values(piesen).some(
       (value) => typeof value === "string" && value.toLowerCase().includes("")
     )
   );
   //queryna.toLowerCase()
-  console.log("UUUA:", "+", "", "+", poslaneData.length);
+  //console.log("UUUA:", "+", "", "+", poslaneData.length);
   return [...poslaneData];
 };
 

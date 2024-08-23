@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Song from "../components/Song";
 import { useState } from "react";
 import {
@@ -28,10 +28,9 @@ const localData = {
   },
   get(key: string) {
     const stored = localStorage.getItem(key);
-    console.log(
-      "getisko " + key + ": ",
-      stored == null ? undefined : JSON.parse(stored)
-    );
+    //console.log(      "getisko " + key + ": ",
+    // stored == null ? undefined : JSON.parse(stored)
+    //);
     return stored == null ? undefined : JSON.parse(stored);
   },
   remove(key: string) {
@@ -44,7 +43,11 @@ export default function Akordy1() {
   const navigate = useNavigate();
   // Kontrola, či má location.state definovaný typ LocationState
   const piesenka: Song = location.state;
-  const slohy = piesenka?.slohy.map((sloha) => sloha.cisloS);
+
+  console.log("AAAAA", piesenka);
+
+  const [myList, setMyList] = useState([]);
+  const slohy = piesenka.slohy.map((sloha) => sloha.cisloS);
   const [selectedView, setSelectedView] = useState(0);
   const [fontSize, setFontSize] = useState(
     () => localData.get("fontSize") || 0
@@ -52,12 +55,14 @@ export default function Akordy1() {
   const [colorScheme, setColorScheme] = useState(
     (localData.get("colorScheme") as ColorScheme) || "dark"
   );
-  console.log("colorSCH:", colorScheme);
+  //console.log("colorSCH:", colorScheme);
   const [showAkordy, setShowAkordy] = useState(localData.get("showAkordy"));
 
   function handleColorScheme() {
-    //console.log("CS=======KKK:", colorScheme);
-
+    ////console.log("CS=======KKK:", colorScheme);
+    navigate("modal", { state: { background: location } });
+    //console.log("UuUUUUUU");
+    /*
     if (colorScheme == "light") {
       setColorScheme("dark");
       localData.set("colorScheme", "dark");
@@ -65,12 +70,14 @@ export default function Akordy1() {
       setColorScheme("light");
       localData.set("colorScheme", "light");
     }
+    */
   }
-  //console.log("CS=======:", colorScheme);
-  //localData.set("colorScheme", colorScheme);
-  //console.log("CS--------:", colorScheme);
 
-  console.log("CSS", colorScheme);
+  ////console.log("CS=======:", colorScheme);
+  //localData.set("colorScheme", colorScheme);
+  ////console.log("CS--------:", colorScheme);
+
+  //console.log("CSS", colorScheme);
   return (
     <div
       id="container"
@@ -87,6 +94,12 @@ export default function Akordy1() {
         backgroundColor: "gray",
       }}
     >
+      <div>
+        <Link to="modal" state={{ background: location }}>
+          Open Modal
+        </Link>
+        <Outlet />
+      </div>
       <div
         id="nadpis-container"
         style={{
@@ -161,7 +174,6 @@ export default function Akordy1() {
           <TbColorFilter size={30} color="black" />
         </button>
       </div>
-
       <div
         id="listBox"
         style={{
@@ -202,7 +214,6 @@ export default function Akordy1() {
           />
         </div>
       </div>
-
       <div
         id="slohy-container"
         style={{
@@ -212,10 +223,10 @@ export default function Akordy1() {
           margin: 10,
         }}
       >
-        {slohy?.map(function (object, i) {
+        {slohy.map(function (object, i) {
           function handleClick() {
             setSelectedView(i);
-            console.log(object.length);
+            console.log("BBBBBBBBB", object);
           }
           return (
             <div

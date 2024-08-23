@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
 import filter from "lodash.filter";
@@ -20,6 +20,7 @@ interface Song {
 type SongsData = Song[];
 
 export default function Home() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   //const [filteredData, setFilteredData] = useState<SongsData>([]);
@@ -37,20 +38,20 @@ export default function Home() {
   if (isLoading) return <div>Loading...</div>;
   if (!isSuccess) return <div>Error loading data</div>;
 
-  console.log("isSUcc-", isSuccess);
-  console.log("data-", data);
-  console.log("nacitane-", nacitane);
+  //console.log("isSUcc-", isSuccess);
+  //console.log("data-", data);
+  //console.log("nacitane-", nacitane);
 
   if (isSuccess && data && !nacitane) {
     setNacitane(true);
-    console.log("Mazem");
+    //console.log("Mazem");
     localStorage.removeItem("apiData");
     localStorage.setItem("apiData", JSON.stringify(data));
-    console.log("halooo");
-    console.log(data);
+    //console.log("halooo");
+    //console.log(data);
     setFilteredData(data);
   } else {
-    console.log("tuuuuu", isSuccess && !nacitane);
+    //console.log("tuuuuu", isSuccess && !nacitane);
     localStorage.removeItem("apiData");
     localStorage.setItem("apiData", JSON.stringify(data));
   }
@@ -59,18 +60,22 @@ export default function Home() {
     if (ktoraDBstr == "novePiesne1") {
       setKtoraDB(novePiesne);
       setKtoraDBstr("novePiesne");
-      console.log("0");
+      //console.log("0");
     } else {
       setKtoraDB(novePiesne1);
       setKtoraDBstr("novePiesne1");
-      console.log("1");
+      //console.log("1");
     }
   }
 
   function handleSelectDb1() {
-    const storedData = JSON.parse(localStorage.getItem("apiData")!);
+    /*const storedData = JSON.parse(localStorage.getItem("apiData")!);
     setFilteredData(storedData);
-    console.log(data?.length);
+    //console.log(data?.length);
+    */
+
+    navigate("modal", { state: { background: location } });
+    //console.log("UuUUUUUU");
   }
   function contains(song: Song, formatedQuery: string): boolean {
     // return Object.values(song).some(value =>
@@ -88,7 +93,7 @@ export default function Home() {
       return contains(piesen, formatedQuery);
     });
     setFilteredData(filteredData);
-    // console.log("pocet - ", searchQuery);
+    // //console.log("pocet - ", searchQuery);
   }
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
