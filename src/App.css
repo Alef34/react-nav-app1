@@ -52,9 +52,9 @@
   align-items: center;
 }
 .modal {
-  width: 350px;
-  height: 400px;
+  width: 75vw;
+  height: 75vh;
   opacity: 100;
-  background-color: darkblue;
+  background-color: black;
   border-radius: 5px;
 }

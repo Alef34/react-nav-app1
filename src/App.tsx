@@ -25,7 +25,6 @@ function App() {
         <Route path={"/"} element={<Home />}>
           <Route path="modal" element={<Modal />} />
         </Route>
-        <Route path={"/about"} element={<About />} />
         <Route path={"/akordy"} element={<Akordy1 />}>
           <Route path="modal" element={<Modal />} />
         </Route>
@@ -33,6 +32,7 @@ function App() {
       {background && (
         <Routes>
           <Route path="modal" element={<Modal />} />
+          <Route path="akordy/modal" element={<Modal />} />
         </Routes>
       )}
     </>

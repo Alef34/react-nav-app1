@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const localData = {
   set(key: string, value: any) {
@@ -6,10 +7,6 @@ const localData = {
   },
   get(key: string) {
     const stored = localStorage.getItem(key);
-    console.log(
-      "getisko " + key + ": ",
-      stored == null ? undefined : JSON.parse(stored)
-    );
     return stored == null ? undefined : JSON.parse(stored);
   },
   remove(key: string) {
@@ -17,21 +14,44 @@ const localData = {
   },
 };
 
-export const Modal = () => {
+export const Modal: React.FC = () => {
+  const location = useLocation();
   const navigate = useNavigate();
-  return (
-    <div className="modalDiv">
-      <div className="modal">
-        <h3>Nastavenia</h3>
-        <button
-          onClick={() => {
-            localData.set("showAkordy", false);
-            navigate(-1);
-          }}
-        >
-          Close
-        </button>
+
+  const fs = localData.get("fontSize");
+  const [fontSize, setFontSize] = useState(
+    () => localData.get("fontSize") || 0
+  );
+
+  function handleClick() {
+    console.log("VP", localData.get("fontSize"));
+    const val = localData.get("showAkordy");
+
+    localData.remove("showAkordy");
+    localData.set("showAkordy", !val);
+    localData.set("fontSize", fs + 5);
+    setFontSize(fs + 5);
+    console.log(!val);
+    navigate(-1);
+  }
+
+  const background = location.state?.background;
+  //console.log("sss", background);
+  if (background) {
+    return (
+      <div className="modalDiv">
+        <div className="modal">
+          <h1>Nastavenia</h1>
+          <h2>{fs}</h2>
+          <button onClick={handleClick}>Návrat</button>
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1>No background data available</h1>
     </div>
   );
 };

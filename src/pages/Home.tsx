@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
 import filter from "lodash.filter";
 import novePiesne1 from "../components/Udaje1";
 import { GiHamburgerMenu } from "react-icons/gi";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface SongVerse {
   cisloS: string;
@@ -69,14 +69,10 @@ export default function Home() {
   }
 
   function handleSelectDb1() {
-    /*const storedData = JSON.parse(localStorage.getItem("apiData")!);
-    setFilteredData(storedData);
-    //console.log(data?.length);
-    */
-
+    //console.log("QQSS", { background: location });
     navigate("modal", { state: { background: location } });
-    //console.log("UuUUUUUU");
   }
+
   function contains(song: Song, formatedQuery: string): boolean {
     // return Object.values(song).some(value =>
     //  typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
@@ -110,7 +106,14 @@ export default function Home() {
       slohy: item.slohy,
     };
     //localStorage.removeItem("colorScheme");
-    navigate("/akordy", { state: piesen });
+    navigate("/akordy", { state: { song: piesen } });
+    /*
+    const queryString = new URLSearchParams({
+      song: JSON.stringify(piesen),
+    }).toString();
+    navigate(`/akordy?${queryString}`);
+ 
+ */
   };
 
   return (

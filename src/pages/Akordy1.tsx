@@ -28,9 +28,6 @@ const localData = {
   },
   get(key: string) {
     const stored = localStorage.getItem(key);
-    //console.log(      "getisko " + key + ": ",
-    // stored == null ? undefined : JSON.parse(stored)
-    //);
     return stored == null ? undefined : JSON.parse(stored);
   },
   remove(key: string) {
@@ -41,28 +38,26 @@ const localData = {
 export default function Akordy1() {
   const location = useLocation();
   const navigate = useNavigate();
-  // Kontrola, či má location.state definovaný typ LocationState
-  const piesenka: Song = location.state;
 
-  console.log("AAAAA", piesenka);
+  const piesenka = location.state?.song;
 
-  const [myList, setMyList] = useState([]);
-  const slohy = piesenka.slohy.map((sloha) => sloha.cisloS);
   const [selectedView, setSelectedView] = useState(0);
   const [fontSize, setFontSize] = useState(
     () => localData.get("fontSize") || 0
   );
   const [colorScheme, setColorScheme] = useState(
-    (localData.get("colorScheme") as ColorScheme) || "dark"
+    () => (localData.get("colorScheme") as ColorScheme) || "dark"
   );
-  //console.log("colorSCH:", colorScheme);
-  const [showAkordy, setShowAkordy] = useState(localData.get("showAkordy"));
+  const [showAkordy, setShowAkordy] = useState(
+    () => localData.get("showAkordy") || false
+  );
 
+  function handleSettings() {
+    navigate("modal", {
+      state: { background: location, song: piesenka },
+    });
+  }
   function handleColorScheme() {
-    ////console.log("CS=======KKK:", colorScheme);
-    navigate("modal", { state: { background: location } });
-    //console.log("UuUUUUUU");
-    /*
     if (colorScheme == "light") {
       setColorScheme("dark");
       localData.set("colorScheme", "dark");
@@ -70,14 +65,8 @@ export default function Akordy1() {
       setColorScheme("light");
       localData.set("colorScheme", "light");
     }
-    */
   }
 
-  ////console.log("CS=======:", colorScheme);
-  //localData.set("colorScheme", colorScheme);
-  ////console.log("CS--------:", colorScheme);
-
-  //console.log("CSS", colorScheme);
   return (
     <div
       id="container"
@@ -95,10 +84,7 @@ export default function Akordy1() {
       }}
     >
       <div>
-        <Link to="modal" state={{ background: location }}>
-          Open Modal
-        </Link>
-        <Outlet />
+        <p style={{ fontStyle: "italic" }}>{fontSize}</p>
       </div>
       <div
         id="nadpis-container"
@@ -167,10 +153,7 @@ export default function Akordy1() {
           <TbLetterCaseUpper size={30} color="black" />
         </button>
 
-        <button
-          style={getStyles(40).button}
-          onClick={() => handleColorScheme()}
-        >
+        <button style={getStyles(40).button} onClick={() => handleSettings()}>
           <TbColorFilter size={30} color="black" />
         </button>
       </div>
@@ -223,50 +206,52 @@ export default function Akordy1() {
           margin: 10,
         }}
       >
-        {slohy.map(function (object, i) {
-          function handleClick() {
-            setSelectedView(i);
-            console.log("BBBBBBBBB", object);
-          }
-          return (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
-                margin: 0,
-                padding: 0,
-                border: "2px solid black",
-                borderRadius: 15,
-              }}
-              onClick={() => {
-                handleClick();
-              }}
-            >
+        {piesenka?.slohy
+          .map((sloha) => sloha.cisloS)
+          .map(function (object, i) {
+            function handleClick() {
+              setSelectedView(i);
+              /// console.log("BBBBBBBBB", object);
+            }
+            return (
               <div
+                key={i}
                 style={{
-                  display: "flex",
-                  width: "100%",
-                  height: "100%",
+                  flex: 1,
                   justifyContent: "center",
                   alignItems: "center",
-                  backgroundColor: selectedView === i ? "blue" : "lightGray",
-                  color: selectedView === i ? "white" : "black",
+                  margin: 0,
+                  padding: 0,
+                  border: "2px solid black",
                   borderRadius: 15,
                 }}
+                onClick={() => {
+                  handleClick();
+                }}
               >
-                <span
+                <div
                   style={{
-                    fontSize: 40,
+                    display: "flex",
+                    width: "100%",
+                    height: "100%",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: selectedView === i ? "blue" : "lightGray",
+                    color: selectedView === i ? "white" : "black",
+                    borderRadius: 15,
                   }}
                 >
-                  {piesenka?.slohy[i].cisloS}
-                </span>
+                  <span
+                    style={{
+                      fontSize: 40,
+                    }}
+                  >
+                    {piesenka?.slohy[i].cisloS}
+                  </span>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
     </div>
   );
