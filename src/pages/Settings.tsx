@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { localData } from "../localData";
 import { SettingsContext, SettingsContextType } from "../context/SettingsContext";
@@ -7,7 +7,7 @@ export const Modal: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { fontSize, setFontSize, colorScheme, setColorScheme, showAkordy, setShowAkordy } = useContext(SettingsContext) as SettingsContextType;
+  const { setFontSize } = useContext(SettingsContext) as SettingsContextType;
 
   const fs = localData.get("fontSize");
 
