@@ -1,14 +1,11 @@
 import "./App.css";
 import {
-  BrowserRouter as Router,
   Routes,
   Route,
   useLocation,
 } from "react-router-dom";
-import About from "./pages/About";
 import Home from "./pages/Home";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Akordy1 from "./pages/Akordy1";
 import { Modal } from "./pages/Settings";
 

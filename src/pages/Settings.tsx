@@ -1,27 +1,16 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-
-const localData = {
-  set(key: string, value: any) {
-    localStorage.setItem(key, JSON.stringify(value));
-  },
-  get(key: string) {
-    const stored = localStorage.getItem(key);
-    return stored == null ? undefined : JSON.parse(stored);
-  },
-  remove(key: string) {
-    localStorage.removeItem(key);
-  },
-};
+import { localData } from "../localData";
+import { SettingsContext, SettingsContextType } from "../context/SettingsContext";
 
 export const Modal: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const { fontSize, setFontSize, colorScheme, setColorScheme, showAkordy, setShowAkordy } = useContext(SettingsContext) as SettingsContextType;
+
   const fs = localData.get("fontSize");
-  const [fontSize, setFontSize] = useState(
-    () => localData.get("fontSize") || 0
-  );
+
 
   function handleClick() {
     console.log("VP", localData.get("fontSize"));

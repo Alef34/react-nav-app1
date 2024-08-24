@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Song from "../components/Song";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import {
   TbColorFilter,
   TbLetterCaseLower,
@@ -8,6 +8,8 @@ import {
 } from "react-icons/tb";
 import { PiGuitarLight } from "react-icons/pi";
 import { MdNotes } from "react-icons/md";
+import { localData } from "../localData";
+import { SettingsContext, SettingsContextType } from "../context/SettingsContext";
 
 interface SongVerse {
   cisloS: string;
@@ -22,35 +24,14 @@ interface Song {
 
 type ColorScheme = "dark" | "light";
 
-const localData = {
-  set(key: string, value: any) {
-    localStorage.setItem(key, JSON.stringify(value));
-  },
-  get(key: string) {
-    const stored = localStorage.getItem(key);
-    return stored == null ? undefined : JSON.parse(stored);
-  },
-  remove(key: string) {
-    localStorage.removeItem(key);
-  },
-};
-
 export default function Akordy1() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const { fontSize, setFontSize, colorScheme, setColorScheme, showAkordy, setShowAkordy } = useContext(SettingsContext) as SettingsContextType;
   const piesenka = location.state?.song;
 
   const [selectedView, setSelectedView] = useState(0);
-  const [fontSize, setFontSize] = useState(
-    () => localData.get("fontSize") || 0
-  );
-  const [colorScheme, setColorScheme] = useState(
-    () => (localData.get("colorScheme") as ColorScheme) || "dark"
-  );
-  const [showAkordy, setShowAkordy] = useState(
-    () => localData.get("showAkordy") || false
-  );
 
   function handleSettings() {
     navigate("modal", {
