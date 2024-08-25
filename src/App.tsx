@@ -1,13 +1,10 @@
 import "./App.css";
-import {
-  Routes,
-  Route,
-  useLocation,
-} from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 
 import Akordy1 from "./pages/Akordy1";
 import { Modal } from "./pages/Settings";
+import Settings from "./pages/Nastavenia";
 
 function App() {
   //const queryClient = new QueryClient();

@@ -9,7 +9,10 @@ import {
 import { PiGuitarLight } from "react-icons/pi";
 import { MdNotes } from "react-icons/md";
 import { localData } from "../localData";
-import { SettingsContext, SettingsContextType } from "../context/SettingsContext";
+import {
+  SettingsContext,
+  SettingsContextType,
+} from "../context/SettingsContext";
 
 interface SongVerse {
   cisloS: string;
@@ -28,7 +31,14 @@ export default function Akordy1() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { fontSize, setFontSize, colorScheme, setColorScheme, showAkordy, setShowAkordy } = useContext(SettingsContext) as SettingsContextType;
+  const {
+    fontSize,
+    setFontSize,
+    colorScheme,
+    setColorScheme,
+    showAkordy,
+    setShowAkordy,
+  } = useContext(SettingsContext) as SettingsContextType;
   const piesenka = location.state?.song;
 
   const [selectedView, setSelectedView] = useState(0);
@@ -64,9 +74,6 @@ export default function Akordy1() {
         backgroundColor: "gray",
       }}
     >
-      <div>
-        <p style={{ fontStyle: "italic" }}>{fontSize}</p>
-      </div>
       <div
         id="nadpis-container"
         style={{

@@ -52,9 +52,150 @@
   align-items: center;
 }
 .modal {
-  width: 75vw;
+  width: 400px;
   height: 75vh;
   opacity: 100;
-  background-color: black;
+  background-color: gray;
   border-radius: 5px;
+}
+.container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  width: 100%;
+  padding: 20px;
+}
+
+.header {
+  border: 2px solid white;
+  text-align: center;
+  margin-bottom: 0px;
+}
+
+.footer {
+  border: 2px solid white;
+  text-align: center;
+  margin-bottom: 0px;
+}
+h1 {
+  font-size: 24px;
+  color: black;
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  border: 2px solid red;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.setting-item label {
+  font-size: 16px;
+  color: #555;
+  margin-right: 10px;
+  flex: 1;
+}
+
+.setting-item select,
+.setting-item input[type="range"],
+.setting-item input[type="checkbox"] {
+  flex: 1;
+}
+
+.save-button {
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+  font-size: 16px;
+}
+
+.save-button:hover {
+  background-color: #0056b3;
+}
+
+.mainWindow {
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+
+  background-color: rgba(189, 195, 199, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.settingsWindow {
+  width: 400px;
+  height: 75vh;
+  background-color: rgba(35, 133, 198, 0.7);
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+}
+
+.settWA {
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  width: 100%;
+  background-color: rgba(163, 87, 5, 0.1);
+
+  font-weight: 700;
+  color: blue;
+  text-align: center;
+  border: 2px solid black;
+
+  padding: 1em;
+}
+
+.itemA {
+  width: 100%;
+  top: 10em;
+  background-color: rgba(189, 195, 199, 0.1);
+  font-weight: 700;
+  color: black;
+  text-align: center;
+  border: 2px solid white;
+}
+
+.item-1 {
+  flex: 1;
+}
+.item-1A {
+  flex: 1;
+}
+
+.item-2 {
+  flex: 10;
+}
+
+.item-3 {
+  flex: 1;
+}
+.btn {
+  width: 100px;
+}
+.setting-item label {
+  font-size: 16px;
+  color: #555;
+  margin-right: 10px;
+  flex: 1;
 }
