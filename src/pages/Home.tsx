@@ -19,6 +19,11 @@ interface Song {
 
 type SongsData = Song[];
 
+interface Udaje{
+  verzia:string;
+  piesne:Song[];
+}
+
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -29,12 +34,13 @@ export default function Home() {
   const [ktoraDB, setKtoraDB] = useState(novePiesne);
   const [ktoraDBstr, setKtoraDBstr] = useState("novePiesne");
 
-  const { data, isLoading, isSuccess } = useQuery<SongsData>({
+  const { data, isLoading, isSuccess } = useQuery<Udaje>({
     queryFn: () => fetchDataTQ(ktoraDB),
     queryKey: ["songs", ktoraDB],
   });
 
-  const [filteredData, setFilteredData] = useState<SongsData>(() => data || []);
+  const [filteredData, setFilteredData] = useState<SongsData>(() => data?.piesne || []);
+  const [verzia, setVerzia] = useState<string>(() => data?.verzia || "");
   if (isLoading) return <div>Loading...</div>;
   if (!isSuccess) return <div>Error loading data</div>;
 
@@ -44,12 +50,13 @@ export default function Home() {
 
   if (isSuccess && data && !nacitane) {
     setNacitane(true);
-    //console.log("Mazem");
+    setVerzia(data.verzia);
+    console.log("FF",data.verzia);
     localStorage.removeItem("apiData");
     localStorage.setItem("apiData", JSON.stringify(data));
-    //console.log("halooo");
+    console.log("halooo");
     //console.log(data);
-    setFilteredData(data);
+    setFilteredData(data.piesne);
   } else {
     //console.log("tuuuuu", isSuccess && !nacitane);
     localStorage.removeItem("apiData");
@@ -85,7 +92,8 @@ export default function Home() {
 
   function vyfiltruj(filtr: string) {
     const formatedQuery = filtr?.toLocaleLowerCase();
-    const filteredData = filter(data, (piesen: Song) => {
+    console.log("ANo:", data?.verzia);
+    const filteredData:SongsData = filter(data?.piesne, (piesen: Song) => {
       return contains(piesen, formatedQuery);
     });
     setFilteredData(filteredData);
@@ -131,7 +139,7 @@ export default function Home() {
         color: "black",
         backgroundColor: "gray",
       }}
-    >
+    ><div>hhh{verzia}</div>
       <div
         id="inputBox"
         style={{

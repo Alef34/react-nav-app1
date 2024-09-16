@@ -1,7 +1,10 @@
-const novePiesne1 = [
+const novePiesne1 = {
+  verzia:"1",
+  piesne:
+  [
   {
     cisloP: "1",
-    nazov: "Čo o mne vieš?",
+    nazov: "Čoooooo o mne vieš?",
     slohy: [
       {
         cisloS: "V1",
@@ -25,5 +28,5 @@ const novePiesne1 = [
       },
     ],
   },
-];
+]};
 export default novePiesne1;

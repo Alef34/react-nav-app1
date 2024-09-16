@@ -1,3 +1,4 @@
+import { version } from "react";
 import Song from "./Song";
 
 interface SongVerse {
@@ -11,7 +12,11 @@ interface Song {
   slohy: SongVerse[];
 }
 
-export const fetchDataTQ = async (suborSdatami: Song[]): Promise<Song[]> => {
+interface Udaje{
+  verzia:string;
+  piesne:Song[];
+}
+export const fetchDataTQ = async (suborSdatami: Udaje): Promise<Udaje> => {
   //await query:any
 
   //new Promise((resolve)=>setTimeout(resolve, 1000));
@@ -20,26 +25,34 @@ export const fetchDataTQ = async (suborSdatami: Song[]): Promise<Song[]> => {
   localStorage.removeItem("apiData");
   const storedData = localStorage.getItem("apiData");
   if (storedData) {
-    const songs: Song[] = JSON.parse(storedData) as Song[];
+
+    const mojeUdaje: Udaje = JSON.parse(storedData) as Udaje;
     //console.log("kraaasa");
-    //console.log(storedData);
-    //console.log(songs);
-    return [...songs];
+    //console.log("NNNNNN:",mojeUdaje.verzia);
+    const songs: Song[] =mojeUdaje.piesne;
+    
+    // toto je ok const songs: Song[] = JSON.parse(storedData) as Song[];
+ 
+    return {verzia:"1", piesne:[...songs]};
   } else {
-    //console.log("No data found in localStorage");
+    console.log("No data found in localStorage");
   }
-  //console.log("UUUA:");
-  const poslaneData = suborSdatami.filter((piesen) =>
+
+  console.log("KKK", suborSdatami);
+  const poslaneData = suborSdatami.piesne.filter((piesen) =>
     Object.values(piesen).some(
       (value) => typeof value === "string" && value.toLowerCase().includes("")
     )
   );
   //queryna.toLowerCase()
-  //console.log("UUUA:", "+", "", "+", poslaneData.length);
-  return [...poslaneData];
+  //console.log("UUUABBB:", "+", "", "+", poslaneData.length);
+  return {verzia:suborSdatami.verzia, piesne:[ ...poslaneData]};
+ 
 };
 
-const novePiesne = [
+const novePiesne ={
+  verzia:"1",
+  piesne: [
   {
     cisloP: "1",
     nazov: "Ale - aleluja",
@@ -4759,5 +4772,5 @@ const novePiesne = [
       },
     ],
   },
-];
+]};
 export default novePiesne;
