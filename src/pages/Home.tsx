@@ -34,6 +34,8 @@ export default function Home() {
   const [ktoraDB, setKtoraDB] = useState(novePiesne);
   const [ktoraDBstr, setKtoraDBstr] = useState("novePiesne");
 
+console.log("heloo");
+debugger
   const { data, isLoading, isSuccess } = useQuery<Udaje>({
     queryFn: () => fetchDataTQ(ktoraDB),
     queryKey: ["songs", ktoraDB],
@@ -51,10 +53,10 @@ export default function Home() {
   if (isSuccess && data && !nacitane) {
     setNacitane(true);
     setVerzia(data.verzia);
-    console.log("FF",data.verzia);
+    //console.log("FF",data.verzia);
     localStorage.removeItem("apiData");
     localStorage.setItem("apiData", JSON.stringify(data));
-    console.log("halooo");
+    //console.log("halooo");
     //console.log(data);
     setFilteredData(data.piesne);
   } else {

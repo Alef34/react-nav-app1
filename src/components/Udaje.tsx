@@ -35,10 +35,10 @@ export const fetchDataTQ = async (suborSdatami: Udaje): Promise<Udaje> => {
  
     return {verzia:"1", piesne:[...songs]};
   } else {
-    console.log("No data found in localStorage");
+    //console.log("No data found in localStorage");
   }
 
-  console.log("KKK", suborSdatami);
+  //console.log("KKK", suborSdatami);
   const poslaneData = suborSdatami.piesne.filter((piesen) =>
     Object.values(piesen).some(
       (value) => typeof value === "string" && value.toLowerCase().includes("")
@@ -50,7 +50,7 @@ export const fetchDataTQ = async (suborSdatami: Udaje): Promise<Udaje> => {
  
 };
 
-const novePiesne ={
+const novePiesne: Udaje ={
   verzia:"1",
   piesne: [
   {

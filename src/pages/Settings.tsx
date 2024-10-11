@@ -67,7 +67,10 @@ export const Modal: React.FC = () => {
                   onChange={(e) => myProps.setShowAkordy(e.target.checked)}
                 />
               </div>
-              <div className="itemA item-1A">item2</div>
+              <div className="itemA item-1A">
+                item2
+                <button onClick={()=>{alert("sss")}} style={{alignItems:"center", justifyContent:"center"}}>Test</button>
+              </div>
               <div className="itemA item-1A">item2</div>
             </div>
           </div>
