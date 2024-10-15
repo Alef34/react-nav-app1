@@ -24,6 +24,7 @@
     "@mui/styled-engine-sc": "^6.0.0-alpha.18",
     "@tanstack/react-query": "^5.36.0",
     "axios": "^1.7.2",
+    "express": "^4.21.1",
     "lodash.filter": "^4.6.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

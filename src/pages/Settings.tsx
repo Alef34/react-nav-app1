@@ -69,7 +69,7 @@ export const Modal: React.FC = () => {
               </div>
               <div className="itemA item-1A">
                 item2
-                <button onClick={()=>{alert("sss")}} style={{alignItems:"center", justifyContent:"center"}}>Test</button>
+                <button onClick={()=>{alert("sss"); localStorage.removeItem("apiData");}} style={{alignItems:"center", justifyContent:"center"}}>Test</button>
               </div>
               <div className="itemA item-1A">item2</div>
             </div>

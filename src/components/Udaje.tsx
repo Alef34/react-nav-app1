@@ -19,15 +19,16 @@ interface Udaje{
 export const fetchDataTQ = async (suborSdatami: Udaje): Promise<Udaje> => {
   //await query:any
 
-  //new Promise((resolve)=>setTimeout(resolve, 1000));
+  //new Promise((resolve)=>setTimeout(resolve, 5000));
 
   //const queryna = query.trim();
-  localStorage.removeItem("apiData");
+  //localStorage.removeItem("apiData");
   const storedData = localStorage.getItem("apiData");
+ //debugger
   if (storedData) {
-
+    
     const mojeUdaje: Udaje = JSON.parse(storedData) as Udaje;
-    //console.log("kraaasa");
+    console.log("Taham udaje z localStorage");
     //console.log("NNNNNN:",mojeUdaje.verzia);
     const songs: Song[] =mojeUdaje.piesne;
     
@@ -35,8 +36,21 @@ export const fetchDataTQ = async (suborSdatami: Udaje): Promise<Udaje> => {
  
     return {verzia:"1", piesne:[...songs]};
   } else {
-    //console.log("No data found in localStorage");
-  }
+    console.log("Taham udaje z WebService");
+    const url =  `https://texty-piesni-csv.azurewebsites.net/WeatherForecast`;
+  
+ //   debugger
+    const response = await fetch(url,);
+    const noveData:Udaje = await response.json();
+    console.log("AA",noveData);      
+
+     const ud:Udaje = {verzia:noveData.verzia, piesne:noveData.piesne};
+     console.log("AA",ud);   
+    return{verzia:noveData.verzia, piesne:noveData.piesne};
+ 
+   
+      
+    }
 
   //console.log("KKK", suborSdatami);
   const poslaneData = suborSdatami.piesne.filter((piesen) =>
@@ -46,9 +60,15 @@ export const fetchDataTQ = async (suborSdatami: Udaje): Promise<Udaje> => {
   );
   //queryna.toLowerCase()
   //console.log("UUUABBB:", "+", "", "+", poslaneData.length);
-  return {verzia:suborSdatami.verzia, piesne:[ ...poslaneData]};
+ //debugger
+  const ud:Udaje = {verzia:suborSdatami.verzia, piesne:[ ...poslaneData]};
+  console.log(ud);
+  return ud;
  
 };
+
+
+
 
 const novePiesne: Udaje ={
   verzia:"1",
