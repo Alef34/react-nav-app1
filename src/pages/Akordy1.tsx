@@ -13,6 +13,7 @@ import {
   SettingsContext,
   SettingsContextType,
 } from "../context/SettingsContext";
+import { GiSettingsKnobs } from "react-icons/gi";
 
 interface SongVerse {
   cisloS: string;
@@ -107,42 +108,15 @@ export default function Akordy1() {
           {piesenka?.cisloP}.{piesenka?.nazov}
         </button>
 
-        <button
-          style={getStyles(40).button}
-          onClick={() => {
-            setShowAkordy(!showAkordy);
-            localData.set("showAkordy", !showAkordy);
-          }}
-        >
-          {showAkordy ? (
-            <MdNotes size={40} color="black" />
-          ) : (
-            <PiGuitarLight size={40} color="black" />
-          )}
-        </button>
-
-        <button
-          style={getStyles(40).button}
-          onClick={() => {
-            setFontSize(fontSize - 5);
-            localData.set("fontSize", fontSize - 5);
-          }}
-        >
-          <TbLetterCaseLower size={30} color="black" />
-        </button>
-
-        <button
-          style={getStyles(40).button}
-          onClick={() => {
-            setFontSize(fontSize + 5);
-            localData.set("fontSize", fontSize + 5);
-          }}
-        >
-          <TbLetterCaseUpper size={30} color="black" />
-        </button>
-
         <button style={getStyles(40).button} onClick={() => handleSettings()}>
-          <TbColorFilter size={30} color="black" />
+        <GiSettingsKnobs
+              style={{
+                width: 40,
+                height: 40,
+                borderColor: "black",
+                color: "black",
+              }}
+            />
         </button>
       </div>
       <div

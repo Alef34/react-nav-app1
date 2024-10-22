@@ -1,12 +1,14 @@
 import { useContext, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { localData } from "../localData";
+
 import {
   SettingsContext,
   SettingsContextType,
 } from "../context/SettingsContext";
 import Checkbox from "@mui/material/Checkbox";
 import Slider from "@mui/material/Slider";
+import { useVersionStore } from "../state/versionStore";
 
 export const Modal: React.FC = () => {
   const location = useLocation();
@@ -14,6 +16,7 @@ export const Modal: React.FC = () => {
 
   const [theme, setTheme] = useState<string>("light");
   const [language, setLanguage] = useState<string>("en");
+  const {setVerziaDb} = useVersionStore();
 
   const { ...myProps } = useContext(SettingsContext) as SettingsContextType;
 
@@ -31,8 +34,10 @@ export const Modal: React.FC = () => {
     */
     navigate(-1);
   }
+ 
 
   const background = location.state?.background;
+  const label = { inputProps: { 'aria-label': 'Zobraz akordy' } };
   //console.log("sss", background);
   if (background) {
     return (
@@ -60,16 +65,22 @@ export const Modal: React.FC = () => {
                 <label htmlFor="notifications" style={{ flex: 2 }}>
                   Zobraz akordy:
                 </label>
-                <input
-                  type="checkbox"
-                  id="notifications"
+                <Checkbox {...label} 
                   checked={myProps.showAkordy}
-                  onChange={(e) => myProps.setShowAkordy(e.target.checked)}
-                />
+                  onChange={(e) => {
+                    myProps.setShowAkordy(e.target.checked);
+                 }}
+                sx={{ '& .MuiSvgIcon-root': { fontSize: 50 } }}/>
+                
               </div>
               <div className="itemA item-1A">
                 item2
-                <button onClick={()=>{alert("sss"); localStorage.removeItem("apiData");}} style={{alignItems:"center", justifyContent:"center"}}>Test</button>
+                <button onClick={()=>{
+                    setVerziaDb("10");
+                   
+                   
+                      }} 
+                  style={{alignItems:"center", justifyContent:"center"}}>Test</button>
               </div>
               <div className="itemA item-1A">item2</div>
             </div>

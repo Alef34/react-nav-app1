@@ -1,0 +1,47 @@
+
+        <button
+          style={getStyles(40).button}
+          onClick={() => {
+            setShowAkordy(!showAkordy);
+            localData.set("showAkordy", !showAkordy);
+          }}
+        >
+          {showAkordy ? (
+            <MdNotes size={40} color="black" />
+          ) : (
+            <PiGuitarLight size={40} color="black" />
+          )}
+        </button>
+
+        <button
+          style={getStyles(40).button}
+          onClick={() => {
+            setFontSize(fontSize - 5);
+            localData.set("fontSize", fontSize - 5);
+          }}
+        >
+          <TbLetterCaseLower size={30} color="black" />
+        </button>
+
+        <button
+          style={getStyles(40).button}
+          onClick={() => {
+            setFontSize(fontSize + 5);
+            localData.set("fontSize", fontSize + 5);
+          }}
+        >
+          <TbLetterCaseUpper size={30} color="black" />
+        </button>
+
+
+
+ <button onClick={handleSelectDb} style={getStyles(40).button}>
+          <GiHamburgerMenu
+            style={{
+              width: 20,
+              height: 20,
+              borderColor: "black",
+              color: "black",
+            }}
+          />
+        </button>

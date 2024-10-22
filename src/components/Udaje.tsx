@@ -17,11 +17,9 @@ interface Udaje{
   piesne:Song[];
 }
 export const fetchDataTQ = async (suborSdatami: Udaje): Promise<Udaje> => {
-  //await query:any
+  
+  console.log("Som vo funkcii");
 
-  //new Promise((resolve)=>setTimeout(resolve, 5000));
-
-  //const queryna = query.trim();
   //localStorage.removeItem("apiData");
   const storedData = localStorage.getItem("apiData");
  //debugger
@@ -40,7 +38,7 @@ export const fetchDataTQ = async (suborSdatami: Udaje): Promise<Udaje> => {
     const url =  `https://texty-piesni-csv.azurewebsites.net/WeatherForecast`;
   
  //   debugger
-    const response = await fetch(url,);
+    const response = await fetch(url);
     const noveData:Udaje = await response.json();
     console.log("AA",noveData);      
 

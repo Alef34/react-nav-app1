@@ -1,99 +1,52 @@
 import { useState } from "react";
-import novePiesne, { fetchDataTQ } from "../components/Udaje";
+//import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
 import filter from "lodash.filter";
 import novePiesne1 from "../components/Udaje1";
-import { GiHamburgerMenu } from "react-icons/gi";
+import { GiHamburgerMenu, GiSettingsKnobs, GiToolbox } from "react-icons/gi";
 import { useLocation, useNavigate } from "react-router-dom";
+//import { localData } from "../localData";
 
-interface SongVerse {
-  cisloS: string;
-  textik: string;
-}
+import { useUserStore } from "../state/userStore";
+import { Song, SongsData } from "../types/myTypes";
+import { getSongs } from "../api/dataSources";
+import { useVersionStore } from "../state/versionStore";
 
-interface Song {
-  cisloP: string;
-  nazov: string;
-  slohy: SongVerse[];
-}
 
-type SongsData = Song[];
-
-interface Udaje{
-  verzia:string;
-  piesne:Song[];
-}
 
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  //const [filteredData, setFilteredData] = useState<SongsData>([]);
+  const [filteredData, setFilteredData] = useState<SongsData>([]);
   const [selectedItem, setSelectedItem] = useState("");
   const [nacitane, setNacitane] = useState(false);
-  const [ktoraDB, setKtoraDB] = useState(novePiesne);
-  const [ktoraDBstr, setKtoraDBstr] = useState("novePiesne");
+  
+
+  const { setFilter } = useUserStore();
+  const { mojFilter } = useUserStore();  
+
+  
+  const { verziaDb } = useVersionStore();  
+  const {setVerziaDb} = useVersionStore();
 
 
-
-  const { data, isLoading, isSuccess } = useQuery<Udaje>({
-    queryFn: () => fetchDataTQ(ktoraDB),
-    queryKey: ["songs", ktoraDB],
+const { data, isLoading, isSuccess } = useQuery({
+    queryKey: ['songs', verziaDb],
+    queryFn: () => getSongs(""),
   });
 
-  const [filteredData, setFilteredData] = useState<SongsData>(() => data?.piesne || []);
-  const [verzia, setVerzia] = useState<string>(() => data?.verzia || "");
+
   if (isLoading) return <div>Loading...</div>;
   if (!isSuccess) return <div>Error loading data</div>;
 
-  //console.log("isSUcc-", isSuccess);
-  //console.log("data-", data);
-  //console.log("nacitane-", nacitane);
-
-  if (isSuccess && data && !nacitane) {
+  if (isSuccess && data &&!nacitane ) {
     setNacitane(true);
-    setVerzia(data.verzia);
-    //console.log("FF",data.verzia);
-    localStorage.removeItem("apiData");
-    localStorage.setItem("apiData", JSON.stringify(data));
-    console.log("halooo");
-    //console.log(data);
-    setFilteredData(data.piesne);
-  } else {
-    //console.log("tuuuuu", isSuccess && !nacitane);
-  
-    localStorage.removeItem("apiData");
-    localStorage.setItem("apiData", JSON.stringify(data));
-    console.log("halooo111");
+    setFilteredData(data);
   }
   
   
-  
-  
-  
-  
-  function handleSelectDb() {
-    setNacitane(false);
-    if (ktoraDBstr == "novePiesne1") {
-      setKtoraDB(novePiesne);
-      setKtoraDBstr("novePiesne");
-      //console.log("0");
-    } else {
-      setKtoraDB(novePiesne1);
-      setKtoraDBstr("novePiesne1");
-      //console.log("1");
-    }
-  }
-
-  function handleSelectDb1() {
-    //console.log("QQSS", { background: location });
-    navigate("modal", { state: { background: location } });
-  }
-
   function contains(song: Song, formatedQuery: string): boolean {
-    // return Object.values(song).some(value =>
-    //  typeof value === 'string' && value.toLowerCase().includes(formatedQuery?.toLowerCase()));
-
     return (
       song.cisloP.toLowerCase().includes(formatedQuery?.toLowerCase()) ||
       song.nazov.toLowerCase().includes(formatedQuery?.toLowerCase())
@@ -102,36 +55,34 @@ export default function Home() {
 
   function vyfiltruj(filtr: string) {
     const formatedQuery = filtr?.toLocaleLowerCase();
-    console.log("ANo:", data?.verzia);
-    const filteredData:SongsData = filter(data?.piesne, (piesen: Song) => {
+    const filteredData:SongsData = filter(data, (piesen: Song) => {
       return contains(piesen, formatedQuery);
     });
     setFilteredData(filteredData);
-    // //console.log("pocet - ", searchQuery);
   }
 
+  
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
     vyfiltruj(e.target.value);
   };
 
-  const handleClick = (item: Song) => {
-    setSelectedItem(item.cisloP);
+   function handleShowSetting() {
+    //console.log("1");
+    //setVerziaDb("100");
+    
+   // console.log("2");
+     navigate("modal", { state: { background: location } });
+   }
 
+  const handleClickSkokNaPiesen = (item: Song) => {
+    setSelectedItem(item.cisloP);
     const piesen: Song = {
       cisloP: item.cisloP,
       nazov: item.nazov,
       slohy: item.slohy,
     };
-    //localStorage.removeItem("colorScheme");
     navigate("/akordy", { state: { song: piesen } });
-    /*
-    const queryString = new URLSearchParams({
-      song: JSON.stringify(piesen),
-    }).toString();
-    navigate(`/akordy?${queryString}`);
- 
- */
   };
 
   return (
@@ -149,7 +100,7 @@ export default function Home() {
         color: "black",
         backgroundColor: "gray",
       }}
-    ><div>hhh{verzia}</div>
+    >
       <div
         id="inputBox"
         style={{
@@ -174,17 +125,17 @@ export default function Home() {
           onChange={handleSearch}
           value={searchQuery}
         />
-        <button onClick={handleSelectDb1} style={getStyles(40).button}></button>
-        <button onClick={handleSelectDb} style={getStyles(40).button}>
-          <GiHamburgerMenu
-            style={{
-              width: 20,
-              height: 20,
-              borderColor: "black",
-              color: "black",
-            }}
-          />
+        <button onClick={handleShowSetting} style={getStyles(40).button}>
+          <GiSettingsKnobs
+              style={{
+                width: 40,
+                height: 40,
+                borderColor: "black",
+                color: "black",
+              }}
+            />
         </button>
+       
       </div>
 
       <div
@@ -199,10 +150,10 @@ export default function Home() {
       >
         {/* Unsorted list komponent */}
         <ul style={{ listStyleType: "none", padding: 0 }}>
-          {filteredData.map((item) => (
+          {filteredData?.map((item) => (
             <li
               key={item.cisloP}
-              onClick={() => handleClick(item)}
+              onClick={() => handleClickSkokNaPiesen(item)}
               style={{
                 fontSize: 25,
                 padding: "1px",
