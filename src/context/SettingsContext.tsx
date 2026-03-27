@@ -17,14 +17,23 @@ export type SettingsContextType = {
 
 export const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+function normalizeFontSize(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 30;
+  }
+
+  return Math.min(80, Math.max(20, numeric));
+}
+
 export function SettingsContextProvider({ children }: { children: ReactNode }) {
-  const [fontSize, setFontSize] = useState(() => localData.get("fontSize") || 0);
+  const [fontSize, setFontSize] = useState<number>(() => normalizeFontSize(localData.get("fontSize")));
   const [colorScheme, setColorScheme] = useState<ColorScheme>(() => (localData.get("colorScheme") as ColorScheme) || "dark");
-  const [showAkordy, setShowAkordy] = useState(() => localData.get("showAkordy") || false);
+  const [showAkordy, setShowAkordy] = useState<boolean>(() => Boolean(localData.get("showAkordy")));
   const [verzia, setVerzia] = useState<string>(() =>localData.get("verzia") || "")
 
   React.useEffect(() => {
-    localData.set("fontSize", fontSize);
+    localData.set("fontSize", normalizeFontSize(fontSize));
   }, [fontSize]);
 
   React.useEffect(() => {

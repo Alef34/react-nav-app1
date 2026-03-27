@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Song from "../components/Song";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   TbColorFilter,
   TbLetterCaseLower,
@@ -43,6 +43,37 @@ export default function Akordy1() {
   const piesenka = location.state?.song;
 
   const [selectedView, setSelectedView] = useState(0);
+  const effectiveFontSize = Math.min(80, Math.max(20, Number(fontSize) || 30));
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const responsiveScale = Math.min(
+    1.6,
+    Math.max(0.85, Math.min(windowSize.width / 1280, windowSize.height / 900))
+  );
+  const responsiveSongSize = Math.min(
+    90,
+    Math.max(18, Math.round(effectiveFontSize * responsiveScale))
+  );
+  const responsiveHeaderSize = Math.min(
+    44,
+    Math.max(22, Math.round(30 * responsiveScale))
+  );
+  const responsiveVerseBadge = Math.min(
+    56,
+    Math.max(24, Math.round(40 * responsiveScale))
+  );
 
   function handleSettings() {
     navigate("modal", {
@@ -57,6 +88,18 @@ export default function Akordy1() {
       setColorScheme("light");
       localData.set("colorScheme", "light");
     }
+  }
+
+  function handleOpenProjector() {
+    localStorage.setItem(
+      "projector-song",
+      JSON.stringify({
+        song: piesenka,
+        selectedView,
+        showAkordy,
+      })
+    );
+    window.open("/projector", "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -98,7 +141,7 @@ export default function Akordy1() {
             borderRadius: 15,
             color: "black",
             textAlign: "left",
-            fontSize: 30,
+            fontSize: responsiveHeaderSize,
             fontWeight: "bold",
           }}
           onClick={() => {
@@ -117,6 +160,13 @@ export default function Akordy1() {
                 color: "black",
               }}
             />
+        </button>
+        <button
+          style={{ ...getStyles(40).button, marginLeft: 8, fontWeight: "bold" }}
+          onClick={handleOpenProjector}
+          title="Otvor skladbu v projektore"
+        >
+          PROJ
         </button>
       </div>
       <div
@@ -155,7 +205,7 @@ export default function Akordy1() {
           <Song
             text={piesenka.slohy[selectedView].textik}
             showChords={showAkordy}
-            zadanaVelkost={fontSize}
+            zadanaVelkost={responsiveSongSize}
           />
         </div>
       </div>
@@ -189,6 +239,14 @@ export default function Akordy1() {
                 }}
                 onClick={() => {
                   handleClick();
+                  localStorage.setItem(
+                    "projector-song",
+                    JSON.stringify({
+                      song: piesenka,
+                      selectedView: i,
+                      showAkordy,
+                    })
+                  );
                 }}
               >
                 <div
@@ -205,7 +263,7 @@ export default function Akordy1() {
                 >
                   <span
                     style={{
-                      fontSize: 40,
+                      fontSize: responsiveVerseBadge,
                     }}
                   >
                     {piesenka?.slohy[i].cisloS}

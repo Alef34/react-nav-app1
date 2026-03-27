@@ -1,34 +1,40 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 //import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
-import filter from "lodash.filter";
-import novePiesne1 from "../components/Udaje1";
-import { GiHamburgerMenu, GiSettingsKnobs, GiToolbox } from "react-icons/gi";
+import { GiSettingsKnobs } from "react-icons/gi";
 import { useLocation, useNavigate } from "react-router-dom";
 //import { localData } from "../localData";
 
-import { useUserStore } from "../state/userStore";
 import { Song, SongsData } from "../types/myTypes";
 import { getSongs } from "../api/dataSources";
 import { useVersionStore } from "../state/versionStore";
 
+const ALL_CATEGORIES = "Vsetky";
+
+function normalizeCategory(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function getSongCategory(song: Song): string {
+  if (song.kategoria && song.kategoria.trim().length > 0) {
+    return song.kategoria.trim();
+  }
+
+  if (song.source && /emanuel/i.test(song.source)) {
+    return "Emanuel";
+  }
+
+  return "Nabozenske";
+}
 
 
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredData, setFilteredData] = useState<SongsData>([]);
+  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
   const [selectedItem, setSelectedItem] = useState("");
-  const [nacitane, setNacitane] = useState(false);
-  
-
-  const { setFilter } = useUserStore();
-  const { mojFilter } = useUserStore();  
-
-  
   const { verziaDb } = useVersionStore();  
-  const {setVerziaDb} = useVersionStore();
 
 
 const { data, isLoading, isSuccess } = useQuery({
@@ -36,16 +42,20 @@ const { data, isLoading, isSuccess } = useQuery({
     queryFn: () => getSongs(""),
   });
 
+  const songsData: SongsData = isSuccess && data ? data : [];
 
-  if (isLoading) return <div>Loading...</div>;
-  if (!isSuccess) return <div>Error loading data</div>;
+  const categories = useMemo(() => {
+    const fromData = songsData
+      .map(getSongCategory)
+      .filter((category) => category && category !== ALL_CATEGORIES);
 
-  if (isSuccess && data &&!nacitane ) {
-    setNacitane(true);
-    setFilteredData(data);
-  }
-  
-  
+    const dynamicCategories = Array.from(new Set(fromData)).sort((a, b) =>
+      a.localeCompare(b)
+    );
+
+    return [ALL_CATEGORIES, ...dynamicCategories];
+  }, [songsData]);
+
   function contains(song: Song, formatedQuery: string): boolean {
     return (
       song.cisloP.toLowerCase().includes(formatedQuery?.toLowerCase()) ||
@@ -53,18 +63,35 @@ const { data, isLoading, isSuccess } = useQuery({
     );
   }
 
-  function vyfiltruj(filtr: string) {
-    const formatedQuery = filtr?.toLocaleLowerCase();
-    const filteredData:SongsData = filter(data, (piesen: Song) => {
-      return contains(piesen, formatedQuery);
+  const filteredData: SongsData = useMemo(() => {
+    const formattedQuery = searchQuery.toLocaleLowerCase();
+    const normalizedSelectedCategory = normalizeCategory(selectedCategory);
+
+    return songsData.filter((song) => {
+      const queryMatch = contains(song, formattedQuery);
+      const normalizedSongCategory = normalizeCategory(getSongCategory(song));
+      const categoryMatch =
+        selectedCategory === ALL_CATEGORIES ||
+        normalizedSongCategory === normalizedSelectedCategory;
+
+      return queryMatch && categoryMatch;
     });
-    setFilteredData(filteredData);
-  }
+  }, [songsData, searchQuery, selectedCategory]);
+
+  useEffect(() => {
+    console.log(
+      `[filter] selected=${selectedCategory} search=${searchQuery} filteredCount=${filteredData.length} ids=${filteredData
+        .map((song) => song.cisloP)
+        .join(",")}`
+    );
+  }, [selectedCategory, searchQuery, filteredData]);
+
+  if (isLoading) return <div>Loading...</div>;
+  if (!isSuccess) return <div>Error loading data</div>;
 
   
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    vyfiltruj(e.target.value);
   };
 
    function handleShowSetting() {
@@ -135,7 +162,43 @@ const { data, isLoading, isSuccess } = useQuery({
               }}
             />
         </button>
-       
+
+      </div>
+
+      <div
+        id="filterBox"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginLeft: 10,
+          marginRight: 10,
+          marginTop: 0,
+          marginBottom: 10,
+        }}
+      >
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          style={{
+            fontSize: 20,
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "2px solid black",
+            backgroundColor: "lightGray",
+            color: "black",
+          }}
+        >
+          {categories.map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
+
+        <span style={{ fontSize: 20, fontWeight: 700 }}>
+          {filteredData.length} / {songsData.length}
+        </span>
       </div>
 
       <div
@@ -150,9 +213,9 @@ const { data, isLoading, isSuccess } = useQuery({
       >
         {/* Unsorted list komponent */}
         <ul style={{ listStyleType: "none", padding: 0 }}>
-          {filteredData?.map((item) => (
+          {filteredData?.map((item, index) => (
             <li
-              key={item.cisloP}
+              key={`${item.cisloP}-${item.nazov}-${index}`}
               onClick={() => handleClickSkokNaPiesen(item)}
               style={{
                 fontSize: 25,

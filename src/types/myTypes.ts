@@ -11,6 +11,8 @@ export type User = {
   export interface Song {
     cisloP: string;
     nazov: string;
+    kategoria?: string;
+    source?: string;
     slohy: SongVerse[];
   }
 

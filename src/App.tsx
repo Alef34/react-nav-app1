@@ -3,8 +3,8 @@ import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 
 import Akordy1 from "./pages/Akordy1";
+import ProjectorView from "./pages/ProjectorView.tsx";
 import { Modal } from "./pages/Settings";
-import Settings from "./pages/Nastavenia";
 
 function App() {
   //const queryClient = new QueryClient();
@@ -22,6 +22,8 @@ function App() {
         <Route path={"/akordy"} element={<Akordy1 />}>
           <Route path="modal" element={<Modal />} />
         </Route>
+        <Route path={"/projector"} element={<ProjectorView />} />
+       
       </Routes>
       {background && (
         <Routes>
