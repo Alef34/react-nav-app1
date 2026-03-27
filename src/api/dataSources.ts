@@ -2,19 +2,11 @@
 import { Song, Udaje } from "../types/myTypes";
 import { localData } from "./localData";
 import { checkInternetConnection } from "./myTools";
+import { isSupabaseConfigured } from "./supabaseClient";
+import { loadSongsFromSupabase } from "./supabaseSongs";
 
 const LOCAL_SONGS_URL = `${import.meta.env.BASE_URL}songs.json`;
 const REMOTE_SONGS_URL = "https://texty-piesni-csv.azurewebsites.net/WeatherForecast";
-
-function logSongsDebug(source: string, songs: Song[]): void {
-  const countryIds = songs
-    .filter((song) => (song.kategoria ?? "").trim().toLocaleLowerCase() === "country")
-    .map((song) => song.cisloP);
-
-  console.log(
-    `[songs] source=${source} total=${songs.length} countryCount=${countryIds.length} countryIds=${countryIds.join(",") || "-"}`
-  );
-}
 
 async function loadLocalSongs(): Promise<Udaje | undefined> {
   try {
@@ -37,17 +29,24 @@ async function loadLocalSongs(): Promise<Udaje | undefined> {
 
 export async function getSongs(filter: string):Promise<Song[]> {
     let ud:Song[]=[];
-console.log("nacitavam...");
+    const loweredFilter = filter.toLowerCase();
+
+    if (isSupabaseConfigured) {
+      try {
+        return await loadSongsFromSupabase(loweredFilter);
+      } catch {
+        // Fallback to local JSON/cache path when Supabase is unavailable.
+      }
+    }
 
     const localSongs = await loadLocalSongs();
     if (localSongs) {
       localData.set('udaje', localSongs);
       ud = localSongs.piesne;
-      logSongsDebug("local", ud);
 
       return ud.filter((piesen) =>
         Object.values(piesen).some(
-          (value) => typeof value === "string" && value.toLowerCase().includes(filter)
+          (value) => typeof value === "string" && value.toLowerCase().includes(loweredFilter)
         )
       );
     }
@@ -63,8 +62,6 @@ console.log("nacitavam...");
             localData.remove('udaje');
           else
             alert('su nove udaje');
-
-          console.log('treba nahrat nove udaje z webu', vvNew,'->', vvOld);
         }
 
     }
@@ -75,19 +72,17 @@ console.log("nacitavam...");
       const noveData:Udaje = await response.json();
       ud = noveData.piesne;
       localData.set('udaje', noveData);
-      logSongsDebug("remote", ud);
     }
     else
     {
       const jsonData = localData.get('udaje'); // Načítaj reťazec z localStorage
       if (jsonData) {    
         ud = jsonData.piesne;
-        logSongsDebug("cache", ud);
       }
     }
       const poslaneData:Song[] = ud.filter((piesen) =>
       Object.values(piesen).some(
-        (value) => typeof value === "string" && value.toLowerCase().includes(filter)
+        (value) => typeof value === "string" && value.toLowerCase().includes(loweredFilter)
       )
     );
   
@@ -97,7 +92,10 @@ console.log("nacitavam...");
 
 
   export async function getVersion():Promise<string> {
-    
+    if (isSupabaseConfigured) {
+      return "supabase";
+    }
+
     let ver:string = "";
     
       const localSongs = await loadLocalSongs();

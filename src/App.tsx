@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import Akordy1 from "./pages/Akordy1";
 import ProjectorView from "./pages/ProjectorView.tsx";
 import { Modal } from "./pages/Settings";
+import AdminImport from "./pages/AdminImport";
 
 function App() {
   //const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ function App() {
           <Route path="modal" element={<Modal />} />
         </Route>
         <Route path={"/projector"} element={<ProjectorView />} />
+        <Route path={"/admin-import"} element={<AdminImport />} />
        
       </Routes>
       {background && (

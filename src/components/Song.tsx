@@ -1,4 +1,3 @@
-import { height } from "@fortawesome/free-brands-svg-icons/fa42Group";
 import React from "react";
 
 interface Chord {
@@ -96,7 +95,7 @@ const getStyles = (velkost: number) => ({
     alignItems: "center",
     justifyContent: "center",
     margin: "10px",
-    flexWrap: "wrap",
+    flexWrap: "wrap" as const,
     //border: "solid 2px black",
   },
   chord: {

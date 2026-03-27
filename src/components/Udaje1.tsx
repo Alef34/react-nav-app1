@@ -30,25 +30,5 @@ const novePiesne10 = {
   },
 ]};
 
-const fetchData = async(url:any)=>{
-  try{
-      console.log("A");
-      const response = await fetch(url, { mode: 'no-cors'});
-      console.log("B");
-      console.log("data110");
-      const json = await response.json();
-      console.log(json.result);
-      return json.result;
- //     setData(json.results);
-    }catch(error:any){
-      console.log("C");
-   //   setError(error);
-    //  setIsLoading(false);
-  }
-}
-
-const API_ENDPOINT= `https://texty-piesni-csv.azurewebsites.net/WeatherForecast`
-
-//const test = fetchData(API_ENDPOINT);
 const novePiesne1 =novePiesne10;// 
 export default novePiesne1;

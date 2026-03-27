@@ -1,14 +1,6 @@
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Song from "../components/Song";
 import { useContext, useEffect, useState } from "react";
-import {
-  TbColorFilter,
-  TbLetterCaseLower,
-  TbLetterCaseUpper,
-} from "react-icons/tb";
-import { PiGuitarLight } from "react-icons/pi";
-import { MdNotes } from "react-icons/md";
-import { localData } from "../localData";
 import {
   SettingsContext,
   SettingsContextType,
@@ -26,19 +18,14 @@ interface Song {
   slohy: SongVerse[];
 }
 
-type ColorScheme = "dark" | "light";
-
 export default function Akordy1() {
   const location = useLocation();
   const navigate = useNavigate();
 
   const {
     fontSize,
-    setFontSize,
     colorScheme,
-    setColorScheme,
     showAkordy,
-    setShowAkordy,
   } = useContext(SettingsContext) as SettingsContextType;
   const piesenka = location.state?.song;
 
@@ -80,16 +67,6 @@ export default function Akordy1() {
       state: { background: location, song: piesenka },
     });
   }
-  function handleColorScheme() {
-    if (colorScheme == "light") {
-      setColorScheme("dark");
-      localData.set("colorScheme", "dark");
-    } else {
-      setColorScheme("light");
-      localData.set("colorScheme", "light");
-    }
-  }
-
   function handleOpenProjector() {
     localStorage.setItem(
       "projector-song",
@@ -219,8 +196,8 @@ export default function Akordy1() {
         }}
       >
         {piesenka?.slohy
-          .map((sloha) => sloha.cisloS)
-          .map(function (object, i) {
+          .map((sloha: SongVerse) => sloha.cisloS)
+          .map(function (_object: string, i: number) {
             function handleClick() {
               setSelectedView(i);
               /// console.log("BBBBBBBBB", object);

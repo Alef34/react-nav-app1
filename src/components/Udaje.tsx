@@ -1,4 +1,3 @@
-import { version } from "react";
 import Song from "./Song";
 
 interface SongVerse {
@@ -4705,7 +4704,6 @@ const novePiesne: Udaje ={
         cisloS: "V2",
         textik: "Christe eleison, Christe eleison, Christe eleison.  ",
       },
-      ,
     ],
   },
 

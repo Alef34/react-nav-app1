@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, ReactNode } from 'react';
 import { localData } from '../localData';
 
 type ColorScheme = 'light' | 'dark';

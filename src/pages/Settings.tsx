@@ -1,21 +1,17 @@
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { localData } from "../localData";
 
 import {
   SettingsContext,
   SettingsContextType,
 } from "../context/SettingsContext";
 import Checkbox from "@mui/material/Checkbox";
-import Slider from "@mui/material/Slider";
 import { useVersionStore } from "../state/versionStore";
 
 export const Modal: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [theme, setTheme] = useState<string>("light");
-  const [language, setLanguage] = useState<string>("en");
   const {setVerziaDb} = useVersionStore();
 
   const { ...myProps } = useContext(SettingsContext) as SettingsContextType;

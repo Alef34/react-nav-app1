@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 //import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
 import { GiSettingsKnobs } from "react-icons/gi";
@@ -78,14 +78,6 @@ const { data, isLoading, isSuccess } = useQuery({
     });
   }, [songsData, searchQuery, selectedCategory]);
 
-  useEffect(() => {
-    console.log(
-      `[filter] selected=${selectedCategory} search=${searchQuery} filteredCount=${filteredData.length} ids=${filteredData
-        .map((song) => song.cisloP)
-        .join(",")}`
-    );
-  }, [selectedCategory, searchQuery, filteredData]);
-
   if (isLoading) return <div>Loading...</div>;
   if (!isSuccess) return <div>Error loading data</div>;
 
@@ -95,10 +87,6 @@ const { data, isLoading, isSuccess } = useQuery({
   };
 
    function handleShowSetting() {
-    //console.log("1");
-    //setVerziaDb("100");
-    
-   // console.log("2");
      navigate("modal", { state: { background: location } });
    }
 
