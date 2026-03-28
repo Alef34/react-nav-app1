@@ -62,3 +62,61 @@ V Supabase Authentication vytvor pouzivatela (email/heslo), ktory bude robit imp
 4. Vyber JSON subor vo formate `{ verzia, piesne }`
 
 Import pouziva upsert konflikt `cislo_p,nazov`.
+
+## Raspberry Pi + DTP Projektor
+
+Projekt je pripraveny na rezim controller vs projector cez lokalny WebSocket server.
+
+### 1. Raspberry s IP adresou v LAN
+
+Na Raspberry Pi spusti aplikaciu tak, aby bola dostupna v lokalnej sieti:
+
+```bash
+npm install
+npm run dev:lan
+```
+
+Potom aplikacia bezi na adrese typu `http://192.168.1.50:5173`.
+
+### 2. Realtime kanál pre projektor
+
+V druhom terminali na Raspberry spusti WebSocket server:
+
+```bash
+npm run projector:ws
+```
+
+Server pocuva na `ws://<raspberry-ip>:8787`.
+
+### 3. Controller vs projector rezim
+
+- Controller je stranka s akordami (`/akordy`), kde klikas na `PROJ` a prepinas slohy.
+- Projektor je stranka `/projector` otvorena na DTP obrazovke.
+- Controller posiela stav skladby cez WebSocket.
+- Projektor stav prijima a zobrazi ho v realnom case.
+
+Ak WebSocket docasne vypadne, appka stale funguje lokalne cez `localStorage` fallback.
+
+### 4. DTP pripojeny k Raspberry
+
+Odporucany setup:
+
+1. Pripoj DTP ako druhy display (HDMI).
+2. Na Raspberry otvor fullscreen Chromium s adresou `http://127.0.0.1:5173/projector` na DTP.
+3. Z mobilu/notebooku otvor `http://<raspberry-ip>:5173` a ovladaj skladby.
+
+Pri kliknuti na `PROJ` alebo pri zmene casti (slohy) sa obsah posle na DTP.
+
+### Volitelna konfiguracia WS URL
+
+Ak potrebujes explicitne nastavit WebSocket URL, pridaj do `.env`:
+
+```env
+VITE_PROJECTOR_WS_URL=ws://192.168.1.50:8787
+```
+
+Alternativne mozes zadat iba port:
+
+```env
+VITE_PROJECTOR_WS_PORT=8787
+```

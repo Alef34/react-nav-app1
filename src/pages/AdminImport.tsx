@@ -1,20 +1,55 @@
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { Udaje } from "../types/myTypes";
+import { Song, SongVerse, Udaje } from "../types/myTypes";
 import {
   getCurrentSession,
   isSupabaseConfigured,
   supabase,
 } from "../api/supabaseClient";
-import { upsertSongsToSupabase } from "../api/supabaseSongs";
+import {
+  deleteSongsFromSupabase,
+  loadAllSongsForAdmin,
+  loadSongForEdit,
+  replaceSongsInSupabase,
+  SongWithId,
+  updateSongInSupabase,
+  upsertSongsToSupabase,
+} from "../api/supabaseSongs";
 
 type ImportState = {
   status: "idle" | "loading" | "success" | "error";
   message: string;
 };
 
+type DeleteState = {
+  status: "idle" | "loading" | "success" | "error";
+  message: string;
+};
+
+type EditForm = {
+  id: number;
+  cisloP: string;
+  nazov: string;
+  kategoria: string;
+  source: string;
+  slohy: SongVerse[];
+};
+
 function normalizePayload(raw: unknown): Udaje {
+  const wrapped = raw as {
+    content?: unknown;
+    verzia?: unknown;
+    piesne?: unknown;
+  };
+
+  if (wrapped && Array.isArray(wrapped.content)) {
+    return {
+      verzia: String(wrapped.verzia ?? "1"),
+      piesne: wrapped.content,
+    };
+  }
+
   if (Array.isArray(raw)) {
     return {
       verzia: "1",
@@ -28,15 +63,58 @@ function normalizePayload(raw: unknown): Udaje {
   };
 }
 
+function formatImportError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const maybe = error as {
+      message?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+    };
+
+    const parts = [maybe.message, maybe.details, maybe.hint, maybe.code]
+      .filter((value) => typeof value === "string" && value.trim().length > 0)
+      .map((value) => String(value));
+
+    if (parts.length > 0) {
+      return parts.join(" | ");
+    }
+  }
+
+  return "Neznama chyba pri importe.";
+}
+
 export default function AdminImport() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [replaceAllBeforeImport, setReplaceAllBeforeImport] = useState(false);
+  const [adminSongs, setAdminSongs] = useState<SongWithId[]>([]);
+  const [adminSongsLoaded, setAdminSongsLoaded] = useState(false);
+  const [adminSongsLoading, setAdminSongsLoading] = useState(false);
+  const [adminFilter, setAdminFilter] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteState, setDeleteState] = useState<DeleteState>({
+    status: "idle",
+    message: "",
+  });
+  const [editForm, setEditForm] = useState<EditForm | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSaveState, setEditSaveState] = useState<{
+    status: "idle" | "loading" | "success" | "error";
+    message: string;
+  }>({ status: "idle", message: "" });
   const [importState, setImportState] = useState<ImportState>({
     status: "idle",
     message: "",
   });
+
+  const verseRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   useEffect(() => {
     const initialize = async () => {
@@ -50,8 +128,178 @@ export default function AdminImport() {
 
   const canUseImport = useMemo(
     () => isSupabaseConfigured && isLoggedIn,
-    [isLoggedIn]
+    [isLoggedIn],
   );
+
+  const filteredAdminSongs = useMemo(() => {
+    if (!adminFilter.trim()) return adminSongs;
+    const lower = adminFilter.toLowerCase();
+    return adminSongs.filter(
+      (s) =>
+        s.cisloP.toLowerCase().includes(lower) ||
+        s.nazov.toLowerCase().includes(lower) ||
+        s.kategoria.toLowerCase().includes(lower),
+    );
+  }, [adminSongs, adminFilter]);
+
+  const allVisibleSelected =
+    filteredAdminSongs.length > 0 &&
+    filteredAdminSongs.every((s) => selectedIds.has(s.id));
+
+  async function handleLoadAdminSongs() {
+    setAdminSongsLoading(true);
+    try {
+      const songs = await loadAllSongsForAdmin();
+      setAdminSongs(songs);
+      setAdminSongsLoaded(true);
+      setSelectedIds(new Set());
+    } catch (err) {
+      setDeleteState({ status: "error", message: formatImportError(err) });
+    } finally {
+      setAdminSongsLoading(false);
+    }
+  }
+
+  function handleToggleSong(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleToggleAllVisible() {
+    if (allVisibleSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredAdminSongs.forEach((s) => next.delete(s.id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredAdminSongs.forEach((s) => next.add(s.id));
+        return next;
+      });
+    }
+  }
+
+  async function handleDeleteSelected() {
+    if (selectedIds.size === 0) return;
+    setDeleteState({ status: "loading", message: "Mazem skladby..." });
+    try {
+      const ids = [...selectedIds];
+      const count = await deleteSongsFromSupabase(ids);
+      setAdminSongs((prev) => prev.filter((s) => !selectedIds.has(s.id)));
+      setSelectedIds(new Set());
+      setDeleteState({
+        status: "success",
+        message: `Vymazanych ${count} skladieb.`,
+      });
+    } catch (err) {
+      setDeleteState({ status: "error", message: formatImportError(err) });
+    }
+  }
+
+  async function handleEditSong(id: number) {
+    setEditSaveState({ status: "idle", message: "" });
+    try {
+      const songData = await loadSongForEdit(id);
+      setEditForm({
+        id: songData.id,
+        cisloP: songData.cisloP,
+        nazov: songData.nazov,
+        kategoria: songData.kategoria ?? "",
+        source: songData.source ?? "",
+        slohy:
+          songData.slohy.length > 0
+            ? songData.slohy
+            : [{ cisloS: "V1", textik: "" }],
+      });
+    } catch (err) {
+      setDeleteState({ status: "error", message: formatImportError(err) });
+    }
+  }
+
+  function handleVerseTextChange(index: number, text: string) {
+    if (!editForm) return;
+    const newSlohy = editForm.slohy.map((v, i) =>
+      i === index ? { ...v, textik: text } : v,
+    );
+    setEditForm({ ...editForm, slohy: newSlohy });
+  }
+
+  function handleSplitVerse(index: number) {
+    if (!editForm) return;
+    const ta = verseRefs.current[index];
+    const text = editForm.slohy[index].textik;
+    let pos = ta ? ta.selectionStart : 0;
+    if (pos === 0 || pos === text.length) {
+      const nl = text.indexOf("\n");
+      pos = nl > 0 ? nl : Math.floor(text.length / 2);
+    }
+    const before = text.slice(0, pos).trimEnd();
+    const after = text.slice(pos).trimStart();
+    const newSlohy = [...editForm.slohy];
+    newSlohy[index] = { ...newSlohy[index], textik: before };
+    newSlohy.splice(index + 1, 0, { cisloS: `V${index + 2}`, textik: after });
+    const renumbered = newSlohy.map((v, i) => ({ ...v, cisloS: `V${i + 1}` }));
+    setEditForm({ ...editForm, slohy: renumbered });
+  }
+
+  function handleRemoveVerse(index: number) {
+    if (!editForm || editForm.slohy.length <= 1) return;
+    const newSlohy = editForm.slohy
+      .filter((_, i) => i !== index)
+      .map((v, i) => ({ ...v, cisloS: `V${i + 1}` }));
+    setEditForm({ ...editForm, slohy: newSlohy });
+  }
+
+  function handleAddVerse() {
+    if (!editForm) return;
+    setEditForm({
+      ...editForm,
+      slohy: [
+        ...editForm.slohy,
+        { cisloS: `V${editForm.slohy.length + 1}`, textik: "" },
+      ],
+    });
+  }
+
+  async function handleSaveEdit() {
+    if (!editForm) return;
+    setEditLoading(true);
+    setEditSaveState({ status: "loading", message: "Ukladam..." });
+    try {
+      const song: Song = {
+        cisloP: editForm.cisloP.trim(),
+        nazov: editForm.nazov.trim(),
+        kategoria: editForm.kategoria.trim(),
+        source: editForm.source.trim(),
+        slohy: editForm.slohy,
+      };
+      await updateSongInSupabase(editForm.id, song);
+      setAdminSongs((prev) =>
+        prev.map((s) =>
+          s.id === editForm.id
+            ? {
+                ...s,
+                cisloP: song.cisloP,
+                nazov: song.nazov,
+                kategoria: song.kategoria ?? "",
+                source: song.source ?? "",
+              }
+            : s,
+        ),
+      );
+      setEditSaveState({ status: "success", message: "Skladba ulozena." });
+    } catch (err) {
+      setEditSaveState({ status: "error", message: formatImportError(err) });
+    } finally {
+      setEditLoading(false);
+    }
+  }
 
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,12 +336,19 @@ export default function AdminImport() {
     setImportState({ status: "idle", message: "Odhlaseny." });
   }
 
-  function removeDuplicatesById(songs: any[]) {
+  function removeDuplicatesByKey(songs: any[]) {
     const seen = new Set();
     return songs.filter((song) => {
-      if (!song.id) return true; // alebo podľa potreby
-      if (seen.has(song.id)) return false;
-      seen.add(song.id);
+      const key = `${String(song?.cisloP ?? "").trim()}|${String(
+        song?.nazov ?? "",
+      ).trim()}`;
+      if (key === "|") {
+        return true;
+      }
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
       return true;
     });
   }
@@ -112,23 +367,15 @@ export default function AdminImport() {
       //console.log("File content:", text); // pridaj toto
       const parsed = JSON.parse(text);
       //console.log("Parsed JSON:", parsed); // pridaj toto
-      const songsArray = Array.isArray(parsed) ? parsed : parsed.piesne;
-      //console.log("songsArray:", songsArray); // pridaj toto
-      if (!Array.isArray(songsArray)) {
-        throw new Error(
-          "JSON musí byť pole skladieb alebo objekt s kľúčom 'piesne' obsahujúcim pole."
-        );
-      }
-
-      const payload = normalizePayload(songsArray);
+      const payload = normalizePayload(parsed);
       //console.log("Normalized payload:", payload); // pridaj toto
 
-      if (!payload || payload.length === 0) {
+      if (!payload || payload.piesne.length === 0) {
         throw new Error("Import neobsahuje ziadne validne skladby.");
       }
       //console.log("Upserting songs to Supabase..."); // pridaj toto
 
-      const uniqueSongs = removeDuplicatesById(payload.piesne);
+      const uniqueSongs = removeDuplicatesByKey(payload.piesne);
       //console.log(
       //  `Removed duplicates, ${uniqueSongs.length} unique songs remain.`
       //); // pridaj toto
@@ -138,17 +385,21 @@ export default function AdminImport() {
         piesne: uniqueSongs,
       };
 
-      const count = await upsertSongsToSupabase(uniquePayload);
+      const count = replaceAllBeforeImport
+        ? await replaceSongsInSupabase(uniquePayload)
+        : await upsertSongsToSupabase(uniquePayload);
+      const removedDuplicates = payload.piesne.length - uniqueSongs.length;
       //const count = await upsertSongsToSupabase(payload);
       //console.log(`Upserted ${count} songs to Supabase.`); // pridaj toto
       setImportState({
         status: "success",
-        message: `Import uspesny. Ulozenych skladieb: ${count}.`,
+        message: `Import uspesny. Ulozenych skladieb: ${count}. Duplicity odstranene: ${removedDuplicates}. Rezim: ${
+          replaceAllBeforeImport ? "nahradit vsetko" : "preskocit existujuce"
+        }.`,
       });
       console.log(`Import uspesny. Ulozenych skladieb: ${count}.`); // pridaj toto
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Neznama chyba pri importe.";
+      const message = formatImportError(error);
       setImportState({ status: "error", message });
     } finally {
       event.target.value = "";
@@ -234,6 +485,14 @@ export default function AdminImport() {
               onChange={handleFileImport}
             />
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={replaceAllBeforeImport}
+              onChange={(e) => setReplaceAllBeforeImport(e.target.checked)}
+            />
+            Pred importom vymazat existujuce skladby (nahradit vsetko)
+          </label>
         </div>
       )}
 
@@ -253,6 +512,371 @@ export default function AdminImport() {
         >
           {importState.message}
         </p>
+      )}
+
+      {canUseImport && (
+        <div
+          style={{
+            marginTop: 32,
+            borderTop: "1px solid #ddd",
+            paddingTop: 20,
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>Mazanie skladieb</h2>
+          <button
+            type="button"
+            onClick={handleLoadAdminSongs}
+            disabled={adminSongsLoading}
+            style={{ padding: "8px 16px", marginBottom: 12 }}
+          >
+            {adminSongsLoading
+              ? "Nacitavam..."
+              : adminSongsLoaded
+              ? "Obnovit zoznam"
+              : "Nacitat skladby z DB"}
+          </button>
+          {adminSongsLoaded && (
+            <>
+              <div style={{ marginBottom: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Filtrovat podla nazvu, cisla, kategorie..."
+                  value={adminFilter}
+                  onChange={(e) => setAdminFilter(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: 8,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  marginBottom: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleToggleAllVisible}
+                  />
+                  Vybrat vsetkych zobrazenych ({filteredAdminSongs.length})
+                </label>
+                {selectedIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteSelected}
+                    disabled={deleteState.status === "loading"}
+                    style={{
+                      padding: "6px 14px",
+                      backgroundColor: "#c00",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Vymazat vybranych ({selectedIds.size})
+                  </button>
+                )}
+              </div>
+              <div
+                style={{
+                  maxHeight: 400,
+                  overflowY: "auto",
+                  border: "1px solid #ccc",
+                  borderRadius: 4,
+                }}
+              >
+                {filteredAdminSongs.length === 0 ? (
+                  <p style={{ padding: 8, color: "#888" }}>Ziadne vysledky.</p>
+                ) : (
+                  filteredAdminSongs.map((song) => (
+                    <label
+                      key={song.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        backgroundColor: selectedIds.has(song.id)
+                          ? "#fff3cd"
+                          : "transparent",
+                        borderBottom: "1px solid #eee",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(song.id)}
+                        onChange={() => handleToggleSong(song.id)}
+                      />
+                      <span style={{ minWidth: 50, color: "#666" }}>
+                        {song.cisloP}
+                      </span>
+                      <span style={{ flex: 1 }}>{song.nazov}</span>
+                      <span style={{ color: "#888", fontSize: 12 }}>
+                        {song.kategoria}
+                      </span>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleEditSong(song.id);
+                        }}
+                        style={{
+                          fontSize: 12,
+                          padding: "2px 8px",
+                          border: "1px solid #aaa",
+                          borderRadius: 3,
+                          cursor: "pointer",
+                          flexShrink: 0,
+                        }}
+                      >
+                        Upravit
+                      </button>
+                    </label>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+          {deleteState.message && (
+            <p
+              style={{
+                marginTop: 8,
+                padding: 12,
+                borderRadius: 8,
+                backgroundColor:
+                  deleteState.status === "error"
+                    ? "#ffecec"
+                    : deleteState.status === "success"
+                    ? "#e9ffe9"
+                    : "#f4f4f4",
+              }}
+            >
+              {deleteState.message}
+            </p>
+          )}
+        </div>
+      )}
+
+      {editForm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            zIndex: 1000,
+            overflowY: "auto",
+            padding: "24px 12px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setEditForm(null);
+              setEditSaveState({ status: "idle", message: "" });
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 8,
+              padding: 24,
+              width: "100%",
+              maxWidth: 640,
+              color: "black",
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>Upravit skladbu</h2>
+            <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+              <label>
+                Cislo:
+                <input
+                  value={editForm.cisloP}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, cisloP: e.target.value })
+                  }
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+              <label>
+                Nazov:
+                <input
+                  value={editForm.nazov}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, nazov: e.target.value })
+                  }
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+              <label>
+                Kategoria:
+                <input
+                  value={editForm.kategoria}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, kategoria: e.target.value })
+                  }
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+              <label>
+                Source:
+                <input
+                  value={editForm.source}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, source: e.target.value })
+                  }
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+            </div>
+            <h3 style={{ marginBottom: 8 }}>Slohy</h3>
+            {editForm.slohy.map((verse, i) => (
+              <div
+                key={i}
+                style={{
+                  marginBottom: 12,
+                  padding: 10,
+                  border: "1px solid #ddd",
+                  borderRadius: 4,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 4,
+                  }}
+                >
+                  <strong style={{ minWidth: 32 }}>{verse.cisloS}</strong>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSplitVerse(i)}
+                    style={{ fontSize: 12, padding: "2px 8px" }}
+                    title="Umiestni kurzor v texte a klikni pre rozdelenie"
+                  >
+                    Rozdelit (pri kurzore)
+                  </button>
+                  {editForm.slohy.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveVerse(i)}
+                      style={{
+                        fontSize: 12,
+                        padding: "2px 8px",
+                        color: "#c00",
+                        border: "1px solid #c00",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Odstranit
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  ref={(el) => {
+                    verseRefs.current[i] = el;
+                  }}
+                  value={verse.textik}
+                  onChange={(e) => handleVerseTextChange(i, e.target.value)}
+                  style={{
+                    width: "100%",
+                    minHeight: 80,
+                    padding: 6,
+                    boxSizing: "border-box",
+                    fontFamily: "inherit",
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={handleAddVerse}
+              style={{ marginBottom: 16 }}
+            >
+              + Pridat slohu
+            </button>
+            {editSaveState.message && (
+              <p
+                style={{
+                  padding: 8,
+                  borderRadius: 4,
+                  marginTop: 8,
+                  backgroundColor:
+                    editSaveState.status === "error" ? "#ffecec" : "#e9ffe9",
+                }}
+              >
+                {editSaveState.message}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={editLoading}
+                style={{
+                  padding: "8px 20px",
+                  backgroundColor: "#007bff",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                }}
+              >
+                {editLoading ? "Ukladam..." : "Ulozit"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditForm(null);
+                  setEditSaveState({ status: "idle", message: "" });
+                }}
+                style={{ padding: "8px 20px" }}
+              >
+                Zavrit
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

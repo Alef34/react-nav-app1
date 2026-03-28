@@ -27,18 +27,16 @@ function getSongCategory(song: Song): string {
   return "Nabozenske";
 }
 
-
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
   const [selectedItem, setSelectedItem] = useState("");
-  const { verziaDb } = useVersionStore();  
+  const { verziaDb } = useVersionStore();
 
-
-const { data, isLoading, isSuccess } = useQuery({
-    queryKey: ['songs', verziaDb],
+  const { data, isLoading, isSuccess } = useQuery({
+    queryKey: ["songs", verziaDb],
     queryFn: () => getSongs(""),
   });
 
@@ -50,7 +48,7 @@ const { data, isLoading, isSuccess } = useQuery({
       .filter((category) => category && category !== ALL_CATEGORIES);
 
     const dynamicCategories = Array.from(new Set(fromData)).sort((a, b) =>
-      a.localeCompare(b)
+      a.localeCompare(b),
     );
 
     return [ALL_CATEGORIES, ...dynamicCategories];
@@ -81,14 +79,17 @@ const { data, isLoading, isSuccess } = useQuery({
   if (isLoading) return <div>Loading...</div>;
   if (!isSuccess) return <div>Error loading data</div>;
 
-  
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
 
-   function handleShowSetting() {
-     navigate("modal", { state: { background: location } });
-   }
+  function handleShowSetting() {
+    navigate("modal", { state: { background: location } });
+  }
+
+  function handleGoToAdmin() {
+    navigate("/admin-import");
+  }
 
   const handleClickSkokNaPiesen = (item: Song) => {
     setSelectedItem(item.cisloP);
@@ -142,15 +143,30 @@ const { data, isLoading, isSuccess } = useQuery({
         />
         <button onClick={handleShowSetting} style={getStyles(40).button}>
           <GiSettingsKnobs
-              style={{
-                width: 40,
-                height: 40,
-                borderColor: "black",
-                color: "black",
-              }}
-            />
+            style={{
+              width: 40,
+              height: 40,
+              borderColor: "black",
+              color: "black",
+            }}
+          />
         </button>
-
+        <button
+          onClick={handleGoToAdmin}
+          style={{
+            fontSize: 20,
+            fontWeight: 700,
+            padding: "0 16px",
+            marginLeft: 8,
+            borderRadius: 14,
+            border: "2px solid black",
+            backgroundColor: "white",
+            color: "black",
+            cursor: "pointer",
+          }}
+        >
+          Admin
+        </button>
       </div>
 
       <div

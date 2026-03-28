@@ -6,6 +6,12 @@ import {
   SettingsContextType,
 } from "../context/SettingsContext";
 import { GiSettingsKnobs } from "react-icons/gi";
+import {
+  getProjectorChannelConnectionState,
+  sendProjectorPayload,
+  subscribeProjectorConnectionState,
+  startProjectorChannel,
+} from "../realtime/projectorChannel";
 
 interface SongVerse {
   cisloS: string;
@@ -22,11 +28,9 @@ export default function Akordy1() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const {
-    fontSize,
-    colorScheme,
-    showAkordy,
-  } = useContext(SettingsContext) as SettingsContextType;
+  const { fontSize, colorScheme, showAkordy } = useContext(
+    SettingsContext,
+  ) as SettingsContextType;
   const piesenka = location.state?.song;
 
   const [selectedView, setSelectedView] = useState(0);
@@ -35,31 +39,85 @@ export default function Akordy1() {
     width: window.innerWidth,
     height: window.innerHeight,
   });
+  const [isProjectorConnected, setIsProjectorConnected] = useState(false);
+  const [projectorFeedback, setProjectorFeedback] = useState<{
+    message: string;
+    tone: "ok" | "warn";
+  } | null>(null);
 
   useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    let rafId: number | null = null;
+    let timerId: number | null = null;
+
+    const readSize = () => {
+      // clientWidth/Height je na iOS spoľahlivejší ako innerWidth/Height
+      const w = document.documentElement.clientWidth;
+      const h = document.documentElement.clientHeight;
+      setWindowSize({ width: w, height: h });
+      rafId = null;
     };
 
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const update = () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(readSize);
+    };
+
+    const updateAfterRotation = () => {
+      update();
+      // iOS potrebuje ~300ms po orientationchange kým správne nahlási rozmery
+      if (timerId != null) clearTimeout(timerId);
+      timerId = window.setTimeout(readSize, 350);
+    };
+
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", updateAfterRotation);
+    window.visualViewport?.addEventListener("resize", update);
+
+    return () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      if (timerId != null) clearTimeout(timerId);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", updateAfterRotation);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
   }, []);
 
+  useEffect(() => {
+    startProjectorChannel("controller");
+
+    setIsProjectorConnected(getProjectorChannelConnectionState());
+    const unsubscribe = subscribeProjectorConnectionState((connected) => {
+      setIsProjectorConnected(connected);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const { width, height } = windowSize;
+
+  // Layout výšok: CSS dvh reťazce — vždy správne aj po rotácii bez čakania na JS
+  const HEADER_DVH = "9dvh";
+  const SLOHY_DVH = "13dvh";
+
+  // Tlačidlá – pevná veľkosť, škáluje len font skladby a badge
+  const btnSize = 40;
+
+  // Font pre text skladby – JS, škáluje od nastavenia
   const responsiveScale = Math.min(
     1.6,
-    Math.max(0.85, Math.min(windowSize.width / 1280, windowSize.height / 900))
+    Math.max(0.7, Math.min(width / 1280, height / 900)),
   );
   const responsiveSongSize = Math.min(
     90,
-    Math.max(18, Math.round(effectiveFontSize * responsiveScale))
+    Math.max(16, Math.round(effectiveFontSize * responsiveScale)),
   );
   const responsiveHeaderSize = Math.min(
-    44,
-    Math.max(22, Math.round(30 * responsiveScale))
+    34,
+    Math.max(14, Math.round(height * 0.038)),
   );
   const responsiveVerseBadge = Math.min(
-    56,
-    Math.max(24, Math.round(40 * responsiveScale))
+    44,
+    Math.max(14, Math.round(height * 0.055)),
   );
 
   function handleSettings() {
@@ -67,17 +125,39 @@ export default function Akordy1() {
       state: { background: location, song: piesenka },
     });
   }
-  function handleOpenProjector() {
-    localStorage.setItem(
-      "projector-song",
-      JSON.stringify({
-        song: piesenka,
-        selectedView,
-        showAkordy,
-      })
-    );
-    window.open("/projector", "_blank", "noopener,noreferrer");
+
+  function handleBackToList() {
+    navigate("/");
   }
+
+  function handleOpenProjector() {
+    sendProjectorPayload({
+      song: piesenka,
+      selectedView,
+      showAkordy,
+    });
+
+    const connected = getProjectorChannelConnectionState();
+    setProjectorFeedback(
+      connected
+        ? { message: "Odoslane do projektora.", tone: "ok" }
+        : { message: "Projektor server nie je dostupny.", tone: "warn" },
+    );
+
+    window.setTimeout(() => {
+      setProjectorFeedback(null);
+    }, 2200);
+  }
+
+  useEffect(() => {
+    if (!piesenka) return;
+
+    sendProjectorPayload({
+      song: piesenka,
+      selectedView,
+      showAkordy,
+    });
+  }, [piesenka, selectedView, showAkordy]);
 
   return (
     <div
@@ -85,34 +165,32 @@ export default function Akordy1() {
       style={{
         display: "flex",
         flexDirection: "column",
+        height: "100dvh",
+        overflow: "hidden",
         padding: 0,
         margin: 0,
-        height: "100%",
-        paddingTop: "20px",
-        top: 0,
-        left: 0,
         color: "black",
         backgroundColor: "gray",
+        boxSizing: "border-box",
       }}
     >
+      {/* HLAVIČKA */}
       <div
         id="nadpis-container"
         style={{
-          //flex: 1, // Zaberá dostupný voľný priestor
+          flexShrink: 0,
           display: "flex",
           flexDirection: "row",
-          backgroundColor: "transparent", // Nastav farbu pozadia, ak potrebuješ
-          padding: 0, // Prispôsob vzhľad podľa potreby
-          marginLeft: 10,
-          marginRight: 10,
-          marginTop: 0,
-          borderRadius: 15,
+          height: HEADER_DVH,
+          gap: 6,
+          padding: "4px 10px",
+          boxSizing: "border-box",
         }}
       >
         <button
           style={{
-            height: "100%",
-            width: "100%",
+            flex: 1,
+            minWidth: 0,
             backgroundColor: "lightGray",
             border: "1px solid black",
             borderRadius: 15,
@@ -120,135 +198,137 @@ export default function Akordy1() {
             textAlign: "left",
             fontSize: responsiveHeaderSize,
             fontWeight: "bold",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            padding: "0 12px",
           }}
-          onClick={() => {
-            navigate("/");
-          }}
+          onClick={handleBackToList}
+          title="Spat na zoznam skladieb"
         >
-          {piesenka?.cisloP}.{piesenka?.nazov}
-        </button>
-
-        <button style={getStyles(40).button} onClick={() => handleSettings()}>
-        <GiSettingsKnobs
-              style={{
-                width: 40,
-                height: 40,
-                borderColor: "black",
-                color: "black",
-              }}
-            />
+          {piesenka.nazov}
         </button>
         <button
-          style={{ ...getStyles(40).button, marginLeft: 8, fontWeight: "bold" }}
+          style={{
+            ...getStyles(btnSize).button,
+            backgroundColor: isProjectorConnected ? "#8fd694" : "#f28b82",
+            border: "1px solid black",
+            fontWeight: "bold",
+            fontSize: Math.round(btnSize * 0.55),
+            color: "black",
+          }}
           onClick={handleOpenProjector}
-          title="Otvor skladbu v projektore"
+          title={
+            isProjectorConnected
+              ? "Projektor je online"
+              : "Projektor je offline"
+          }
         >
           PROJ
         </button>
+        <button
+          style={{
+            ...getStyles(btnSize).button,
+            backgroundColor: "lightGray",
+            border: "1px solid black",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onClick={handleSettings}
+          title="Nastavenia"
+        >
+          <GiSettingsKnobs size={Math.round(btnSize * 0.68)} color="black" />
+        </button>
       </div>
+
+      {/* FEEDBACK TOAST */}
+      {projectorFeedback && (
+        <div
+          style={{
+            flexShrink: 0,
+            margin: "4px 10px",
+            padding: "6px 10px",
+            borderRadius: 10,
+            border: "1px solid #222",
+            backgroundColor:
+              projectorFeedback.tone === "ok" ? "#eaffea" : "#fff1e6",
+            fontWeight: 600,
+            fontSize: 14,
+          }}
+        >
+          {projectorFeedback.message}
+        </div>
+      )}
+
+      {/* TEXT SKLADBY */}
       <div
         id="listBox"
         style={{
-          flexGrow: 1, // Zaberá dostupný voľný priestor
-          backgroundColor: "#e0e0e0", // Nastav farbu pozadia, ak potrebuješ
-          padding: 0, // Prispôsob vzhľad podľa potreby
-          margin: 10,
-          marginTop: 10,
-          marginBottom: 0,
-
+          flex: 1,
+          minHeight: 0, // kľúčové pre flex overflow na mobile/tablet
           overflowY: "auto",
+          margin: "6px 10px",
           borderRadius: 15,
-          alignContent: "center",
-          alignItems: "center",
           border: "1px solid black",
+          display: "flex",
+          alignItems: "center",
           justifyContent: "center",
+          backgroundColor: colorScheme === "dark" ? "black" : "white",
+          color: colorScheme === "dark" ? "white" : "black",
+          boxSizing: "border-box",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            height: "100%",
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: colorScheme == "dark" ? "black" : "white",
-            color: colorScheme == "dark" ? "white" : "black",
-            padding: 0,
-            margin: 0,
-
-            borderRadius: 15,
-          }}
-        >
-          <Song
-            text={piesenka.slohy[selectedView].textik}
-            showChords={showAkordy}
-            zadanaVelkost={responsiveSongSize}
-          />
-        </div>
+        <Song
+          text={piesenka.slohy[selectedView].textik}
+          showChords={showAkordy}
+          zadanaVelkost={responsiveSongSize}
+        />
       </div>
+
+      {/* LIŠTA SLÔH */}
       <div
         id="slohy-container"
         style={{
-          backgroundColor: "gray",
+          flexShrink: 0,
+          height: SLOHY_DVH,
           display: "flex",
           flexDirection: "row",
-          margin: 10,
+          gap: 4,
+          margin: "0 10px 8px",
+          boxSizing: "border-box",
         }}
       >
-        {piesenka?.slohy
-          .map((sloha: SongVerse) => sloha.cisloS)
-          .map(function (_object: string, i: number) {
-            function handleClick() {
-              setSelectedView(i);
-              /// console.log("BBBBBBBBB", object);
-            }
-            return (
-              <div
-                key={i}
-                style={{
-                  flex: 1,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  margin: 0,
-                  padding: 0,
-                  border: "2px solid black",
-                  borderRadius: 15,
-                }}
-                onClick={() => {
-                  handleClick();
-                  localStorage.setItem(
-                    "projector-song",
-                    JSON.stringify({
-                      song: piesenka,
-                      selectedView: i,
-                      showAkordy,
-                    })
-                  );
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    width: "100%",
-                    height: "100%",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: selectedView === i ? "blue" : "lightGray",
-                    color: selectedView === i ? "white" : "black",
-                    borderRadius: 15,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: responsiveVerseBadge,
-                    }}
-                  >
-                    {piesenka?.slohy[i].cisloS}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+        {piesenka?.slohy.map(function (sloha: SongVerse, i: number) {
+          return (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "2px solid black",
+                borderRadius: 15,
+                cursor: "pointer",
+                backgroundColor: selectedView === i ? "blue" : "lightGray",
+                color: selectedView === i ? "white" : "black",
+              }}
+              onClick={() => {
+                setSelectedView(i);
+                sendProjectorPayload({
+                  song: piesenka,
+                  selectedView: i,
+                  showAkordy,
+                });
+              }}
+            >
+              <span style={{ fontSize: responsiveVerseBadge, fontWeight: 600 }}>
+                {sloha.cisloS}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -10,6 +10,11 @@ type DbSongRow = {
   updated_at?: string;
 };
 
+type DbSongKeyRow = {
+  cislo_p: string;
+  nazov: string;
+};
+
 function normalizeVerse(verse: SongVerse, index: number): SongVerse {
   return {
     cisloS: String(verse?.cisloS ?? `V${index + 1}`),
@@ -57,7 +62,7 @@ export async function loadSongsFromSupabase(filter: string): Promise<Song[]> {
       source: row.source ?? "",
       kategoria: row.kategoria ?? "Nabozenske",
       slohy: Array.isArray(row.slohy) ? row.slohy : [],
-    })
+    }),
   );
 
   if (!filter) {
@@ -68,8 +73,8 @@ export async function loadSongsFromSupabase(filter: string): Promise<Song[]> {
   return songs.filter((song) =>
     Object.values(song).some(
       (value) =>
-        typeof value === "string" && value.toLowerCase().includes(lowered)
-    )
+        typeof value === "string" && value.toLowerCase().includes(lowered),
+    ),
   );
 }
 
@@ -99,7 +104,9 @@ export async function upsertSongsToSupabase(payload: Udaje): Promise<number> {
   const rows = songs
     .filter(
       (song) =>
-        song.cisloP.length > 0 && song.nazov.length > 0 && song.slohy.length > 0
+        song.cisloP.length > 0 &&
+        song.nazov.length > 0 &&
+        song.slohy.length > 0,
     )
     .map((song) => ({
       cislo_p: song.cisloP,
@@ -113,15 +120,197 @@ export async function upsertSongsToSupabase(payload: Udaje): Promise<number> {
   if (rows.length === 0) {
     throw new Error("Import neobsahuje ziadne validne skladby.");
   }
-  console.log("Prepared rows for upsert:", rows);
+  console.log("Prepared rows for import:", rows);
   testSupabaseConnection();
-  const { error } = await supabase.from("songs").upsert(rows, {
-    onConflict: "cislo_p,nazov",
-  });
-  console.log("Upsert result - error:", error);
-  if (error) {
-    throw error;
+
+  const { data: existingRows, error: selectError } = await supabase
+    .from("songs")
+    .select("cislo_p, nazov");
+
+  if (selectError) {
+    const parts = [
+      selectError.message,
+      selectError.details,
+      selectError.hint,
+      selectError.code,
+    ]
+      .filter((value) => typeof value === "string" && value.trim().length > 0)
+      .map((value) => String(value));
+
+    throw new Error(
+      parts.length > 0
+        ? `Nacitavanie existujucich skladieb zlyhalo: ${parts.join(" | ")}`
+        : "Nacitavanie existujucich skladieb zlyhalo.",
+    );
   }
 
-  return rows.length;
+  const existingKeys = new Set(
+    ((existingRows ?? []) as DbSongKeyRow[]).map(
+      (row) => `${row.cislo_p}|${row.nazov}`,
+    ),
+  );
+
+  const rowsToInsert = rows.filter(
+    (row) => !existingKeys.has(`${row.cislo_p}|${row.nazov}`),
+  );
+
+  if (rowsToInsert.length === 0) {
+    return 0;
+  }
+
+  const { error } = await supabase.from("songs").insert(rowsToInsert);
+  console.log("Insert result - error:", error);
+  if (error) {
+    const parts = [error.message, error.details, error.hint, error.code]
+      .filter((value) => typeof value === "string" && value.trim().length > 0)
+      .map((value) => String(value));
+
+    throw new Error(
+      parts.length > 0
+        ? `Import do Supabase zlyhal: ${parts.join(" | ")}`
+        : "Import do Supabase zlyhal.",
+    );
+  }
+
+  return rowsToInsert.length;
+}
+
+export async function replaceSongsInSupabase(payload: Udaje): Promise<number> {
+  if (!supabase) {
+    throw new Error("Supabase nie je nakonfigurovany.");
+  }
+
+  const { error } = await supabase.from("songs").delete().neq("id", 0);
+  if (error) {
+    const parts = [error.message, error.details, error.hint, error.code]
+      .filter((value) => typeof value === "string" && value.trim().length > 0)
+      .map((value) => String(value));
+
+    throw new Error(
+      parts.length > 0
+        ? `Mazanie povodnych skladieb zlyhalo: ${parts.join(" | ")}`
+        : "Mazanie povodnych skladieb zlyhalo.",
+    );
+  }
+
+  return upsertSongsToSupabase(payload);
+}
+
+export type SongWithId = {
+  id: number;
+  cisloP: string;
+  nazov: string;
+  kategoria: string;
+  source: string;
+};
+
+export async function loadAllSongsForAdmin(): Promise<SongWithId[]> {
+  if (!supabase) {
+    throw new Error("Supabase nie je nakonfigurovany.");
+  }
+
+  const { data, error } = await supabase
+    .from("songs")
+    .select("id, cislo_p, nazov, kategoria, source")
+    .order("cislo_p", { ascending: true });
+
+  if (error) {
+    throw new Error(`Nacitanie skladieb zlyhalo: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id as number,
+    cisloP: (row.cislo_p as string) ?? "",
+    nazov: (row.nazov as string) ?? "",
+    kategoria: (row.kategoria as string | null) ?? "",
+    source: (row.source as string | null) ?? "",
+  }));
+}
+
+export async function deleteSongsFromSupabase(ids: number[]): Promise<number> {
+  if (!supabase) {
+    throw new Error("Supabase nie je nakonfigurovany.");
+  }
+
+  if (ids.length === 0) {
+    return 0;
+  }
+
+  const { error } = await supabase.from("songs").delete().in("id", ids);
+
+  if (error) {
+    const parts = [error.message, error.details, error.hint, error.code]
+      .filter((v) => typeof v === "string" && v.trim().length > 0)
+      .map(String);
+
+    throw new Error(
+      parts.length > 0
+        ? `Mazanie zlyhalo: ${parts.join(" | ")}`
+        : "Mazanie zlyhalo.",
+    );
+  }
+
+  return ids.length;
+}
+
+export async function loadSongForEdit(
+  id: number,
+): Promise<Song & { id: number }> {
+  if (!supabase) {
+    throw new Error("Supabase nie je nakonfigurovany.");
+  }
+
+  const { data, error } = await supabase
+    .from("songs")
+    .select("id, cislo_p, nazov, kategoria, source, slohy")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      `Nacitanie skladby zlyhalo: ${error?.message ?? "nenajdena"}`,
+    );
+  }
+
+  return {
+    id: data.id as number,
+    cisloP: (data.cislo_p as string) ?? "",
+    nazov: (data.nazov as string) ?? "",
+    kategoria: (data.kategoria as string | null) ?? "",
+    source: (data.source as string | null) ?? "",
+    slohy: Array.isArray(data.slohy) ? (data.slohy as SongVerse[]) : [],
+  };
+}
+
+export async function updateSongInSupabase(
+  id: number,
+  song: Song,
+): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase nie je nakonfigurovany.");
+  }
+
+  const { error } = await supabase
+    .from("songs")
+    .update({
+      cislo_p: song.cisloP,
+      nazov: song.nazov,
+      source: song.source ?? "",
+      kategoria: song.kategoria ?? "Nabozenske",
+      slohy: song.slohy,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    const parts = [error.message, error.details, error.hint, error.code]
+      .filter((v) => typeof v === "string" && v.trim().length > 0)
+      .map(String);
+
+    throw new Error(
+      parts.length > 0
+        ? `Ukladanie zlyhalo: ${parts.join(" | ")}`
+        : "Ukladanie zlyhalo.",
+    );
+  }
 }
