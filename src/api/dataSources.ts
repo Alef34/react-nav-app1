@@ -3,6 +3,7 @@ import { Song, Udaje } from "../types/myTypes";
 import { localData } from "./localData";
 import { checkInternetConnection } from "./myTools";
 import { isSupabaseConfigured } from "./supabaseClient";
+import { getDataMode } from "./dataMode";
 import { loadSongsFromSupabase } from "./supabaseSongs";
 
 const LOCAL_SONGS_URL = `${import.meta.env.BASE_URL}songs.json`;
@@ -30,8 +31,9 @@ async function loadLocalSongs(): Promise<Udaje | undefined> {
 export async function getSongs(filter: string):Promise<Song[]> {
     let ud:Song[]=[];
     const loweredFilter = filter.toLowerCase();
+    const dataMode = getDataMode();
 
-    if (isSupabaseConfigured) {
+    if (dataMode === "offline" || isSupabaseConfigured) {
       try {
         return await loadSongsFromSupabase(loweredFilter);
       } catch {
@@ -92,6 +94,12 @@ export async function getSongs(filter: string):Promise<Song[]> {
 
 
   export async function getVersion():Promise<string> {
+    const dataMode = getDataMode();
+
+    if (dataMode === "offline") {
+      return "offline-local-db";
+    }
+
     if (isSupabaseConfigured) {
       return "supabase";
     }

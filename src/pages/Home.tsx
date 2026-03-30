@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 //import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery } from "@tanstack/react-query";
 import { GiSettingsKnobs } from "react-icons/gi";
@@ -7,9 +7,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { Song, SongsData } from "../types/myTypes";
 import { getSongs } from "../api/dataSources";
+import { SettingsContext, SettingsContextType } from "../context/SettingsContext";
 import { useVersionStore } from "../state/versionStore";
 
 const ALL_CATEGORIES = "Vsetky";
+const SEARCH_QUERY_STORAGE_KEY = "home.searchQuery";
+const SELECTED_CATEGORY_STORAGE_KEY = "home.selectedCategory";
 
 function normalizeCategory(value: string): string {
   return value.trim().toLocaleLowerCase();
@@ -27,11 +30,27 @@ function getSongCategory(song: Song): string {
   return "Nabozenske";
 }
 
+function normalizeSongNumber(value: string): string {
+  return value.trim().replace(/\.$/, "").toLocaleLowerCase();
+}
+
+function parseCommaSeparatedQuery(query: string): string[] {
+  return query
+    .split(",")
+    .map((part) => normalizeSongNumber(part))
+    .filter((part) => part.length > 0);
+}
+
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
+  const { colorScheme } = useContext(SettingsContext) as SettingsContextType;
+  const [searchQuery, setSearchQuery] = useState(() => {
+    return localStorage.getItem(SEARCH_QUERY_STORAGE_KEY) ?? "";
+  });
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    return localStorage.getItem(SELECTED_CATEGORY_STORAGE_KEY) ?? ALL_CATEGORIES;
+  });
   const [selectedItem, setSelectedItem] = useState("");
   const { verziaDb } = useVersionStore();
 
@@ -54,6 +73,22 @@ export default function Home() {
     return [ALL_CATEGORIES, ...dynamicCategories];
   }, [songsData]);
 
+  useEffect(() => {
+    localStorage.setItem(SEARCH_QUERY_STORAGE_KEY, searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    localStorage.setItem(SELECTED_CATEGORY_STORAGE_KEY, selectedCategory);
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    if (categories.includes(selectedCategory)) {
+      return;
+    }
+
+    setSelectedCategory(ALL_CATEGORIES);
+  }, [categories, selectedCategory]);
+
   function contains(song: Song, formatedQuery: string): boolean {
     return (
       song.cisloP.toLowerCase().includes(formatedQuery?.toLowerCase()) ||
@@ -62,11 +97,21 @@ export default function Home() {
   }
 
   const filteredData: SongsData = useMemo(() => {
-    const formattedQuery = searchQuery.toLocaleLowerCase();
+    const formattedQuery = searchQuery.toLocaleLowerCase().trim();
+    const commaSeparatedTerms = parseCommaSeparatedQuery(formattedQuery);
+    const shouldUseCommaFilter =
+      formattedQuery.includes(",") && commaSeparatedTerms.length > 0;
     const normalizedSelectedCategory = normalizeCategory(selectedCategory);
 
     return songsData.filter((song) => {
-      const queryMatch = contains(song, formattedQuery);
+      const normalizedSongNumber = normalizeSongNumber(song.cisloP);
+      const songTitleLower = song.nazov.toLocaleLowerCase();
+      const queryMatch = shouldUseCommaFilter
+        ? commaSeparatedTerms.some(
+            (term) =>
+              normalizedSongNumber === term || songTitleLower.includes(term),
+          )
+        : contains(song, formattedQuery);
       const normalizedSongCategory = normalizeCategory(getSongCategory(song));
       const categoryMatch =
         selectedCategory === ALL_CATEGORIES ||
@@ -91,6 +136,11 @@ export default function Home() {
     navigate("/admin-import");
   }
 
+  function handleClearSearch() {
+    setSearchQuery("");
+    setSelectedItem("");
+  }
+
   const handleClickSkokNaPiesen = (item: Song) => {
     setSelectedItem(item.cisloP);
     const piesen: Song = {
@@ -100,6 +150,16 @@ export default function Home() {
     };
     navigate("/akordy", { state: { song: piesen } });
   };
+
+  const isDark = colorScheme === "dark";
+  const pageBackground = isDark ? "#1f2933" : "#d6d8db";
+  const panelBackground = isDark ? "#2f3b46" : "lightGray";
+  const inputBackground = isDark ? "#3c4b57" : "lightGray";
+  const surfaceBackground = isDark ? "#182028" : "white";
+  const textColor = isDark ? "#f4f6f8" : "black";
+  const mutedBorder = isDark ? "2px solid #d5dde5" : "2px solid black";
+  const itemBackground = isDark ? "#374956" : "orange";
+  const itemBorder = isDark ? "3px ridge #d5dde5" : "3px ridge black";
 
   return (
     <div
@@ -113,8 +173,8 @@ export default function Home() {
         paddingTop: "20px",
         top: 0,
         left: 0,
-        color: "black",
-        backgroundColor: "gray",
+        color: textColor,
+        backgroundColor: pageBackground,
       }}
     >
       <div
@@ -122,25 +182,57 @@ export default function Home() {
         style={{
           // Zaberá dostupný voľný priestor
           display: "flex",
+          alignItems: "center",
+          gap: 8,
           margin: 10, // Prispôsob vzhľad podľa potreby
           padding: 0,
           flexDirection: "row",
         }}
       >
-        <input
-          type="text"
-          style={{
-            fontSize: 30,
-            flexGrow: 1,
-            backgroundColor: "lightGray",
-            borderRadius: 15,
-            padding: "0 20px",
-            color: "black",
-          }}
-          placeholder="zadaj číslo alebo textik..."
-          onChange={handleSearch}
-          value={searchQuery}
-        />
+        <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+          <input
+            type="text"
+            style={{
+              fontSize: 30,
+              width: "100%",
+              height: 80,
+              boxSizing: "border-box",
+              backgroundColor: inputBackground,
+              borderRadius: 15,
+              padding: "0 54px 0 20px",
+              color: textColor,
+              border: mutedBorder,
+            }}
+            placeholder="zadaj text alebo mix (napr. 2,33,som)..."
+            onChange={handleSearch}
+            value={searchQuery}
+          />
+          {searchQuery.trim().length > 0 && (
+            <button
+              onClick={handleClearSearch}
+              aria-label="Vycistit filter"
+              title="Vycistit filter"
+              style={{
+                position: "absolute",
+                right: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                border: mutedBorder,
+                backgroundColor: surfaceBackground,
+                color: textColor,
+                cursor: "pointer",
+                fontSize: 22,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              X
+            </button>
+          )}
+        </div>
         <button onClick={handleShowSetting} style={getStyles(40).button}>
           <GiSettingsKnobs
             style={{
@@ -157,11 +249,10 @@ export default function Home() {
             fontSize: 20,
             fontWeight: 700,
             padding: "0 16px",
-            marginLeft: 8,
             borderRadius: 14,
-            border: "2px solid black",
-            backgroundColor: "white",
-            color: "black",
+            border: mutedBorder,
+            backgroundColor: surfaceBackground,
+            color: textColor,
             cursor: "pointer",
           }}
         >
@@ -188,9 +279,9 @@ export default function Home() {
             fontSize: 20,
             padding: "8px 12px",
             borderRadius: 10,
-            border: "2px solid black",
-            backgroundColor: "lightGray",
-            color: "black",
+            border: mutedBorder,
+            backgroundColor: panelBackground,
+            color: textColor,
           }}
         >
           {categories.map((category) => (
@@ -213,6 +304,9 @@ export default function Home() {
           marginTop: 0,
           flexGrow: 1,
           borderRadius: 15,
+          backgroundColor: surfaceBackground,
+          color: textColor,
+          border: mutedBorder,
         }}
       >
         {/* Unsorted list komponent */}
@@ -226,13 +320,13 @@ export default function Home() {
                 padding: "1px",
                 marginTop: "5px",
                 cursor: "pointer",
-                color: "black",
+                color: textColor,
                 borderRadius: 15,
 
                 backgroundColor:
-                  selectedItem === item.cisloP ? "orange" : "orange",
+                  selectedItem === item.cisloP ? itemBackground : itemBackground,
                 listStylePosition: "inside",
-                border: "3px ridge black",
+                border: itemBorder,
               }}
             >
               <div

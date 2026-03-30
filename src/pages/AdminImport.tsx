@@ -7,11 +7,14 @@ import {
   isSupabaseConfigured,
   supabase,
 } from "../api/supabaseClient";
+import { DataMode, getDataMode, setDataMode } from "../api/dataMode";
 import {
   deleteSongsFromSupabase,
   loadAllSongsForAdmin,
   loadSongForEdit,
   replaceSongsInSupabase,
+  syncLocalToSupabase,
+  syncSupabaseToLocal,
   SongWithId,
   updateSongInSupabase,
   upsertSongsToSupabase,
@@ -88,7 +91,19 @@ function formatImportError(error: unknown): string {
   return "Neznama chyba pri importe.";
 }
 
+function normalizeSongNumber(value: string): string {
+  return value.trim().replace(/\.$/, "").toLocaleLowerCase();
+}
+
+function parseCommaSeparatedQuery(query: string): string[] {
+  return query
+    .split(",")
+    .map((part) => normalizeSongNumber(part))
+    .filter((part) => part.length > 0);
+}
+
 export default function AdminImport() {
+  const [dataMode, setDataModeState] = useState<DataMode>(() => getDataMode());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -113,32 +128,73 @@ export default function AdminImport() {
     status: "idle",
     message: "",
   });
+  const [replaceLocalOnSync, setReplaceLocalOnSync] = useState(false);
+  const [replaceSupabaseOnSync, setReplaceSupabaseOnSync] = useState(false);
+  const [syncState, setSyncState] = useState<{
+    status: "idle" | "loading" | "success" | "error";
+    message: string;
+  }>({ status: "idle", message: "" });
 
   const verseRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   useEffect(() => {
+    const handleDataModeChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<DataMode>;
+      setDataModeState(customEvent.detail === "offline" ? "offline" : "online");
+    };
+
+    window.addEventListener("data-mode-changed", handleDataModeChanged);
+    return () => window.removeEventListener("data-mode-changed", handleDataModeChanged);
+  }, []);
+
+  useEffect(() => {
     const initialize = async () => {
+      if (dataMode === "offline") {
+        setIsLoggedIn(false);
+        setIsAuthLoading(false);
+        return;
+      }
+
       const session = await getCurrentSession();
       setIsLoggedIn(Boolean(session));
       setIsAuthLoading(false);
     };
 
     initialize();
-  }, []);
+  }, [dataMode]);
+
+  const isOfflineMode = dataMode === "offline";
+  const canSyncWithSupabase = isSupabaseConfigured && isLoggedIn;
 
   const canUseImport = useMemo(
-    () => isSupabaseConfigured && isLoggedIn,
-    [isLoggedIn],
+    () => isOfflineMode || (isSupabaseConfigured && isLoggedIn),
+    [isOfflineMode, isLoggedIn],
   );
 
   const filteredAdminSongs = useMemo(() => {
     if (!adminFilter.trim()) return adminSongs;
-    const lower = adminFilter.toLowerCase();
+    const lower = adminFilter.toLowerCase().trim();
+    const commaSeparatedTerms = parseCommaSeparatedQuery(lower);
+    const shouldUseCommaFilter =
+      lower.includes(",") && commaSeparatedTerms.length > 0;
+
     return adminSongs.filter(
-      (s) =>
-        s.cisloP.toLowerCase().includes(lower) ||
-        s.nazov.toLowerCase().includes(lower) ||
-        s.kategoria.toLowerCase().includes(lower),
+      (s) => {
+        const normalizedSongNumber = normalizeSongNumber(s.cisloP);
+        const songTitleLower = s.nazov.toLowerCase();
+        const songCategoryLower = s.kategoria.toLowerCase();
+
+        return shouldUseCommaFilter
+          ? commaSeparatedTerms.some(
+              (term) =>
+                normalizedSongNumber === term ||
+                songTitleLower.includes(term) ||
+                songCategoryLower.includes(term),
+            )
+          : s.cisloP.toLowerCase().includes(lower) ||
+              songTitleLower.includes(lower) ||
+              songCategoryLower.includes(lower);
+      },
     );
   }, [adminSongs, adminFilter]);
 
@@ -327,6 +383,10 @@ export default function AdminImport() {
   }
 
   async function handleLogout() {
+    if (isOfflineMode) {
+      return;
+    }
+
     if (!supabase) {
       return;
     }
@@ -406,20 +466,239 @@ export default function AdminImport() {
     }
   }
 
+  function handleDataModeChange(nextMode: DataMode) {
+    setDataMode(nextMode);
+    setDataModeState(nextMode);
+    setImportState({
+      status: "idle",
+      message:
+        nextMode === "offline"
+          ? "Offline rezim aktivny. Pouzije sa lokalna DB v zariadeni."
+          : "Online rezim aktivny. Pouzije sa Supabase.",
+    });
+    setAdminSongs([]);
+    setAdminSongsLoaded(false);
+    setSelectedIds(new Set());
+    setDeleteState({ status: "idle", message: "" });
+    setEditForm(null);
+    setEditSaveState({ status: "idle", message: "" });
+    setSyncState({ status: "idle", message: "" });
+  }
+
+  function confirmSyncAction(direction: "supabase-to-local" | "local-to-supabase", replaceAll: boolean): boolean {
+    const directionText =
+      direction === "supabase-to-local"
+        ? "Supabase -> Lokal"
+        : "Lokal -> Supabase";
+
+    const modeText = replaceAll
+      ? "REZIM: PREPISAT CIEL (existujuce data budu zmazane)."
+      : "REZIM: PRIDAT NOVE (existujuce data zostanu).";
+
+    return window.confirm(
+      `Spustit synchronizaciu ${directionText}?\n\n${modeText}`,
+    );
+  }
+
+  async function handleSyncSupabaseToLocal() {
+    if (!canSyncWithSupabase) {
+      setSyncState({
+        status: "error",
+        message:
+          "Pre sync zo Supabase sa prepni na Online rezim a prihlas sa.",
+      });
+      return;
+    }
+
+    if (!confirmSyncAction("supabase-to-local", replaceLocalOnSync)) {
+      return;
+    }
+
+    setSyncState({ status: "loading", message: "Synchronizujem Supabase -> lokal..." });
+    try {
+      const count = await syncSupabaseToLocal(replaceLocalOnSync);
+      setSyncState({
+        status: "success",
+        message: `Hotovo. Prenesenych ${count} skladieb do lokalnej DB (${replaceLocalOnSync ? "prepisat ciel" : "pridat nove"}).`,
+      });
+
+      if (adminSongsLoaded && isOfflineMode) {
+        await handleLoadAdminSongs();
+      }
+    } catch (err) {
+      setSyncState({ status: "error", message: formatImportError(err) });
+    }
+  }
+
+  async function handleSyncLocalToSupabase() {
+    if (!canSyncWithSupabase) {
+      setSyncState({
+        status: "error",
+        message:
+          "Pre sync do Supabase sa prepni na Online rezim a prihlas sa.",
+      });
+      return;
+    }
+
+    if (!confirmSyncAction("local-to-supabase", replaceSupabaseOnSync)) {
+      return;
+    }
+
+    setSyncState({ status: "loading", message: "Synchronizujem lokal -> Supabase..." });
+    try {
+      const count = await syncLocalToSupabase(replaceSupabaseOnSync);
+      setSyncState({
+        status: "success",
+        message: `Hotovo. Prenesenych ${count} skladieb do Supabase (${replaceSupabaseOnSync ? "prepisat ciel" : "pridat nove"}).`,
+      });
+
+      if (adminSongsLoaded && !isOfflineMode) {
+        await handleLoadAdminSongs();
+      }
+    } catch (err) {
+      setSyncState({ status: "error", message: formatImportError(err) });
+    }
+  }
+
   return (
     <div
       style={{ padding: 20, maxWidth: 800, margin: "0 auto", color: "black" }}
     >
       <h1>Admin Import</h1>
       <p>
-        Tato stranka je urcena na trvaly import skladieb do Supabase. Po importe
-        budu skladby dostupne v publikovanej aplikacii bez noveho deployu.
+        {isOfflineMode
+          ? "Offline rezim uklada skladby do lokalnej DB v tomto zariadeni (bez internetu)."
+          : "Online rezim uklada skladby do Supabase. Po importe budu skladby dostupne v publikovanej aplikacii bez noveho deployu."}
       </p>
       <p>
         <Link to="/">Spat na domov</Link>
       </p>
 
-      {!isSupabaseConfigured && (
+      <div
+        style={{
+          marginBottom: 16,
+          padding: 12,
+          borderRadius: 8,
+          border: "1px solid #bbb",
+          backgroundColor: "#f8f8f8",
+        }}
+      >
+        <strong>Datovy rezim:</strong>
+        <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input
+              type="radio"
+              name="data-mode"
+              checked={dataMode === "online"}
+              onChange={() => handleDataModeChange("online")}
+            />
+            Online (Supabase)
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input
+              type="radio"
+              name="data-mode"
+              checked={dataMode === "offline"}
+              onChange={() => handleDataModeChange("offline")}
+            />
+            Offline (lokalna DB)
+          </label>
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginBottom: 16,
+          padding: 12,
+          borderRadius: 8,
+          border: "1px solid #bbb",
+          backgroundColor: "#f8f8f8",
+        }}
+      >
+        <strong>Synchronizacia databaz</strong>
+        <p style={{ marginTop: 8, marginBottom: 8 }}>
+          Prenos skladieb medzi Supabase a lokalnou DB.
+        </p>
+        {!canSyncWithSupabase && (
+          <p style={{ marginTop: 0, color: "#b00" }}>
+            Pre sync je potrebny Online rezim + prihlasenie do Supabase.
+          </p>
+        )}
+        <div style={{ display: "grid", gap: 10 }}>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              alignItems: "center",
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleSyncSupabaseToLocal}
+              disabled={!canSyncWithSupabase || syncState.status === "loading"}
+              style={{ padding: "8px 12px" }}
+            >
+              Supabase {"->"} Lokal
+            </button>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={replaceLocalOnSync}
+                onChange={(e) => setReplaceLocalOnSync(e.target.checked)}
+              />
+              Prepisat lokalnu DB
+            </label>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              alignItems: "center",
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleSyncLocalToSupabase}
+              disabled={!canSyncWithSupabase || syncState.status === "loading"}
+              style={{ padding: "8px 12px" }}
+            >
+              Lokal {"->"} Supabase
+            </button>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={replaceSupabaseOnSync}
+                onChange={(e) => setReplaceSupabaseOnSync(e.target.checked)}
+              />
+              Prepisat Supabase
+            </label>
+          </div>
+        </div>
+
+        {syncState.message && (
+          <p
+            style={{
+              marginTop: 10,
+              marginBottom: 0,
+              padding: 10,
+              borderRadius: 8,
+              backgroundColor:
+                syncState.status === "error"
+                  ? "#ffecec"
+                  : syncState.status === "success"
+                  ? "#e9ffe9"
+                  : "#f4f4f4",
+            }}
+          >
+            {syncState.message}
+          </p>
+        )}
+      </div>
+
+      {!isOfflineMode && !isSupabaseConfigured && (
         <div
           style={{
             padding: 12,
@@ -433,9 +712,9 @@ export default function AdminImport() {
         </div>
       )}
 
-      {isSupabaseConfigured && isAuthLoading && <p>Overujem session...</p>}
+      {!isOfflineMode && isSupabaseConfigured && isAuthLoading && <p>Overujem session...</p>}
 
-      {isSupabaseConfigured && !isAuthLoading && !isLoggedIn && (
+      {!isOfflineMode && isSupabaseConfigured && !isAuthLoading && !isLoggedIn && (
         <form
           onSubmit={handleLogin}
           style={{ display: "grid", gap: 10, maxWidth: 360 }}
@@ -468,17 +747,21 @@ export default function AdminImport() {
 
       {canUseImport && (
         <div style={{ display: "grid", gap: 12 }}>
-          <div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              style={{ width: 180, padding: "10px 12px" }}
-            >
-              Odhlasit sa
-            </button>
-          </div>
+          {!isOfflineMode && (
+            <div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                style={{ width: 180, padding: "10px 12px" }}
+              >
+                Odhlasit sa
+              </button>
+            </div>
+          )}
           <label>
-            Vyber JSON subor (format: Udaje/piesne)
+            {isOfflineMode
+              ? "Vyber JSON subor pre lokalnu DB (format: Udaje/piesne)"
+              : "Vyber JSON subor (format: Udaje/piesne)"}
             <input
               type="file"
               accept="application/json"
@@ -540,7 +823,7 @@ export default function AdminImport() {
               <div style={{ marginBottom: 8 }}>
                 <input
                   type="text"
-                  placeholder="Filtrovat podla nazvu, cisla, kategorie..."
+                  placeholder="Filtrovat text alebo mix (napr. 2,33,som)..."
                   value={adminFilter}
                   onChange={(e) => setAdminFilter(e.target.value)}
                   style={{

@@ -57,7 +57,7 @@ const SongLine: React.FC<SongLineProps> = ({ parts, showChords, velkost }) => (
           )
         )
       : (
-        <span style={getStyles(velkost).lyrics}>
+        <span style={getStyles(velkost).lyricsNoChords}>
           {parts
             .map((part) => ("text" in part ? part.text : ""))
             .join("")}
@@ -76,7 +76,7 @@ const Song: React.FC<SongProps> = ({ text, showChords, zadanaVelkost }) => {
   const songData = parseSong(text);
 
   return (
-    <div>
+    <div style={getStyles(zadanaVelkost).songRoot}>
       {songData.map((parts, index) => (
         <SongLine
           key={index}
@@ -90,10 +90,15 @@ const Song: React.FC<SongProps> = ({ text, showChords, zadanaVelkost }) => {
 };
 
 const getStyles = (velkost: number) => ({
+  songRoot: {
+    width: "100%",
+  },
   line: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    width: "100%",
+    textAlign: "center" as const,
     margin: "10px",
     flexWrap: "wrap" as const,
     //border: "solid 2px black",
@@ -113,6 +118,13 @@ const getStyles = (velkost: number) => ({
     //border: "solid 2px black",
     color: "gray",
     whiteSpace: "pre-wrap",
+  },
+  lyricsNoChords: {
+    fontSize: 20 + velkost,
+    color: "gray",
+    whiteSpace: "pre-wrap" as const,
+    textAlign: "center" as const,
+    width: "100%",
   },
 });
 

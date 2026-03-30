@@ -119,6 +119,13 @@ export default function Akordy1() {
     44,
     Math.max(14, Math.round(height * 0.055)),
   );
+  const isDark = colorScheme === "dark";
+  const pageBackground = isDark ? "#1f2933" : "#d6d8db";
+  const surfaceBackground = isDark ? "#182028" : "white";
+  const panelBackground = isDark ? "#2f3b46" : "lightGray";
+  const textColor = isDark ? "#f4f6f8" : "black";
+  const activeTabBackground = isDark ? "#4c7db8" : "blue";
+  const borderColor = isDark ? "#d5dde5" : "black";
 
   function handleSettings() {
     navigate("modal", {
@@ -149,6 +156,32 @@ export default function Akordy1() {
     }, 2200);
   }
 
+  function selectVerse(index: number) {
+    if (!piesenka || piesenka.slohy.length === 0) {
+      return;
+    }
+
+    const lastIndex = piesenka.slohy.length - 1;
+    const nextIndex = Math.max(0, Math.min(index, lastIndex));
+
+    setSelectedView(nextIndex);
+    sendProjectorPayload({
+      song: piesenka,
+      selectedView: nextIndex,
+      showAkordy,
+    });
+  }
+
+  function moveVerse(step: -1 | 1) {
+    if (!piesenka || piesenka.slohy.length === 0) {
+      return;
+    }
+
+    const total = piesenka.slohy.length;
+    const nextIndex = (selectedView + step + total) % total;
+    selectVerse(nextIndex);
+  }
+
   useEffect(() => {
     if (!piesenka) return;
 
@@ -157,6 +190,49 @@ export default function Akordy1() {
       selectedView,
       showAkordy,
     });
+  }, [piesenka, selectedView, showAkordy]);
+
+  useEffect(() => {
+    if (!piesenka || piesenka.slohy.length === 0) {
+      return;
+    }
+
+    const isEditableTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+
+      return (
+        target.isContentEditable ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      );
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
+
+      if (isEditableTarget(event.target)) {
+        return;
+      }
+
+      if (event.key === "ArrowRight" || event.key === "PageDown") {
+        event.preventDefault();
+        moveVerse(1);
+        return;
+      }
+
+      if (event.key === "ArrowLeft" || event.key === "PageUp") {
+        event.preventDefault();
+        moveVerse(-1);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [piesenka, selectedView, showAkordy]);
 
   return (
@@ -169,8 +245,8 @@ export default function Akordy1() {
         overflow: "hidden",
         padding: 0,
         margin: 0,
-        color: "black",
-        backgroundColor: "gray",
+        color: textColor,
+        backgroundColor: pageBackground,
         boxSizing: "border-box",
       }}
     >
@@ -191,10 +267,10 @@ export default function Akordy1() {
           style={{
             flex: 1,
             minWidth: 0,
-            backgroundColor: "lightGray",
-            border: "1px solid black",
+            backgroundColor: panelBackground,
+            border: `1px solid ${borderColor}`,
             borderRadius: 15,
-            color: "black",
+            color: textColor,
             textAlign: "left",
             fontSize: responsiveHeaderSize,
             fontWeight: "bold",
@@ -212,7 +288,7 @@ export default function Akordy1() {
           style={{
             ...getStyles(btnSize).button,
             backgroundColor: isProjectorConnected ? "#8fd694" : "#f28b82",
-            border: "1px solid black",
+            border: `1px solid ${borderColor}`,
             fontWeight: "bold",
             fontSize: Math.round(btnSize * 0.55),
             color: "black",
@@ -229,8 +305,8 @@ export default function Akordy1() {
         <button
           style={{
             ...getStyles(btnSize).button,
-            backgroundColor: "lightGray",
-            border: "1px solid black",
+            backgroundColor: panelBackground,
+            border: `1px solid ${borderColor}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -250,7 +326,7 @@ export default function Akordy1() {
             margin: "4px 10px",
             padding: "6px 10px",
             borderRadius: 10,
-            border: "1px solid #222",
+            border: `1px solid ${borderColor}`,
             backgroundColor:
               projectorFeedback.tone === "ok" ? "#eaffea" : "#fff1e6",
             fontWeight: 600,
@@ -270,12 +346,12 @@ export default function Akordy1() {
           overflowY: "auto",
           margin: "6px 10px",
           borderRadius: 15,
-          border: "1px solid black",
+          border: `1px solid ${borderColor}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: colorScheme === "dark" ? "black" : "white",
-          color: colorScheme === "dark" ? "white" : "black",
+          backgroundColor: surfaceBackground,
+          color: textColor,
           boxSizing: "border-box",
         }}
       >
@@ -308,19 +384,14 @@ export default function Akordy1() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                border: "2px solid black",
+                border: `2px solid ${borderColor}`,
                 borderRadius: 15,
                 cursor: "pointer",
-                backgroundColor: selectedView === i ? "blue" : "lightGray",
-                color: selectedView === i ? "white" : "black",
+                backgroundColor: selectedView === i ? activeTabBackground : panelBackground,
+                color: selectedView === i ? "white" : textColor,
               }}
               onClick={() => {
-                setSelectedView(i);
-                sendProjectorPayload({
-                  song: piesenka,
-                  selectedView: i,
-                  showAkordy,
-                });
+                selectVerse(i);
               }}
             >
               <span style={{ fontSize: responsiveVerseBadge, fontWeight: 600 }}>

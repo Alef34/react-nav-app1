@@ -1,5 +1,8 @@
 import { Song, SongVerse, Udaje } from "../types/myTypes";
 import { supabase } from "./supabaseClient";
+import { getDataMode } from "./dataMode";
+
+const LOCAL_DB_STORAGE_KEY = "songs.localDb.v1";
 
 type DbSongRow = {
   cislo_p: string;
@@ -14,6 +17,239 @@ type DbSongKeyRow = {
   cislo_p: string;
   nazov: string;
 };
+
+type LocalDbSongRow = {
+  id: number;
+  cislo_p: string;
+  nazov: string;
+  source: string;
+  kategoria: string;
+  slohy: SongVerse[];
+  updated_at: string;
+};
+
+type LocalDbState = {
+  nextId: number;
+  songs: LocalDbSongRow[];
+};
+
+function getDefaultLocalDbState(): LocalDbState {
+  return {
+    nextId: 1,
+    songs: [],
+  };
+}
+
+function readLocalDb(): LocalDbState {
+  if (typeof window === "undefined") {
+    return getDefaultLocalDbState();
+  }
+
+  const raw = window.localStorage.getItem(LOCAL_DB_STORAGE_KEY);
+  if (!raw) {
+    return getDefaultLocalDbState();
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<LocalDbState>;
+    const songs = Array.isArray(parsed.songs)
+      ? parsed.songs.map((row) => ({
+          id: Number(row?.id ?? 0),
+          cislo_p: String(row?.cislo_p ?? ""),
+          nazov: String(row?.nazov ?? ""),
+          source: String(row?.source ?? ""),
+          kategoria: String(row?.kategoria ?? "Nabozenske"),
+          slohy: Array.isArray(row?.slohy) ? row.slohy : [],
+          updated_at: String(row?.updated_at ?? ""),
+        }))
+      : [];
+
+    const maxId = songs.reduce((acc, row) => Math.max(acc, row.id), 0);
+    const nextIdFromState = Number(parsed.nextId ?? maxId + 1);
+
+    return {
+      nextId: Number.isFinite(nextIdFromState)
+        ? Math.max(1, nextIdFromState)
+        : maxId + 1,
+      songs,
+    };
+  } catch {
+    return getDefaultLocalDbState();
+  }
+}
+
+function writeLocalDb(state: LocalDbState): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(LOCAL_DB_STORAGE_KEY, JSON.stringify(state));
+}
+
+function sortSongsByNumberThenTitle<T extends { cislo_p: string; nazov: string }>(
+  songs: T[],
+): T[] {
+  return [...songs].sort((a, b) => {
+    const byNumber = a.cislo_p.localeCompare(b.cislo_p, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    if (byNumber !== 0) {
+      return byNumber;
+    }
+
+    return a.nazov.localeCompare(b.nazov, undefined, {
+      sensitivity: "base",
+    });
+  });
+}
+
+function mapLocalRowToSong(row: LocalDbSongRow): Song {
+  return normalizeSong({
+    cisloP: row.cislo_p,
+    nazov: row.nazov,
+    source: row.source,
+    kategoria: row.kategoria,
+    slohy: row.slohy,
+  });
+}
+
+function shouldUseOfflineDb(): boolean {
+  return getDataMode() === "offline" || !supabase;
+}
+
+async function loadSongsFromLocalDb(filter: string): Promise<Song[]> {
+  const state = readLocalDb();
+  const songs = sortSongsByNumberThenTitle(state.songs).map(mapLocalRowToSong);
+
+  if (!filter) {
+    return songs;
+  }
+
+  const lowered = filter.toLowerCase();
+  return songs.filter((song) =>
+    Object.values(song).some(
+      (value) => typeof value === "string" && value.toLowerCase().includes(lowered),
+    ),
+  );
+}
+
+async function upsertSongsToLocalDb(payload: Udaje): Promise<number> {
+  const songs = (payload.piesne ?? []).map((song) => normalizeSong(song));
+  const rows = songs.filter(
+    (song) =>
+      song.cisloP.length > 0 &&
+      song.nazov.length > 0 &&
+      song.slohy.length > 0,
+  );
+
+  if (rows.length === 0) {
+    throw new Error("Import neobsahuje ziadne validne skladby.");
+  }
+
+  const state = readLocalDb();
+  const existingKeys = new Set(
+    state.songs.map((row) => `${row.cislo_p}|${row.nazov}`),
+  );
+
+  const now = new Date().toISOString();
+  let inserted = 0;
+
+  rows.forEach((song) => {
+    const key = `${song.cisloP}|${song.nazov}`;
+    if (existingKeys.has(key)) {
+      return;
+    }
+
+    state.songs.push({
+      id: state.nextId,
+      cislo_p: song.cisloP,
+      nazov: song.nazov,
+      source: song.source ?? "",
+      kategoria: song.kategoria ?? "Nabozenske",
+      slohy: song.slohy,
+      updated_at: now,
+    });
+    state.nextId += 1;
+    inserted += 1;
+    existingKeys.add(key);
+  });
+
+  writeLocalDb(state);
+  return inserted;
+}
+
+async function replaceSongsInLocalDb(payload: Udaje): Promise<number> {
+  writeLocalDb(getDefaultLocalDbState());
+  return upsertSongsToLocalDb(payload);
+}
+
+async function loadAllSongsForAdminFromLocalDb(): Promise<SongWithId[]> {
+  const state = readLocalDb();
+  return sortSongsByNumberThenTitle(state.songs).map((row) => ({
+    id: row.id,
+    cisloP: row.cislo_p,
+    nazov: row.nazov,
+    kategoria: row.kategoria,
+    source: row.source,
+  }));
+}
+
+async function deleteSongsFromLocalDb(ids: number[]): Promise<number> {
+  if (ids.length === 0) {
+    return 0;
+  }
+
+  const state = readLocalDb();
+  const before = state.songs.length;
+  const wantedIds = new Set(ids);
+  state.songs = state.songs.filter((row) => !wantedIds.has(row.id));
+
+  writeLocalDb(state);
+  return before - state.songs.length;
+}
+
+async function loadSongForEditFromLocalDb(
+  id: number,
+): Promise<Song & { id: number }> {
+  const state = readLocalDb();
+  const row = state.songs.find((song) => song.id === id);
+
+  if (!row) {
+    throw new Error("Nacitanie skladby zlyhalo: nenajdena");
+  }
+
+  return {
+    id: row.id,
+    cisloP: row.cislo_p,
+    nazov: row.nazov,
+    kategoria: row.kategoria,
+    source: row.source,
+    slohy: Array.isArray(row.slohy) ? row.slohy : [],
+  };
+}
+
+async function updateSongInLocalDb(id: number, song: Song): Promise<void> {
+  const normalized = normalizeSong(song);
+  const state = readLocalDb();
+  const index = state.songs.findIndex((row) => row.id === id);
+
+  if (index === -1) {
+    throw new Error("Ukladanie zlyhalo: skladba neexistuje.");
+  }
+
+  state.songs[index] = {
+    ...state.songs[index],
+    cislo_p: normalized.cisloP,
+    nazov: normalized.nazov,
+    source: normalized.source ?? "",
+    kategoria: normalized.kategoria ?? "Nabozenske",
+    slohy: normalized.slohy,
+    updated_at: new Date().toISOString(),
+  };
+
+  writeLocalDb(state);
+}
 
 function normalizeVerse(verse: SongVerse, index: number): SongVerse {
   return {
@@ -41,7 +277,7 @@ function normalizeSong(song: Song): Song {
   };
 }
 
-export async function loadSongsFromSupabase(filter: string): Promise<Song[]> {
+async function loadSongsFromSupabaseDirect(filter: string): Promise<Song[]> {
   if (!supabase) {
     return [];
   }
@@ -78,6 +314,14 @@ export async function loadSongsFromSupabase(filter: string): Promise<Song[]> {
   );
 }
 
+export async function loadSongsFromSupabase(filter: string): Promise<Song[]> {
+  if (shouldUseOfflineDb()) {
+    return loadSongsFromLocalDb(filter);
+  }
+
+  return loadSongsFromSupabaseDirect(filter);
+}
+
 export async function testSupabaseConnection() {
   if (!supabase) {
     console.error("Supabase is not configured.");
@@ -93,7 +337,7 @@ export async function testSupabaseConnection() {
   return true;
 }
 
-export async function upsertSongsToSupabase(payload: Udaje): Promise<number> {
+async function upsertSongsToSupabaseDirect(payload: Udaje): Promise<number> {
   if (!supabase) {
     throw new Error("Supabase nie je nakonfigurovany.");
   }
@@ -175,7 +419,15 @@ export async function upsertSongsToSupabase(payload: Udaje): Promise<number> {
   return rowsToInsert.length;
 }
 
-export async function replaceSongsInSupabase(payload: Udaje): Promise<number> {
+export async function upsertSongsToSupabase(payload: Udaje): Promise<number> {
+  if (shouldUseOfflineDb()) {
+    return upsertSongsToLocalDb(payload);
+  }
+
+  return upsertSongsToSupabaseDirect(payload);
+}
+
+async function replaceSongsInSupabaseDirect(payload: Udaje): Promise<number> {
   if (!supabase) {
     throw new Error("Supabase nie je nakonfigurovany.");
   }
@@ -193,7 +445,15 @@ export async function replaceSongsInSupabase(payload: Udaje): Promise<number> {
     );
   }
 
-  return upsertSongsToSupabase(payload);
+  return upsertSongsToSupabaseDirect(payload);
+}
+
+export async function replaceSongsInSupabase(payload: Udaje): Promise<number> {
+  if (shouldUseOfflineDb()) {
+    return replaceSongsInLocalDb(payload);
+  }
+
+  return replaceSongsInSupabaseDirect(payload);
 }
 
 export type SongWithId = {
@@ -204,7 +464,43 @@ export type SongWithId = {
   source: string;
 };
 
+export async function syncSupabaseToLocal(replaceAll: boolean): Promise<number> {
+  if (!supabase) {
+    throw new Error("Supabase nie je nakonfigurovany.");
+  }
+
+  const songs = await loadSongsFromSupabaseDirect("");
+  const payload: Udaje = {
+    verzia: new Date().toISOString(),
+    piesne: songs,
+  };
+
+  return replaceAll
+    ? replaceSongsInLocalDb(payload)
+    : upsertSongsToLocalDb(payload);
+}
+
+export async function syncLocalToSupabase(replaceAll: boolean): Promise<number> {
+  if (!supabase) {
+    throw new Error("Supabase nie je nakonfigurovany.");
+  }
+
+  const songs = await loadSongsFromLocalDb("");
+  const payload: Udaje = {
+    verzia: new Date().toISOString(),
+    piesne: songs,
+  };
+
+  return replaceAll
+    ? replaceSongsInSupabaseDirect(payload)
+    : upsertSongsToSupabaseDirect(payload);
+}
+
 export async function loadAllSongsForAdmin(): Promise<SongWithId[]> {
+  if (shouldUseOfflineDb()) {
+    return loadAllSongsForAdminFromLocalDb();
+  }
+
   if (!supabase) {
     throw new Error("Supabase nie je nakonfigurovany.");
   }
@@ -228,6 +524,10 @@ export async function loadAllSongsForAdmin(): Promise<SongWithId[]> {
 }
 
 export async function deleteSongsFromSupabase(ids: number[]): Promise<number> {
+  if (shouldUseOfflineDb()) {
+    return deleteSongsFromLocalDb(ids);
+  }
+
   if (!supabase) {
     throw new Error("Supabase nie je nakonfigurovany.");
   }
@@ -256,6 +556,10 @@ export async function deleteSongsFromSupabase(ids: number[]): Promise<number> {
 export async function loadSongForEdit(
   id: number,
 ): Promise<Song & { id: number }> {
+  if (shouldUseOfflineDb()) {
+    return loadSongForEditFromLocalDb(id);
+  }
+
   if (!supabase) {
     throw new Error("Supabase nie je nakonfigurovany.");
   }
@@ -286,6 +590,10 @@ export async function updateSongInSupabase(
   id: number,
   song: Song,
 ): Promise<void> {
+  if (shouldUseOfflineDb()) {
+    return updateSongInLocalDb(id, song);
+  }
+
   if (!supabase) {
     throw new Error("Supabase nie je nakonfigurovany.");
   }

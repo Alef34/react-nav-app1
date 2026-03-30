@@ -6,13 +6,10 @@ import {
   SettingsContextType,
 } from "../context/SettingsContext";
 import Checkbox from "@mui/material/Checkbox";
-import { useVersionStore } from "../state/versionStore";
 
 export const Modal: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-
-  const {setVerziaDb} = useVersionStore();
 
   const { ...myProps } = useContext(SettingsContext) as SettingsContextType;
 
@@ -69,16 +66,25 @@ export const Modal: React.FC = () => {
                 sx={{ '& .MuiSvgIcon-root': { fontSize: 50 } }}/>
                 
               </div>
-              <div className="itemA item-1A">
-                item2
-                <button onClick={()=>{
-                    setVerziaDb("10");
-                   
-                   
-                      }} 
-                  style={{alignItems:"center", justifyContent:"center"}}>Test</button>
+              <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
+                <label htmlFor="color-scheme" style={{ marginRight: 10 }}>
+                  Tema:
+                </label>
+                <select
+                  id="color-scheme"
+                  value={myProps.colorScheme}
+                  onChange={(e) =>
+                    myProps.setColorScheme(e.target.value as "light" | "dark")
+                  }
+                  style={{ fontSize: "x-large", padding: "6px 10px" }}
+                >
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
               </div>
-              <div className="itemA item-1A">item2</div>
+              <div className="itemA item-1A" style={{ fontSize: "large" }}>
+                Aktivna tema: {myProps.colorScheme === "dark" ? "Dark" : "Light"}
+              </div>
             </div>
           </div>
 
