@@ -9,7 +9,13 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "projector:ws": "node scripts/projector-ws-server.mjs"
+    "projector:ws": "node scripts/projector-ws-server.mjs",
+    "projector:kiosk": "open -na \"Google Chrome\" --args --new-window --kiosk --start-fullscreen \"http://127.0.0.1:5173/projector\"",
+    "projector:fullscreen": "open -na \"Google Chrome\" --args --new-window --start-fullscreen \"http://127.0.0.1:5173/projector\"",
+    "projektor:ws": "npm run projector:ws",
+    "projektor:kiosk": "npm run projector:kiosk",
+    "projektor:kios": "npm run projector:kiosk",
+    "projektor:fullscreen": "npm run projector:fullscreen"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",

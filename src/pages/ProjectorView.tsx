@@ -117,11 +117,21 @@ export default function ProjectorView() {
       {!song ? (
         <div style={{ margin: "auto", textAlign: "center" }}>
           <h1
-            style={{ fontSize: Math.round(height * 0.065), marginBottom: 16 }}
+            style={{
+              fontSize: Math.round(height * 0.065),
+              marginBottom: 16,
+              color: "#fff",
+            }}
           >
             Projektor je pripraveny
           </h1>
-          <p style={{ fontSize: Math.round(height * 0.035), opacity: 0.9 }}>
+          <p
+            style={{
+              fontSize: Math.round(height * 0.035),
+              opacity: 0.9,
+              color: "#fff",
+            }}
+          >
             V hlavnom okne otvor skladbu a klikni na tlacidlo PROJ.
           </p>
         </div>
