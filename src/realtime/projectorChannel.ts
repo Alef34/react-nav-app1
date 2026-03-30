@@ -6,6 +6,7 @@ export interface ProjectorPayload {
   song?: Song;
   selectedView?: number;
   showAkordy?: boolean;
+  blackout?: boolean;
   ts?: number;
   source?: string;
 }

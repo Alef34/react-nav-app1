@@ -2,8 +2,45 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 
 const mode = process.argv[2] === "fullscreen" ? "fullscreen" : "kiosk";
-const url = process.argv[3] ?? "http://127.0.0.1:5173/projector";
+const explicitUrl = process.argv[3];
+let url = explicitUrl ?? "http://127.0.0.1:5173/projector";
 const isKiosk = mode === "kiosk";
+
+const AUTO_URL_CANDIDATES = [
+  "http://127.0.0.1:5173/projector",
+  "http://127.0.0.1:5174/projector",
+  "http://localhost:5173/projector",
+  "http://localhost:5174/projector",
+];
+
+async function isUrlReachable(targetUrl) {
+  try {
+    const response = await fetch(targetUrl, {
+      method: "GET",
+      headers: {
+        Accept: "text/html",
+      },
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveLaunchUrl() {
+  if (explicitUrl) {
+    return explicitUrl;
+  }
+
+  for (const candidate of AUTO_URL_CANDIDATES) {
+    if (await isUrlReachable(candidate)) {
+      return candidate;
+    }
+  }
+
+  return AUTO_URL_CANDIDATES[0];
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -105,6 +142,8 @@ function linuxOpen() {
 }
 
 let ok = false;
+
+url = await resolveLaunchUrl();
 
 if (process.platform === "darwin") {
   ok = macOpen();

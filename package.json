@@ -10,9 +10,11 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "projector:ws": "node scripts/projector-ws-server.mjs",
+    "projector:start": "node scripts/projector-start.mjs",
     "projector:kiosk": "node scripts/open-projector.mjs kiosk",
     "projector:fullscreen": "node scripts/open-projector.mjs fullscreen",
     "projektor:ws": "npm run projector:ws",
+    "projektor:start": "npm run projector:start",
     "projektor:kiosk": "npm run projector:kiosk",
     "projektor:kios": "npm run projector:kiosk",
     "projektor:fullscreen": "npm run projector:fullscreen"

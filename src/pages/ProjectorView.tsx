@@ -1,18 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Song from "../components/Song";
-import { Song as SongType } from "../types/myTypes";
 import { localData } from "../localData";
 import {
+  ProjectorPayload,
   readProjectorPayload,
   startProjectorChannel,
   subscribeProjectorPayload,
 } from "../realtime/projectorChannel";
-
-interface ProjectorPayload {
-  song?: SongType;
-  selectedView?: number;
-  showAkordy?: boolean;
-}
 
 function useWindowSize() {
   const [size, setSize] = useState({
@@ -82,6 +76,7 @@ export default function ProjectorView() {
   }, []);
 
   const song = payload.song;
+  const isBlackout = payload.blackout === true;
   const verseIndex = payload.selectedView ?? 0;
 
   const text = useMemo(() => {
@@ -101,6 +96,18 @@ export default function ProjectorView() {
     const safeIndex = Math.min(Math.max(verseIndex, 0), song.slohy.length - 1);
     return song.slohy[safeIndex]?.cisloS ?? "";
   }, [song, verseIndex]);
+
+  if (isBlackout) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "black",
+          width: "100%",
+        }}
+      />
+    );
+  }
 
   return (
     <div

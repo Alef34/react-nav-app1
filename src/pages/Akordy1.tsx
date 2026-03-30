@@ -80,6 +80,7 @@ export default function Akordy1() {
     height: window.innerHeight,
   });
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
+  const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
@@ -182,10 +183,23 @@ export default function Akordy1() {
   }
 
   function handleOpenProjector() {
+    if (isProjectorBlackout) {
+      setProjectorFeedback({
+        message: "BLACK rezim je aktivny. Vypni BLACK pre obnovenie projekcie.",
+        tone: "warn",
+      });
+
+      window.setTimeout(() => {
+        setProjectorFeedback(null);
+      }, 2200);
+      return;
+    }
+
     sendProjectorPayload({
       song: piesenka,
       selectedView,
       showAkordy,
+      blackout: false,
     });
 
     const connected = getProjectorChannelConnectionState();
@@ -194,6 +208,33 @@ export default function Akordy1() {
         ? { message: "Odoslane do projektora.", tone: "ok" }
         : { message: "Projektor server nie je dostupny.", tone: "warn" },
     );
+
+    window.setTimeout(() => {
+      setProjectorFeedback(null);
+    }, 2200);
+  }
+
+  function handleProjectorBlackoutToggle(checked: boolean) {
+    setIsProjectorBlackout(checked);
+
+    if (checked) {
+      sendProjectorPayload({ blackout: true });
+
+      const connected = getProjectorChannelConnectionState();
+      setProjectorFeedback(
+        connected
+          ? { message: "Projektor prepnuty na ciernu obrazovku.", tone: "ok" }
+          : { message: "Projektor server nie je dostupny.", tone: "warn" },
+      );
+    } else {
+      sendProjectorPayload({
+        song: piesenka,
+        selectedView,
+        showAkordy,
+        blackout: false,
+      });
+      setProjectorFeedback({ message: "BLACK rezim vypnuty.", tone: "ok" });
+    }
 
     window.setTimeout(() => {
       setProjectorFeedback(null);
@@ -216,11 +257,14 @@ export default function Akordy1() {
 
     setSelectedViewCursor(nextCursor);
     setSelectedView(nextIndex);
-    sendProjectorPayload({
-      song: piesenka,
-      selectedView: nextIndex,
-      showAkordy,
-    });
+    if (!isProjectorBlackout) {
+      sendProjectorPayload({
+        song: piesenka,
+        selectedView: nextIndex,
+        showAkordy,
+        blackout: false,
+      });
+    }
   }
 
   function moveVerse(step: -1 | 1) {
@@ -244,22 +288,28 @@ export default function Akordy1() {
 
     setSelectedViewCursor(nextCursor);
     setSelectedView(nextVerseIndex);
-    sendProjectorPayload({
-      song: piesenka,
-      selectedView: nextVerseIndex,
-      showAkordy,
-    });
+    if (!isProjectorBlackout) {
+      sendProjectorPayload({
+        song: piesenka,
+        selectedView: nextVerseIndex,
+        showAkordy,
+        blackout: false,
+      });
+    }
   }
 
   useEffect(() => {
     if (!piesenka) return;
 
-    sendProjectorPayload({
-      song: piesenka,
-      selectedView,
-      showAkordy,
-    });
-  }, [piesenka, selectedView, showAkordy]);
+    if (!isProjectorBlackout) {
+      sendProjectorPayload({
+        song: piesenka,
+        selectedView,
+        showAkordy,
+        blackout: false,
+      });
+    }
+  }, [piesenka, selectedView, showAkordy, isProjectorBlackout]);
 
   useEffect(() => {
     if (!piesenka || piesenka.slohy.length === 0) {
@@ -302,7 +352,7 @@ export default function Akordy1() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [piesenka, selectedView, selectedViewCursor, showAkordy]);
+  }, [piesenka, selectedView, selectedViewCursor, showAkordy, isProjectorBlackout]);
 
   return (
     <div
@@ -371,6 +421,32 @@ export default function Akordy1() {
         >
           PROJ
         </button>
+        <label
+          style={{
+            ...getStyles(btnSize).button,
+            width: "auto",
+            minWidth: Math.round(btnSize * 2.2),
+            padding: "0 8px",
+            backgroundColor: isProjectorBlackout ? "#111827" : panelBackground,
+            border: `1px solid ${borderColor}`,
+            color: isProjectorBlackout ? "#f9fafb" : textColor,
+            fontSize: Math.round(btnSize * 0.34),
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            userSelect: "none",
+          }}
+          title="BLACK rezim drzi ciernu obrazovku, kym ho nevypnes"
+        >
+          <input
+            type="checkbox"
+            checked={isProjectorBlackout}
+            onChange={(e) => handleProjectorBlackoutToggle(e.target.checked)}
+          />
+          BLACK
+        </label>
         <button
           style={{
             ...getStyles(btnSize).button,

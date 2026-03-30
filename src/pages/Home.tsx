@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 //import novePiesne, { fetchDataTQ } from "../components/Udaje";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GiSettingsKnobs } from "react-icons/gi";
 import { useLocation, useNavigate } from "react-router-dom";
 //import { localData } from "../localData";
@@ -73,6 +73,16 @@ function formatVerseOrderInput(song: Song | null): string {
   }
 
   return song.poradieSloh.join(", ");
+}
+
+function normalizeOrderSignatureFromRaw(raw: string): string {
+  return parseVerseOrderInput(raw)
+    .map((item) => item.toLocaleLowerCase())
+    .join("|");
+}
+
+function hasCustomVerseOrder(song: Song): boolean {
+  return Array.isArray(song.poradieSloh) && song.poradieSloh.length > 0;
 }
 
 function normalizeVerseLabel(value: string): string {
@@ -159,10 +169,6 @@ export default function Home() {
   const [selectedVerseCursor, setSelectedVerseCursor] = useState(0);
   const [verseOrderInput, setVerseOrderInput] = useState("");
   const [isSavingVerseOrder, setIsSavingVerseOrder] = useState(false);
-  const [verseOrderStatus, setVerseOrderStatus] = useState<{
-    tone: "ok" | "warn";
-    message: string;
-  } | null>(null);
   const [isSplitView, setIsSplitView] = useState(
     () => window.innerWidth >= SPLIT_BREAKPOINT,
   );
@@ -171,11 +177,13 @@ export default function Home() {
     return clampSplitWidth(stored);
   });
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
+  const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
   } | null>(null);
   const { verziaDb } = useVersionStore();
+  const queryClient = useQueryClient();
 
   const { data, isLoading, isSuccess } = useQuery({
     queryKey: ["songs", verziaDb],
@@ -317,12 +325,15 @@ export default function Home() {
       return;
     }
 
-    sendProjectorPayload({
-      song: selectedSong,
-      selectedView: selectedVerse,
-      showAkordy,
-    });
-  }, [selectedSong, selectedVerse, selectedVerseCursor, showAkordy]);
+    if (!isProjectorBlackout) {
+      sendProjectorPayload({
+        song: selectedSong,
+        selectedView: selectedVerse,
+        showAkordy,
+        blackout: false,
+      });
+    }
+  }, [selectedSong, selectedVerse, selectedVerseCursor, showAkordy, isProjectorBlackout]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -440,10 +451,22 @@ export default function Home() {
       return;
     }
 
+    if (isProjectorBlackout) {
+      setProjectorFeedback({
+        message: "BLACK rezim je aktivny. Vypni BLACK pre obnovenie projekcie.",
+        tone: "warn",
+      });
+      window.setTimeout(() => {
+        setProjectorFeedback(null);
+      }, 2200);
+      return;
+    }
+
     sendProjectorPayload({
       song: selectedSong,
       selectedView: selectedVerse,
       showAkordy,
+      blackout: false,
     });
 
     const connected = getProjectorChannelConnectionState();
@@ -452,6 +475,37 @@ export default function Home() {
         ? { message: "Odoslane do projektora.", tone: "ok" }
         : { message: "Projektor server nie je dostupny.", tone: "warn" },
     );
+
+    window.setTimeout(() => {
+      setProjectorFeedback(null);
+    }, 2200);
+  }
+
+  function handleProjectorBlackoutToggle(checked: boolean) {
+    setIsProjectorBlackout(checked);
+
+    if (checked) {
+      sendProjectorPayload({ blackout: true });
+
+      const connected = getProjectorChannelConnectionState();
+      setProjectorFeedback(
+        connected
+          ? { message: "Projektor prepnuty na ciernu obrazovku.", tone: "ok" }
+          : { message: "Projektor server nie je dostupny.", tone: "warn" },
+      );
+    } else if (selectedSong) {
+      sendProjectorPayload({
+        song: selectedSong,
+        selectedView: selectedVerse,
+        showAkordy,
+        blackout: false,
+      });
+
+      setProjectorFeedback({ message: "BLACK rezim vypnuty.", tone: "ok" });
+    } else {
+      sendProjectorPayload({ blackout: false });
+      setProjectorFeedback({ message: "BLACK rezim vypnuty.", tone: "ok" });
+    }
 
     window.setTimeout(() => {
       setProjectorFeedback(null);
@@ -468,7 +522,6 @@ export default function Home() {
 
   function handleVerseOrderInputChange(raw: string) {
     setVerseOrderInput(raw);
-    setVerseOrderStatus(null);
   }
 
   function applyVerseOrderLocally(order?: string[]) {
@@ -488,6 +541,35 @@ export default function Home() {
     setSelectedVerseCursor(nextCursor);
   }
 
+  function updateSongOrderInCache(order?: string[]) {
+    if (!selectedSong) {
+      return;
+    }
+
+    queryClient.setQueryData<SongsData | undefined>(
+      ["songs", verziaDb],
+      (previous) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return previous.map((song) => {
+          if (
+            song.cisloP !== selectedSong.cisloP ||
+            song.nazov !== selectedSong.nazov
+          ) {
+            return song;
+          }
+
+          return {
+            ...song,
+            poradieSloh: order && order.length > 0 ? order : undefined,
+          };
+        });
+      },
+    );
+  }
+
   async function handleSaveVerseOrder() {
     if (!selectedSong || isSavingVerseOrder) {
       return;
@@ -504,13 +586,9 @@ export default function Home() {
       );
 
       applyVerseOrderLocally(parsed);
-      setVerseOrderStatus({
-        tone: "ok",
-        message: parsed.length > 0 ? "Poradie ulozene." : "Poradie vymazane.",
-      });
+      updateSongOrderInCache(parsed);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Ukladanie poradia zlyhalo.";
-      setVerseOrderStatus({ tone: "warn", message });
+      console.error("Ukladanie poradia zlyhalo:", error);
     } finally {
       setIsSavingVerseOrder(false);
     }
@@ -526,10 +604,9 @@ export default function Home() {
     try {
       await updateSongOrderByKey(selectedSong.cisloP, selectedSong.nazov, undefined);
       applyVerseOrderLocally(undefined);
-      setVerseOrderStatus({ tone: "ok", message: "Poradie vymazane." });
+      updateSongOrderInCache(undefined);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Mazanie poradia zlyhalo.";
-      setVerseOrderStatus({ tone: "warn", message });
+      console.error("Mazanie poradia zlyhalo:", error);
     } finally {
       setIsSavingVerseOrder(false);
     }
@@ -610,6 +687,10 @@ export default function Home() {
   const itemBorder = "3px ridge var(--color-item-border)";
   const activeTabBackground = "var(--color-active-tab-bg)";
   const mutedText = "var(--color-text-muted)";
+  const savedVerseOrderInput = formatVerseOrderInput(selectedSong);
+  const hasUnsavedVerseOrder =
+    normalizeOrderSignatureFromRaw(verseOrderInput) !==
+    normalizeOrderSignatureFromRaw(savedVerseOrderInput);
 
   if (isLoading) {
     return (
@@ -840,11 +921,31 @@ export default function Home() {
                 <div
                   style={{
                     textAlign: "start",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
                   }}
                 >
                   <span style={{ margin: 5, color: selectedItem === item.cisloP ? "white" : textColor }}>
                     {item.cisloP}. {item.nazov}
                   </span>
+                  {hasCustomVerseOrder(item) && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        borderRadius: 999,
+                        padding: "2px 8px",
+                        border: "1px solid rgba(0,0,0,0.25)",
+                        backgroundColor: selectedItem === item.cisloP ? "#dbeafe" : "#fef3c7",
+                        color: "#7c2d12",
+                        marginRight: 8,
+                      }}
+                      title="Skladba ma vlastne poradie sloh"
+                    >
+                      PORADIE
+                    </span>
+                  )}
                 </div>
               </li>
             ))}
@@ -916,6 +1017,29 @@ export default function Home() {
               >
                 PROJ
               </button>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 10px",
+                  borderRadius: 12,
+                  border: mutedBorder,
+                  backgroundColor: isProjectorBlackout ? "#111827" : "var(--color-input-bg)",
+                  color: isProjectorBlackout ? "#f9fafb" : textColor,
+                  fontWeight: 800,
+                  fontSize: 13,
+                  userSelect: "none",
+                }}
+                title="BLACK rezim drzi ciernu obrazovku, kym ho nevypnes"
+              >
+                <input
+                  type="checkbox"
+                  checked={isProjectorBlackout}
+                  onChange={(e) => handleProjectorBlackoutToggle(e.target.checked)}
+                />
+                BLACK
+              </label>
             </div>
 
             {projectorFeedback && (
@@ -979,12 +1103,26 @@ export default function Home() {
                   type="text"
                   value={verseOrderInput}
                   onChange={(e) => handleVerseOrderInputChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void handleSaveVerseOrder();
+                      return;
+                    }
+
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      void handleClearVerseOrder();
+                    }
+                  }}
                   placeholder="Prazdne = povodne poradie"
                   disabled={!selectedSong || isSavingVerseOrder}
                   style={{
                     width: "100%",
                     borderRadius: 10,
-                    border: mutedBorder,
+                    border: hasUnsavedVerseOrder
+                      ? "2px solid #f59e0b"
+                      : mutedBorder,
                     backgroundColor: "var(--color-input-bg)",
                     color: textColor,
                     fontSize: 14,
@@ -1040,14 +1178,9 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              {verseOrderStatus && (
-                <small
-                  style={{
-                    color: verseOrderStatus.tone === "ok" ? "#166534" : "#7f1d1d",
-                    fontWeight: 600,
-                  }}
-                >
-                  {verseOrderStatus.message}
+              {hasUnsavedVerseOrder && !isSavingVerseOrder && (
+                <small style={{ color: "#b45309", fontWeight: 700 }}>
+                  Neulozena zmena. Enter = OK, Esc = CANCEL.
                 </small>
               )}
             </div>
