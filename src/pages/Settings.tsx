@@ -89,7 +89,16 @@ export const Modal: React.FC = () => {
           </div>
 
           <div className="item item-3">
-            <button className="btn" onClick={handleClick}>
+            <button
+              className="btn"
+              onClick={handleClick}
+              style={{
+                backgroundColor: "var(--color-surface-bg)",
+                color: "var(--color-text)",
+                border: "2px solid var(--color-border)",
+                fontWeight: 700,
+              }}
+            >
               Navrat
             </button>
           </div>

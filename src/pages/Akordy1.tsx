@@ -28,7 +28,7 @@ export default function Akordy1() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { fontSize, colorScheme, showAkordy } = useContext(
+  const { fontSize, showAkordy } = useContext(
     SettingsContext,
   ) as SettingsContextType;
   const piesenka = location.state?.song;
@@ -119,13 +119,12 @@ export default function Akordy1() {
     44,
     Math.max(14, Math.round(height * 0.055)),
   );
-  const isDark = colorScheme === "dark";
-  const pageBackground = isDark ? "#1f2933" : "#d6d8db";
-  const surfaceBackground = isDark ? "#182028" : "white";
-  const panelBackground = isDark ? "#2f3b46" : "lightGray";
-  const textColor = isDark ? "#f4f6f8" : "black";
-  const activeTabBackground = isDark ? "#4c7db8" : "blue";
-  const borderColor = isDark ? "#d5dde5" : "black";
+  const pageBackground = "var(--color-page-bg)";
+  const surfaceBackground = "var(--color-surface-bg)";
+  const panelBackground = "var(--color-panel-bg)";
+  const textColor = "var(--color-text)";
+  const activeTabBackground = "var(--color-active-tab-bg)";
+  const borderColor = "var(--color-border)";
 
   function handleSettings() {
     navigate("modal", {
@@ -328,7 +327,7 @@ export default function Akordy1() {
             borderRadius: 10,
             border: `1px solid ${borderColor}`,
             backgroundColor:
-              projectorFeedback.tone === "ok" ? "#eaffea" : "#fff1e6",
+              projectorFeedback.tone === "ok" ? "var(--color-success-bg)" : "var(--color-warning-bg)",
             fontWeight: 600,
             fontSize: 14,
           }}

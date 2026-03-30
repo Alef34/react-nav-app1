@@ -687,10 +687,10 @@ export default function AdminImport() {
               borderRadius: 8,
               backgroundColor:
                 syncState.status === "error"
-                  ? "#ffecec"
+                  ? "var(--color-danger-bg)"
                   : syncState.status === "success"
-                  ? "#e9ffe9"
-                  : "#f4f4f4",
+                  ? "var(--color-success-bg)"
+                  : "var(--color-panel-bg)",
             }}
           >
             {syncState.message}
@@ -702,9 +702,9 @@ export default function AdminImport() {
         <div
           style={{
             padding: 12,
-            border: "1px solid #b00",
+            border: "1px solid var(--color-danger)",
             borderRadius: 8,
-            backgroundColor: "#ffecec",
+            backgroundColor: "var(--color-danger-bg)",
           }}
         >
           Chyba konfiguracia Supabase. Nastav VITE_SUPABASE_URL a
@@ -787,10 +787,10 @@ export default function AdminImport() {
             borderRadius: 8,
             backgroundColor:
               importState.status === "error"
-                ? "#ffecec"
+                ? "var(--color-danger-bg)"
                 : importState.status === "success"
-                ? "#e9ffe9"
-                : "#f4f4f4",
+                ? "var(--color-success-bg)"
+                : "var(--color-panel-bg)",
           }}
         >
           {importState.message}
@@ -944,10 +944,10 @@ export default function AdminImport() {
                 borderRadius: 8,
                 backgroundColor:
                   deleteState.status === "error"
-                    ? "#ffecec"
+                    ? "var(--color-danger-bg)"
                     : deleteState.status === "success"
-                    ? "#e9ffe9"
-                    : "#f4f4f4",
+                    ? "var(--color-success-bg)"
+                    : "var(--color-panel-bg)",
               }}
             >
               {deleteState.message}
@@ -1125,7 +1125,7 @@ export default function AdminImport() {
                   borderRadius: 4,
                   marginTop: 8,
                   backgroundColor:
-                    editSaveState.status === "error" ? "#ffecec" : "#e9ffe9",
+                    editSaveState.status === "error" ? "var(--color-danger-bg)" : "var(--color-success-bg)",
                 }}
               >
                 {editSaveState.message}

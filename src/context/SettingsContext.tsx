@@ -42,7 +42,17 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
 
   React.useEffect(() => {
     localData.set("colorScheme", colorScheme);
+
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", colorScheme);
+    }
   }, [colorScheme]);
+
+  React.useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", colorScheme);
+    }
+  }, []);
 
   React.useEffect(() => {
     localData.set("showAkordy", showAkordy);

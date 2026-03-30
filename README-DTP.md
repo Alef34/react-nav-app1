@@ -66,6 +66,27 @@ Server pocuva na `ws://127.0.0.1:8787`.
 4. Klikni **PROJ** — skladba sa posle do projektoroveho okna.
 5. Prepinaj slohy kliknutim na V1, V2... — kazda zmena sa okamzite zobrazi na DTP.
 
+### Split rezim na desktope
+
+Na sirokom displeji je hlavne okno rozdelene na 2 casti:
+
+- Vlavo: zoznam skladieb
+- Vpravo: nahlad skladby (obsah ako v Akordoch) + tlacidlo PROJ
+
+Po kliknuti na skladbu vlavo sa text zobrazi vpravo bez prechodu na novu stranku.
+
+#### Skratky pre prepianie sloh (v split rezime)
+
+- Dalsia sloha: `ArrowRight` alebo `PageDown`
+- Predosla sloha: `ArrowLeft` alebo `PageUp`
+
+#### Manualna sirka panelov
+
+V hornej casti (pri filtroch) je slider **Sirka zoznamu**.
+
+- Posuvas nim pomer laveho/praveho panelu
+- Hodnota sa ulozi do localStorage a po dalsom spusteni zostane zachovana
+
 ---
 
 ## 5. Ovladaj z mobilu (volitelne)
