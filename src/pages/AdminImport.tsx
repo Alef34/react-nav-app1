@@ -36,6 +36,7 @@ type EditForm = {
   nazov: string;
   kategoria: string;
   source: string;
+  poradieSlohRaw: string;
   slohy: SongVerse[];
 };
 
@@ -99,6 +100,13 @@ function parseCommaSeparatedQuery(query: string): string[] {
   return query
     .split(",")
     .map((part) => normalizeSongNumber(part))
+    .filter((part) => part.length > 0);
+}
+
+function parseVerseOrderInput(raw: string): string[] {
+  return raw
+    .split(/[\n,;]+/)
+    .map((part) => part.trim())
     .filter((part) => part.length > 0);
 }
 
@@ -268,6 +276,9 @@ export default function AdminImport() {
         nazov: songData.nazov,
         kategoria: songData.kategoria ?? "",
         source: songData.source ?? "",
+        poradieSlohRaw: Array.isArray(songData.poradieSloh)
+          ? songData.poradieSloh.join(", ")
+          : "",
         slohy:
           songData.slohy.length > 0
             ? songData.slohy
@@ -333,6 +344,7 @@ export default function AdminImport() {
         nazov: editForm.nazov.trim(),
         kategoria: editForm.kategoria.trim(),
         source: editForm.source.trim(),
+        poradieSloh: parseVerseOrderInput(editForm.poradieSlohRaw),
         slohy: editForm.slohy,
       };
       await updateSongInSupabase(editForm.id, song);
@@ -1047,6 +1059,25 @@ export default function AdminImport() {
                     boxSizing: "border-box",
                   }}
                 />
+              </label>
+              <label>
+                Poradie sloh:
+                <input
+                  value={editForm.poradieSlohRaw}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, poradieSlohRaw: e.target.value })
+                  }
+                  placeholder="napr. R, V1, R, V2, R, V3"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+                <small style={{ color: "#555" }}>
+                  Prazdne = standardne poradie podla sloh. Mozes pouzit ciarku, bodkociarku alebo novy riadok.
+                </small>
               </label>
             </div>
             <h3 style={{ marginBottom: 8 }}>Slohy</h3>

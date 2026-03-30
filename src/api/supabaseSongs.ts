@@ -9,6 +9,7 @@ type DbSongRow = {
   nazov: string;
   source: string | null;
   kategoria: string | null;
+  poradie_sloh: string[] | null;
   slohy: SongVerse[];
   updated_at?: string;
 };
@@ -24,6 +25,7 @@ type LocalDbSongRow = {
   nazov: string;
   source: string;
   kategoria: string;
+  poradie_sloh: string[];
   slohy: SongVerse[];
   updated_at: string;
 };
@@ -59,6 +61,9 @@ function readLocalDb(): LocalDbState {
           nazov: String(row?.nazov ?? ""),
           source: String(row?.source ?? ""),
           kategoria: String(row?.kategoria ?? "Nabozenske"),
+          poradie_sloh: Array.isArray(row?.poradie_sloh)
+            ? row.poradie_sloh.map((item) => String(item ?? "").trim()).filter((item) => item.length > 0)
+            : [],
           slohy: Array.isArray(row?.slohy) ? row.slohy : [],
           updated_at: String(row?.updated_at ?? ""),
         }))
@@ -110,6 +115,7 @@ function mapLocalRowToSong(row: LocalDbSongRow): Song {
     nazov: row.nazov,
     source: row.source,
     kategoria: row.kategoria,
+    poradieSloh: row.poradie_sloh,
     slohy: row.slohy,
   });
 }
@@ -167,6 +173,7 @@ async function upsertSongsToLocalDb(payload: Udaje): Promise<number> {
       nazov: song.nazov,
       source: song.source ?? "",
       kategoria: song.kategoria ?? "Nabozenske",
+      poradie_sloh: song.poradieSloh ?? [],
       slohy: song.slohy,
       updated_at: now,
     });
@@ -225,6 +232,7 @@ async function loadSongForEditFromLocalDb(
     nazov: row.nazov,
     kategoria: row.kategoria,
     source: row.source,
+    poradieSloh: row.poradie_sloh,
     slohy: Array.isArray(row.slohy) ? row.slohy : [],
   };
 }
@@ -244,7 +252,37 @@ async function updateSongInLocalDb(id: number, song: Song): Promise<void> {
     nazov: normalized.nazov,
     source: normalized.source ?? "",
     kategoria: normalized.kategoria ?? "Nabozenske",
+    poradie_sloh: normalized.poradieSloh ?? [],
     slohy: normalized.slohy,
+    updated_at: new Date().toISOString(),
+  };
+
+  writeLocalDb(state);
+}
+
+async function updateSongOrderInLocalDbByKey(
+  cisloP: string,
+  nazov: string,
+  poradieSloh?: string[],
+): Promise<void> {
+  const state = readLocalDb();
+  const index = state.songs.findIndex(
+    (row) => row.cislo_p === cisloP && row.nazov === nazov,
+  );
+
+  if (index === -1) {
+    throw new Error("Skladba pre ulozenie poradia neexistuje.");
+  }
+
+  const normalizedOrder = Array.isArray(poradieSloh)
+    ? poradieSloh
+        .map((item) => String(item ?? "").trim())
+        .filter((item) => item.length > 0)
+    : [];
+
+  state.songs[index] = {
+    ...state.songs[index],
+    poradie_sloh: normalizedOrder,
     updated_at: new Date().toISOString(),
   };
 
@@ -259,11 +297,18 @@ function normalizeVerse(verse: SongVerse, index: number): SongVerse {
 }
 
 function normalizeSong(song: Song): Song {
+  const normalizedOrder = Array.isArray(song?.poradieSloh)
+    ? song.poradieSloh
+        .map((item) => String(item ?? "").trim())
+        .filter((item) => item.length > 0)
+    : [];
+
   return {
     cisloP: String(song?.cisloP ?? "").trim(),
     nazov: String(song?.nazov ?? "").trim(),
     source: song?.source ? String(song.source) : "",
     kategoria: song?.kategoria ? String(song.kategoria) : "Nabozenske",
+    poradieSloh: normalizedOrder.length > 0 ? normalizedOrder : undefined,
     slohy: Array.isArray(song?.slohy)
       ? song.slohy
           .map((verse, verseIndex) => normalizeVerse(verse, verseIndex))
@@ -284,7 +329,7 @@ async function loadSongsFromSupabaseDirect(filter: string): Promise<Song[]> {
 
   const { data, error } = await supabase
     .from("songs")
-    .select("cislo_p, nazov, source, kategoria, slohy")
+    .select("cislo_p, nazov, source, kategoria, poradie_sloh, slohy")
     .order("cislo_p", { ascending: true });
 
   if (error) {
@@ -297,6 +342,7 @@ async function loadSongsFromSupabaseDirect(filter: string): Promise<Song[]> {
       nazov: row.nazov,
       source: row.source ?? "",
       kategoria: row.kategoria ?? "Nabozenske",
+      poradieSloh: Array.isArray(row.poradie_sloh) ? row.poradie_sloh : [],
       slohy: Array.isArray(row.slohy) ? row.slohy : [],
     }),
   );
@@ -357,6 +403,7 @@ async function upsertSongsToSupabaseDirect(payload: Udaje): Promise<number> {
       nazov: song.nazov,
       source: song.source ?? "",
       kategoria: song.kategoria ?? "Nabozenske",
+      poradie_sloh: song.poradieSloh ?? null,
       slohy: song.slohy,
       updated_at: new Date().toISOString(),
     }));
@@ -566,7 +613,7 @@ export async function loadSongForEdit(
 
   const { data, error } = await supabase
     .from("songs")
-    .select("id, cislo_p, nazov, kategoria, source, slohy")
+    .select("id, cislo_p, nazov, kategoria, source, poradie_sloh, slohy")
     .eq("id", id)
     .single();
 
@@ -582,6 +629,9 @@ export async function loadSongForEdit(
     nazov: (data.nazov as string) ?? "",
     kategoria: (data.kategoria as string | null) ?? "",
     source: (data.source as string | null) ?? "",
+    poradieSloh: Array.isArray(data.poradie_sloh)
+      ? (data.poradie_sloh as string[])
+      : [],
     slohy: Array.isArray(data.slohy) ? (data.slohy as SongVerse[]) : [],
   };
 }
@@ -605,6 +655,10 @@ export async function updateSongInSupabase(
       nazov: song.nazov,
       source: song.source ?? "",
       kategoria: song.kategoria ?? "Nabozenske",
+      poradie_sloh:
+        Array.isArray(song.poradieSloh) && song.poradieSloh.length > 0
+          ? song.poradieSloh
+          : null,
       slohy: song.slohy,
       updated_at: new Date().toISOString(),
     })
@@ -619,6 +673,47 @@ export async function updateSongInSupabase(
       parts.length > 0
         ? `Ukladanie zlyhalo: ${parts.join(" | ")}`
         : "Ukladanie zlyhalo.",
+    );
+  }
+}
+
+export async function updateSongOrderByKey(
+  cisloP: string,
+  nazov: string,
+  poradieSloh?: string[],
+): Promise<void> {
+  const normalizedOrder = Array.isArray(poradieSloh)
+    ? poradieSloh
+        .map((item) => String(item ?? "").trim())
+        .filter((item) => item.length > 0)
+    : [];
+
+  if (shouldUseOfflineDb()) {
+    return updateSongOrderInLocalDbByKey(cisloP, nazov, normalizedOrder);
+  }
+
+  if (!supabase) {
+    throw new Error("Supabase nie je nakonfigurovany.");
+  }
+
+  const { error } = await supabase
+    .from("songs")
+    .update({
+      poradie_sloh: normalizedOrder.length > 0 ? normalizedOrder : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("cislo_p", cisloP)
+    .eq("nazov", nazov);
+
+  if (error) {
+    const parts = [error.message, error.details, error.hint, error.code]
+      .filter((v) => typeof v === "string" && v.trim().length > 0)
+      .map(String);
+
+    throw new Error(
+      parts.length > 0
+        ? `Ukladanie poradia zlyhalo: ${parts.join(" | ")}`
+        : "Ukladanie poradia zlyhalo.",
     );
   }
 }

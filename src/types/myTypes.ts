@@ -13,6 +13,7 @@ export type User = {
     nazov: string;
     kategoria?: string;
     source?: string;
+    poradieSloh?: string[];
     slohy: SongVerse[];
   }
 

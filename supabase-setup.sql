@@ -6,9 +6,13 @@ create table if not exists public.songs (
   nazov text not null,
   source text,
   kategoria text,
+  poradie_sloh text[],
   slohy jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+alter table public.songs
+  add column if not exists poradie_sloh text[];
 
 create unique index if not exists songs_cislo_nazov_unique
   on public.songs (cislo_p, nazov);

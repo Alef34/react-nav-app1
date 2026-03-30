@@ -1,10 +1,11 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import Song from "../components/Song";
+import SongRenderer from "../components/Song";
 import { useContext, useEffect, useState } from "react";
 import {
   SettingsContext,
   SettingsContextType,
 } from "../context/SettingsContext";
+import { Song as SongType, SongVerse } from "../types/myTypes";
 import { GiSettingsKnobs } from "react-icons/gi";
 import {
   getProjectorChannelConnectionState,
@@ -13,15 +14,53 @@ import {
   startProjectorChannel,
 } from "../realtime/projectorChannel";
 
-interface SongVerse {
-  cisloS: string;
-  textik: string;
+function normalizeVerseLabel(value: string): string {
+  return value.trim().toLocaleLowerCase();
 }
 
-interface Song {
-  cisloP: string;
-  nazov: string;
-  slohy: SongVerse[];
+function buildVersePlaybackOrder(song: SongType | null | undefined): number[] {
+  if (!song || !Array.isArray(song.slohy) || song.slohy.length === 0) {
+    return [];
+  }
+
+  const fallback = song.slohy.map((_, index) => index);
+  const rawOrder = Array.isArray(song.poradieSloh) ? song.poradieSloh : [];
+
+  if (rawOrder.length === 0) {
+    return fallback;
+  }
+
+  const verseIndexByLabel = new Map<string, number>();
+  song.slohy.forEach((verse, index) => {
+    verseIndexByLabel.set(normalizeVerseLabel(verse.cisloS), index);
+  });
+
+  const resolved = rawOrder
+    .map((label) => verseIndexByLabel.get(normalizeVerseLabel(label)))
+    .filter((index): index is number => typeof index === "number");
+
+  return resolved.length > 0 ? resolved : fallback;
+}
+
+function resolveVerseCursor(
+  playbackOrder: number[],
+  verseIndex: number,
+  previousCursor: number,
+): number {
+  if (playbackOrder.length === 0) {
+    return 0;
+  }
+
+  if (
+    previousCursor >= 0 &&
+    previousCursor < playbackOrder.length &&
+    playbackOrder[previousCursor] === verseIndex
+  ) {
+    return previousCursor;
+  }
+
+  const firstMatch = playbackOrder.indexOf(verseIndex);
+  return firstMatch >= 0 ? firstMatch : 0;
 }
 
 export default function Akordy1() {
@@ -34,6 +73,7 @@ export default function Akordy1() {
   const piesenka = location.state?.song;
 
   const [selectedView, setSelectedView] = useState(0);
+  const [selectedViewCursor, setSelectedViewCursor] = useState(0);
   const effectiveFontSize = Math.min(80, Math.max(20, Number(fontSize) || 30));
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
@@ -44,6 +84,11 @@ export default function Akordy1() {
     message: string;
     tone: "ok" | "warn";
   } | null>(null);
+
+  useEffect(() => {
+    setSelectedView(0);
+    setSelectedViewCursor(0);
+  }, [piesenka?.cisloP]);
 
   useEffect(() => {
     let rafId: number | null = null;
@@ -162,7 +207,14 @@ export default function Akordy1() {
 
     const lastIndex = piesenka.slohy.length - 1;
     const nextIndex = Math.max(0, Math.min(index, lastIndex));
+    const playbackOrder = buildVersePlaybackOrder(piesenka);
+    const nextCursor = resolveVerseCursor(
+      playbackOrder,
+      nextIndex,
+      selectedViewCursor,
+    );
 
+    setSelectedViewCursor(nextCursor);
     setSelectedView(nextIndex);
     sendProjectorPayload({
       song: piesenka,
@@ -176,9 +228,27 @@ export default function Akordy1() {
       return;
     }
 
-    const total = piesenka.slohy.length;
-    const nextIndex = (selectedView + step + total) % total;
-    selectVerse(nextIndex);
+    const playbackOrder = buildVersePlaybackOrder(piesenka);
+    if (playbackOrder.length === 0) {
+      return;
+    }
+
+    const currentCursor = resolveVerseCursor(
+      playbackOrder,
+      selectedView,
+      selectedViewCursor,
+    );
+    const nextCursor =
+      (currentCursor + step + playbackOrder.length) % playbackOrder.length;
+    const nextVerseIndex = playbackOrder[nextCursor];
+
+    setSelectedViewCursor(nextCursor);
+    setSelectedView(nextVerseIndex);
+    sendProjectorPayload({
+      song: piesenka,
+      selectedView: nextVerseIndex,
+      showAkordy,
+    });
   }
 
   useEffect(() => {
@@ -232,7 +302,7 @@ export default function Akordy1() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [piesenka, selectedView, showAkordy]);
+  }, [piesenka, selectedView, selectedViewCursor, showAkordy]);
 
   return (
     <div
@@ -354,7 +424,7 @@ export default function Akordy1() {
           boxSizing: "border-box",
         }}
       >
-        <Song
+        <SongRenderer
           text={piesenka.slohy[selectedView].textik}
           showChords={showAkordy}
           zadanaVelkost={responsiveSongSize}

@@ -4,7 +4,16 @@ export const localData = {
     },
     get(key: string) {
       const stored = localStorage.getItem(key);
-      return stored == null ? undefined : JSON.parse(stored);
+      if (stored == null) {
+        return undefined;
+      }
+
+      try {
+        return JSON.parse(stored);
+      } catch {
+        localStorage.removeItem(key);
+        return undefined;
+      }
     },
     remove(key: string) {
       localStorage.removeItem(key);

@@ -16,6 +16,7 @@ import {
   subscribeProjectorConnectionState,
 } from "../realtime/projectorChannel";
 import { useVersionStore } from "../state/versionStore";
+import { updateSongOrderByKey } from "../api/supabaseSongs";
 
 const ALL_CATEGORIES = "Vsetky";
 const SEARCH_QUERY_STORAGE_KEY = "home.searchQuery";
@@ -59,6 +60,62 @@ function parseCommaSeparatedQuery(query: string): string[] {
     .filter((part) => part.length > 0);
 }
 
+function parseVerseOrderInput(raw: string): string[] {
+  return raw
+    .split(/[\n,;]+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+function normalizeVerseLabel(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function buildVersePlaybackOrder(song: Song | null): number[] {
+  if (!song || !Array.isArray(song.slohy) || song.slohy.length === 0) {
+    return [];
+  }
+
+  const fallback = song.slohy.map((_, index) => index);
+  const rawOrder = Array.isArray(song.poradieSloh) ? song.poradieSloh : [];
+
+  if (rawOrder.length === 0) {
+    return fallback;
+  }
+
+  const verseIndexByLabel = new Map<string, number>();
+  song.slohy.forEach((verse, index) => {
+    verseIndexByLabel.set(normalizeVerseLabel(verse.cisloS), index);
+  });
+
+  const resolved = rawOrder
+    .map((label) => verseIndexByLabel.get(normalizeVerseLabel(label)))
+    .filter((index): index is number => typeof index === "number");
+
+  return resolved.length > 0 ? resolved : fallback;
+}
+
+function resolveVerseCursor(
+  playbackOrder: number[],
+  verseIndex: number,
+  previousCursor: number,
+): number {
+  if (playbackOrder.length === 0) {
+    return 0;
+  }
+
+  if (
+    previousCursor >= 0 &&
+    previousCursor < playbackOrder.length &&
+    playbackOrder[previousCursor] === verseIndex
+  ) {
+    return previousCursor;
+  }
+
+  const firstMatch = playbackOrder.indexOf(verseIndex);
+  return firstMatch >= 0 ? firstMatch : 0;
+}
+
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -72,6 +129,13 @@ export default function Home() {
   const [selectedItem, setSelectedItem] = useState("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedVerse, setSelectedVerse] = useState(0);
+  const [selectedVerseCursor, setSelectedVerseCursor] = useState(0);
+  const [verseOrderInput, setVerseOrderInput] = useState("");
+  const [isSavingVerseOrder, setIsSavingVerseOrder] = useState(false);
+  const [verseOrderStatus, setVerseOrderStatus] = useState<{
+    tone: "ok" | "warn";
+    message: string;
+  } | null>(null);
   const [isSplitView, setIsSplitView] = useState(
     () => window.innerWidth >= SPLIT_BREAKPOINT,
   );
@@ -184,6 +248,8 @@ export default function Home() {
       setSelectedSong(null);
       setSelectedItem("");
       setSelectedVerse(0);
+      setSelectedVerseCursor(0);
+      setVerseOrderInput("");
       return;
     }
 
@@ -200,7 +266,20 @@ export default function Home() {
     setSelectedSong(firstSong);
     setSelectedItem(firstSong.cisloP);
     setSelectedVerse(0);
+    setSelectedVerseCursor(0);
   }, [filteredData, selectedItem]);
+
+  useEffect(() => {
+    if (!selectedSong) {
+      setVerseOrderInput("");
+      return;
+    }
+
+    const rawOrder = Array.isArray(selectedSong.poradieSloh)
+      ? selectedSong.poradieSloh
+      : [];
+    setVerseOrderInput(rawOrder.join(", "));
+  }, [selectedSong?.cisloP, selectedSong?.nazov, selectedSong?.poradieSloh]);
 
   useEffect(() => {
     if (!selectedSong || selectedSong.slohy.length === 0) {
@@ -209,6 +288,14 @@ export default function Home() {
 
     const nextVerse = Math.max(0, Math.min(selectedVerse, selectedSong.slohy.length - 1));
     if (nextVerse !== selectedVerse) {
+      const playbackOrder = buildVersePlaybackOrder(selectedSong);
+      const nextCursor = resolveVerseCursor(
+        playbackOrder,
+        nextVerse,
+        selectedVerseCursor,
+      );
+
+      setSelectedVerseCursor(nextCursor);
       setSelectedVerse(nextVerse);
       return;
     }
@@ -218,10 +305,7 @@ export default function Home() {
       selectedView: selectedVerse,
       showAkordy,
     });
-  }, [selectedSong, selectedVerse, showAkordy]);
-
-  if (isLoading) return <div>Loading...</div>;
-  if (!isSuccess) return <div>Error loading data</div>;
+  }, [selectedSong, selectedVerse, selectedVerseCursor, showAkordy]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -248,9 +332,11 @@ export default function Home() {
       slohy: item.slohy,
       source: item.source,
       kategoria: item.kategoria,
+      poradieSloh: item.poradieSloh,
     };
     setSelectedSong(piesen);
     setSelectedVerse(0);
+    setSelectedVerseCursor(0);
 
     if (!isSplitView) {
       navigate("/akordy", { state: { song: piesen } });
@@ -264,6 +350,14 @@ export default function Home() {
 
     const maxIndex = selectedSong.slohy.length - 1;
     const next = Math.max(0, Math.min(index, maxIndex));
+    const playbackOrder = buildVersePlaybackOrder(selectedSong);
+    const nextCursor = resolveVerseCursor(
+      playbackOrder,
+      next,
+      selectedVerseCursor,
+    );
+
+    setSelectedVerseCursor(nextCursor);
     setSelectedVerse(next);
   }
 
@@ -272,9 +366,21 @@ export default function Home() {
       return;
     }
 
-    const total = selectedSong.slohy.length;
-    const nextIndex = (selectedVerse + step + total) % total;
-    setSelectedVerse(nextIndex);
+    const playbackOrder = buildVersePlaybackOrder(selectedSong);
+    if (playbackOrder.length === 0) {
+      return;
+    }
+
+    const currentCursor = resolveVerseCursor(
+      playbackOrder,
+      selectedVerse,
+      selectedVerseCursor,
+    );
+    const nextCursor =
+      (currentCursor + step + playbackOrder.length) % playbackOrder.length;
+
+    setSelectedVerseCursor(nextCursor);
+    setSelectedVerse(playbackOrder[nextCursor]);
   }
 
   function handleOpenProjector() {
@@ -306,6 +412,75 @@ export default function Home() {
     }
 
     navigate("/akordy", { state: { song: selectedSong } });
+  }
+
+  function handleVerseOrderInputChange(raw: string) {
+    setVerseOrderInput(raw);
+    setVerseOrderStatus(null);
+  }
+
+  function applyVerseOrderLocally(order?: string[]) {
+    if (!selectedSong) {
+      return;
+    }
+
+    const nextSong: Song = {
+      ...selectedSong,
+      poradieSloh: order && order.length > 0 ? order : undefined,
+    };
+
+    const playbackOrder = buildVersePlaybackOrder(nextSong);
+    const nextCursor = resolveVerseCursor(playbackOrder, selectedVerse, selectedVerseCursor);
+
+    setSelectedSong(nextSong);
+    setSelectedVerseCursor(nextCursor);
+  }
+
+  async function handleSaveVerseOrder() {
+    if (!selectedSong || isSavingVerseOrder) {
+      return;
+    }
+
+    const parsed = parseVerseOrderInput(verseOrderInput);
+
+    setIsSavingVerseOrder(true);
+    try {
+      await updateSongOrderByKey(
+        selectedSong.cisloP,
+        selectedSong.nazov,
+        parsed.length > 0 ? parsed : undefined,
+      );
+
+      applyVerseOrderLocally(parsed);
+      setVerseOrderStatus({
+        tone: "ok",
+        message: parsed.length > 0 ? "Poradie ulozene." : "Poradie vymazane.",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Ukladanie poradia zlyhalo.";
+      setVerseOrderStatus({ tone: "warn", message });
+    } finally {
+      setIsSavingVerseOrder(false);
+    }
+  }
+
+  async function handleClearVerseOrder() {
+    if (!selectedSong || isSavingVerseOrder) {
+      return;
+    }
+
+    setVerseOrderInput("");
+    setIsSavingVerseOrder(true);
+    try {
+      await updateSongOrderByKey(selectedSong.cisloP, selectedSong.nazov, undefined);
+      applyVerseOrderLocally(undefined);
+      setVerseOrderStatus({ tone: "ok", message: "Poradie vymazane." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Mazanie poradia zlyhalo.";
+      setVerseOrderStatus({ tone: "warn", message });
+    } finally {
+      setIsSavingVerseOrder(false);
+    }
   }
 
   useEffect(() => {
@@ -363,13 +538,14 @@ export default function Home() {
           setSelectedItem(nextSong.cisloP);
           setSelectedSong(nextSong);
           setSelectedVerse(0);
+          setSelectedVerseCursor(0);
         }
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isSplitView, selectedSong, selectedVerse, filteredData]);
+  }, [isSplitView, selectedSong, selectedVerse, selectedVerseCursor, filteredData]);
 
   const pageBackground = "var(--color-page-bg)";
   const panelBackground = "var(--color-panel-bg)";
@@ -381,6 +557,22 @@ export default function Home() {
   const itemBorder = "3px ridge var(--color-item-border)";
   const activeTabBackground = "var(--color-active-tab-bg)";
   const mutedText = "var(--color-text-muted)";
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: 24, fontSize: 22, color: "#111827", backgroundColor: "#eceff3", minHeight: "100svh" }}>
+        Loading...
+      </div>
+    );
+  }
+
+  if (!isSuccess) {
+    return (
+      <div style={{ padding: 24, fontSize: 22, color: "#7f1d1d", backgroundColor: "#fee2e2", minHeight: "100svh" }}>
+        Error loading data
+      </div>
+    );
+  }
 
   return (
     <div
@@ -711,6 +903,99 @@ export default function Home() {
                 <div style={{ color: mutedText, fontSize: 24, textAlign: "center" }}>
                   Vyber skladbu zo zoznamu vlavo.
                 </div>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                padding: "6px 10px 0",
+              }}
+            >
+              <label
+                htmlFor="verse-order-input"
+                style={{ fontSize: 13, fontWeight: 700, color: textColor }}
+              >
+                Poradie sloh (napr. R, V1, R, V2)
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  id="verse-order-input"
+                  type="text"
+                  value={verseOrderInput}
+                  onChange={(e) => handleVerseOrderInputChange(e.target.value)}
+                  placeholder="Prazdne = povodne poradie"
+                  disabled={!selectedSong || isSavingVerseOrder}
+                  style={{
+                    width: "100%",
+                    borderRadius: 10,
+                    border: mutedBorder,
+                    backgroundColor: "var(--color-input-bg)",
+                    color: textColor,
+                    fontSize: 14,
+                    padding: "8px 120px 8px 10px",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 6,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    display: "flex",
+                    gap: 6,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={handleSaveVerseOrder}
+                    disabled={!selectedSong || isSavingVerseOrder}
+                    style={{
+                      borderRadius: 8,
+                      border: "1px solid var(--color-border)",
+                      backgroundColor: "#dcfce7",
+                      color: "#14532d",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      padding: "4px 8px",
+                      cursor: "pointer",
+                    }}
+                    title="Ulozit poradie"
+                  >
+                    OK
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearVerseOrder}
+                    disabled={!selectedSong || isSavingVerseOrder}
+                    style={{
+                      borderRadius: 8,
+                      border: "1px solid var(--color-border)",
+                      backgroundColor: "#fee2e2",
+                      color: "#7f1d1d",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      padding: "4px 8px",
+                      cursor: "pointer",
+                    }}
+                    title="Vymazat poradie"
+                  >
+                    CANCEL
+                  </button>
+                </div>
+              </div>
+              {verseOrderStatus && (
+                <small
+                  style={{
+                    color: verseOrderStatus.tone === "ok" ? "#166534" : "#7f1d1d",
+                    fontWeight: 600,
+                  }}
+                >
+                  {verseOrderStatus.message}
+                </small>
               )}
             </div>
 
