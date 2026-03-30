@@ -67,6 +67,14 @@ function parseVerseOrderInput(raw: string): string[] {
     .filter((part) => part.length > 0);
 }
 
+function formatVerseOrderInput(song: Song | null): string {
+  if (!song || !Array.isArray(song.poradieSloh)) {
+    return "";
+  }
+
+  return song.poradieSloh.join(", ");
+}
+
 function normalizeVerseLabel(value: string): string {
   return value.trim().toLocaleLowerCase();
 }
@@ -114,6 +122,25 @@ function resolveVerseCursor(
 
   const firstMatch = playbackOrder.indexOf(verseIndex);
   return firstMatch >= 0 ? firstMatch : 0;
+}
+
+function getSongBoundaryState(song: Song, direction: -1 | 1): {
+  verseIndex: number;
+  cursor: number;
+} {
+  const playbackOrder = buildVersePlaybackOrder(song);
+  if (playbackOrder.length === 0) {
+    return {
+      verseIndex: 0,
+      cursor: 0,
+    };
+  }
+
+  const cursor = direction === 1 ? 0 : playbackOrder.length - 1;
+  return {
+    verseIndex: playbackOrder[cursor],
+    cursor,
+  };
 }
 
 export default function Home() {
@@ -259,6 +286,7 @@ export default function Home() {
 
     if (selectedInFiltered) {
       setSelectedSong(selectedInFiltered);
+      setVerseOrderInput(formatVerseOrderInput(selectedInFiltered));
       return;
     }
 
@@ -267,19 +295,8 @@ export default function Home() {
     setSelectedItem(firstSong.cisloP);
     setSelectedVerse(0);
     setSelectedVerseCursor(0);
+    setVerseOrderInput(formatVerseOrderInput(firstSong));
   }, [filteredData, selectedItem]);
-
-  useEffect(() => {
-    if (!selectedSong) {
-      setVerseOrderInput("");
-      return;
-    }
-
-    const rawOrder = Array.isArray(selectedSong.poradieSloh)
-      ? selectedSong.poradieSloh
-      : [];
-    setVerseOrderInput(rawOrder.join(", "));
-  }, [selectedSong?.cisloP, selectedSong?.nazov, selectedSong?.poradieSloh]);
 
   useEffect(() => {
     if (!selectedSong || selectedSong.slohy.length === 0) {
@@ -337,6 +354,7 @@ export default function Home() {
     setSelectedSong(piesen);
     setSelectedVerse(0);
     setSelectedVerseCursor(0);
+    setVerseOrderInput(formatVerseOrderInput(piesen));
 
     if (!isSplitView) {
       navigate("/akordy", { state: { song: piesen } });
@@ -376,11 +394,45 @@ export default function Home() {
       selectedVerse,
       selectedVerseCursor,
     );
-    const nextCursor =
-      (currentCursor + step + playbackOrder.length) % playbackOrder.length;
 
-    setSelectedVerseCursor(nextCursor);
-    setSelectedVerse(playbackOrder[nextCursor]);
+    const canMoveInsideSong =
+      (step === 1 && currentCursor < playbackOrder.length - 1) ||
+      (step === -1 && currentCursor > 0);
+
+    if (canMoveInsideSong) {
+      const nextCursor = currentCursor + step;
+      setSelectedVerseCursor(nextCursor);
+      setSelectedVerse(playbackOrder[nextCursor]);
+      return;
+    }
+
+    if (filteredData.length === 0) {
+      return;
+    }
+
+    const currentSongIndex = filteredData.findIndex(
+      (song) =>
+        song.cisloP === selectedSong.cisloP && song.nazov === selectedSong.nazov,
+    );
+
+    if (currentSongIndex === -1) {
+      return;
+    }
+
+    const nextSongIndex =
+      (currentSongIndex + step + filteredData.length) % filteredData.length;
+    const nextSong = filteredData[nextSongIndex];
+
+    if (!nextSong) {
+      return;
+    }
+
+    const boundary = getSongBoundaryState(nextSong, step);
+    setSelectedItem(nextSong.cisloP);
+    setSelectedSong(nextSong);
+    setSelectedVerse(boundary.verseIndex);
+    setSelectedVerseCursor(boundary.cursor);
+    setVerseOrderInput(formatVerseOrderInput(nextSong));
   }
 
   function handleOpenProjector() {
@@ -539,6 +591,7 @@ export default function Home() {
           setSelectedSong(nextSong);
           setSelectedVerse(0);
           setSelectedVerseCursor(0);
+          setVerseOrderInput(formatVerseOrderInput(nextSong));
         }
       }
     };
