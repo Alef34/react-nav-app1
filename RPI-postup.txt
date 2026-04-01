@@ -1,0 +1,43 @@
+RPI postup pre projektor appku (krok po kroku)
+
+1) Spusti frontend na RPI a nechaj tnpm runerminal bezat:
+cd ~/react-nav-app1
+npm run dev:lan -- --host 0.0.0.0 --port 5173
+
+Ak by tento prikaz zlyhal, pouzi:
+npx vite --host 0.0.0.0 --port 5173
+
+2) V druhom terminali over, ze port 5173 pocuva na LAN:
+ss -ltnp | grep 5173
+
+Spravne ma byt 0.0.0.0:5173 alebo [::]:5173.
+Ak vidis len 127.0.0.1:5173, restartni dev server s --host 0.0.0.0.
+
+3) Over lokalne odpoved servera:
+curl -I http://127.0.0.1:5173
+
+Ocakavany vysledok: HTTP/1.1 200 OK
+
+4) Zisti IP adresu Raspberry Pi:
+hostname -I
+
+Pouzi prvu IPv4 adresu (napr. 192.168.1.50).
+
+5) Otvor z ineho zariadenia v rovnakej sieti:
+Premietanie: http://IP_RPI:5173/projector
+Ovladanie:   http://IP_RPI:5173/akordy
+
+6) Spusti websocket server (dolezite pre sync controller -> projector):
+V tretom terminali:
+cd ~/react-nav-app1
+npm run projector:ws
+
+7) Ak sa stranka netaha alebo nejde otvorit:
+- Skontroluj, ci stale bezi terminal s dev serverom.
+- Skontroluj port: ss -ltnp | grep 5173
+- Skontroluj websocket port: ss -ltnp | grep 8787
+- Skontroluj local test: curl -I http://127.0.0.1:5173
+
+8) Poznamka k localhost vs 127.0.0.1:
+Ked sa ladi problem, pouzivaj 127.0.0.1:5173.
+Pre ostatne zariadenia VZDY pouzi IP adresu RPI, nie localhost.

@@ -9,6 +9,7 @@ import {
 } from "../api/supabaseClient";
 import { DataMode, getDataMode, setDataMode } from "../api/dataMode";
 import {
+  createSongInSupabase,
   deleteSongsFromSupabase,
   loadAllSongsForAdmin,
   loadSongForEdit,
@@ -39,6 +40,32 @@ type EditForm = {
   poradieSlohRaw: string;
   slohy: SongVerse[];
 };
+
+type AddForm = {
+  cisloP: string;
+  nazov: string;
+  kategoria: string;
+  source: string;
+  poradieSlohRaw: string;
+  slohy: SongVerse[];
+};
+
+function sortSongsForAdmin(items: SongWithId[]): SongWithId[] {
+  return [...items].sort((a, b) => {
+    const byNumber = a.cisloP.localeCompare(b.cisloP, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+
+    if (byNumber !== 0) {
+      return byNumber;
+    }
+
+    return a.nazov.localeCompare(b.nazov, undefined, {
+      sensitivity: "base",
+    });
+  });
+}
 
 function normalizePayload(raw: unknown): Udaje {
   const wrapped = raw as {
@@ -132,6 +159,12 @@ export default function AdminImport() {
     status: "idle" | "loading" | "success" | "error";
     message: string;
   }>({ status: "idle", message: "" });
+  const [addForm, setAddForm] = useState<AddForm | null>(null);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addSaveState, setAddSaveState] = useState<{
+    status: "idle" | "loading" | "success" | "error";
+    message: string;
+  }>({ status: "idle", message: "" });
   const [importState, setImportState] = useState<ImportState>({
     status: "idle",
     message: "",
@@ -144,6 +177,7 @@ export default function AdminImport() {
   }>({ status: "idle", message: "" });
 
   const verseRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
+  const addVerseRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   useEffect(() => {
     const handleDataModeChanged = (event: Event) => {
@@ -334,6 +368,89 @@ export default function AdminImport() {
     });
   }
 
+  function openAddSongForm() {
+    setAddSaveState({ status: "idle", message: "" });
+    setAddForm({
+      cisloP: "",
+      nazov: "",
+      kategoria: "Nabozenske",
+      source: "",
+      poradieSlohRaw: "",
+      slohy: [{ cisloS: "V1", textik: "" }],
+    });
+    addVerseRefs.current = [];
+  }
+
+  function handleAddVerseTextChange(index: number, text: string) {
+    if (!addForm) return;
+    const newSlohy = addForm.slohy.map((v, i) =>
+      i === index ? { ...v, textik: text } : v,
+    );
+    setAddForm({ ...addForm, slohy: newSlohy });
+  }
+
+  function handleAddSplitVerse(index: number) {
+    if (!addForm) return;
+    const ta = addVerseRefs.current[index];
+    const text = addForm.slohy[index].textik;
+    let pos = ta ? ta.selectionStart : 0;
+    if (pos === 0 || pos === text.length) {
+      const nl = text.indexOf("\n");
+      pos = nl > 0 ? nl : Math.floor(text.length / 2);
+    }
+
+    const before = text.slice(0, pos).trimEnd();
+    const after = text.slice(pos).trimStart();
+    const newSlohy = [...addForm.slohy];
+    newSlohy[index] = { ...newSlohy[index], textik: before };
+    newSlohy.splice(index + 1, 0, { cisloS: `V${index + 2}`, textik: after });
+    const renumbered = newSlohy.map((v, i) => ({ ...v, cisloS: `V${i + 1}` }));
+    setAddForm({ ...addForm, slohy: renumbered });
+  }
+
+  function handleAddRemoveVerse(index: number) {
+    if (!addForm || addForm.slohy.length <= 1) return;
+    const newSlohy = addForm.slohy
+      .filter((_, i) => i !== index)
+      .map((v, i) => ({ ...v, cisloS: `V${i + 1}` }));
+    setAddForm({ ...addForm, slohy: newSlohy });
+  }
+
+  function handleAddAddVerse() {
+    if (!addForm) return;
+    setAddForm({
+      ...addForm,
+      slohy: [...addForm.slohy, { cisloS: `V${addForm.slohy.length + 1}`, textik: "" }],
+    });
+  }
+
+  async function handleSaveAddSong() {
+    if (!addForm) return;
+
+    setAddLoading(true);
+    setAddSaveState({ status: "loading", message: "Ukladam novu skladbu..." });
+    try {
+      const song: Song = {
+        cisloP: addForm.cisloP.trim(),
+        nazov: addForm.nazov.trim(),
+        kategoria: addForm.kategoria.trim(),
+        source: addForm.source.trim(),
+        poradieSloh: parseVerseOrderInput(addForm.poradieSlohRaw),
+        slohy: addForm.slohy,
+      };
+
+      const created = await createSongInSupabase(song);
+      setAdminSongs((prev) => sortSongsForAdmin([...prev, created]));
+      setAdminSongsLoaded(true);
+      setAddSaveState({ status: "success", message: "Nova skladba pridana." });
+      setAddForm(null);
+    } catch (err) {
+      setAddSaveState({ status: "error", message: formatImportError(err) });
+    } finally {
+      setAddLoading(false);
+    }
+  }
+
   async function handleSaveEdit() {
     if (!editForm) return;
     setEditLoading(true);
@@ -494,6 +611,8 @@ export default function AdminImport() {
     setDeleteState({ status: "idle", message: "" });
     setEditForm(null);
     setEditSaveState({ status: "idle", message: "" });
+    setAddForm(null);
+    setAddSaveState({ status: "idle", message: "" });
     setSyncState({ status: "idle", message: "" });
   }
 
@@ -818,18 +937,27 @@ export default function AdminImport() {
           }}
         >
           <h2 style={{ marginTop: 0 }}>Mazanie skladieb</h2>
-          <button
-            type="button"
-            onClick={handleLoadAdminSongs}
-            disabled={adminSongsLoading}
-            style={{ padding: "8px 16px", marginBottom: 12 }}
-          >
-            {adminSongsLoading
-              ? "Nacitavam..."
-              : adminSongsLoaded
-              ? "Obnovit zoznam"
-              : "Nacitat skladby z DB"}
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <button
+              type="button"
+              onClick={handleLoadAdminSongs}
+              disabled={adminSongsLoading}
+              style={{ padding: "8px 16px" }}
+            >
+              {adminSongsLoading
+                ? "Nacitavam..."
+                : adminSongsLoaded
+                ? "Obnovit zoznam"
+                : "Nacitat skladby z DB"}
+            </button>
+            <button
+              type="button"
+              onClick={openAddSongForm}
+              style={{ padding: "8px 16px" }}
+            >
+              Pridat novu skladbu
+            </button>
+          </div>
           {adminSongsLoaded && (
             <>
               <div style={{ marginBottom: 8 }}>
@@ -1183,6 +1311,231 @@ export default function AdminImport() {
                 onClick={() => {
                   setEditForm(null);
                   setEditSaveState({ status: "idle", message: "" });
+                }}
+                style={{ padding: "8px 20px" }}
+              >
+                Zavrit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addForm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            zIndex: 1000,
+            overflowY: "auto",
+            padding: "24px 12px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setAddForm(null);
+              setAddSaveState({ status: "idle", message: "" });
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 8,
+              padding: 24,
+              width: "100%",
+              maxWidth: 640,
+              color: "black",
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>Pridat novu skladbu</h2>
+            <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+              <label>
+                Cislo:
+                <input
+                  value={addForm.cisloP}
+                  onChange={(e) =>
+                    setAddForm({ ...addForm, cisloP: e.target.value })
+                  }
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+              <label>
+                Nazov:
+                <input
+                  value={addForm.nazov}
+                  onChange={(e) =>
+                    setAddForm({ ...addForm, nazov: e.target.value })
+                  }
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+              <label>
+                Kategoria:
+                <input
+                  value={addForm.kategoria}
+                  onChange={(e) =>
+                    setAddForm({ ...addForm, kategoria: e.target.value })
+                  }
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+              <label>
+                Source:
+                <input
+                  value={addForm.source}
+                  onChange={(e) =>
+                    setAddForm({ ...addForm, source: e.target.value })
+                  }
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </label>
+              <label>
+                Poradie sloh:
+                <input
+                  value={addForm.poradieSlohRaw}
+                  onChange={(e) =>
+                    setAddForm({ ...addForm, poradieSlohRaw: e.target.value })
+                  }
+                  placeholder="napr. R, V1, R, V2, R, V3"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: 6,
+                    boxSizing: "border-box",
+                  }}
+                />
+                <small style={{ color: "#555" }}>
+                  Prazdne = standardne poradie podla sloh. Mozes pouzit ciarku, bodkociarku alebo novy riadok.
+                </small>
+              </label>
+            </div>
+            <h3 style={{ marginBottom: 8 }}>Slohy</h3>
+            {addForm.slohy.map((verse, i) => (
+              <div
+                key={i}
+                style={{
+                  marginBottom: 12,
+                  padding: 10,
+                  border: "1px solid #ddd",
+                  borderRadius: 4,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 4,
+                  }}
+                >
+                  <strong style={{ minWidth: 32 }}>{verse.cisloS}</strong>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleAddSplitVerse(i)}
+                    style={{ fontSize: 12, padding: "2px 8px" }}
+                    title="Umiestni kurzor v texte a klikni pre rozdelenie"
+                  >
+                    Rozdelit (pri kurzore)
+                  </button>
+                  {addForm.slohy.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleAddRemoveVerse(i)}
+                      style={{
+                        fontSize: 12,
+                        padding: "2px 8px",
+                        color: "#c00",
+                        border: "1px solid #c00",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Odstranit
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  ref={(el) => {
+                    addVerseRefs.current[i] = el;
+                  }}
+                  value={verse.textik}
+                  onChange={(e) => handleAddVerseTextChange(i, e.target.value)}
+                  style={{
+                    width: "100%",
+                    minHeight: 80,
+                    padding: 6,
+                    boxSizing: "border-box",
+                    fontFamily: "inherit",
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={handleAddAddVerse}
+              style={{ marginBottom: 16 }}
+            >
+              + Pridat slohu
+            </button>
+            {addSaveState.message && (
+              <p
+                style={{
+                  padding: 8,
+                  borderRadius: 4,
+                  marginTop: 8,
+                  backgroundColor:
+                    addSaveState.status === "error" ? "var(--color-danger-bg)" : "var(--color-success-bg)",
+                }}
+              >
+                {addSaveState.message}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={handleSaveAddSong}
+                disabled={addLoading}
+                style={{
+                  padding: "8px 20px",
+                  backgroundColor: "#007bff",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                }}
+              >
+                {addLoading ? "Ukladam..." : "Pridat"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddForm(null);
+                  setAddSaveState({ status: "idle", message: "" });
                 }}
                 style={{ padding: "8px 20px" }}
               >

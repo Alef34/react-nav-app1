@@ -14,7 +14,9 @@ create table if not exists public.songs (
 alter table public.songs
   add column if not exists poradie_sloh text[];
 
-create unique index if not exists songs_cislo_nazov_unique
+drop index if exists songs_cislo_nazov_unique;
+
+create index if not exists songs_cislo_nazov_idx
   on public.songs (cislo_p, nazov);
 
 alter table public.songs enable row level security;

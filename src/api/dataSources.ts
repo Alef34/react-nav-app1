@@ -13,8 +13,11 @@ function normalizeSong(raw: unknown): Song {
   const song = (raw ?? {}) as Partial<Song>;
   const rawVerses = Array.isArray(song.slohy) ? song.slohy : [];
   const rawOrder = Array.isArray(song.poradieSloh) ? song.poradieSloh : [];
+  const parsedId = Number(song.id);
+  const hasValidId = Number.isFinite(parsedId) && parsedId > 0;
 
   return {
+    id: hasValidId ? parsedId : undefined,
     cisloP: String(song.cisloP ?? "").trim(),
     nazov: String(song.nazov ?? "").trim(),
     source: song.source ? String(song.source) : "",

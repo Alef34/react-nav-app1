@@ -9,6 +9,7 @@ export type User = {
   }
   
   export interface Song {
+    id?: number;
     cisloP: string;
     nazov: string;
     kategoria?: string;

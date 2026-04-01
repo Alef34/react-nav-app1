@@ -16,7 +16,7 @@ import {
   subscribeProjectorConnectionState,
 } from "../realtime/projectorChannel";
 import { useVersionStore } from "../state/versionStore";
-import { updateSongOrderByKey } from "../api/supabaseSongs";
+import { updateSongOrderById } from "../api/supabaseSongs";
 
 const ALL_CATEGORIES = "Vsetky";
 const SEARCH_QUERY_STORAGE_KEY = "home.searchQuery";
@@ -51,6 +51,32 @@ function getSongCategory(song: Song): string {
 
 function normalizeSongNumber(value: string): string {
   return value.trim().replace(/\.$/, "").toLocaleLowerCase();
+}
+
+function getSongId(song: Song | null | undefined): number | undefined {
+  if (!song) {
+    return undefined;
+  }
+
+  const parsed = Number(song.id);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return Math.trunc(parsed);
+}
+
+function getSongIdentity(song: Song): string {
+  const id = getSongId(song);
+  if (id !== undefined) {
+    return `id:${id}`;
+  }
+
+  return `legacy:${song.cisloP}|${song.nazov}|${song.kategoria ?? ""}|${song.source ?? ""}`;
+}
+
+function isSameSong(left: Song, right: Song): boolean {
+  return getSongIdentity(left) === getSongIdentity(right);
 }
 
 function parseCommaSeparatedQuery(query: string): string[] {
@@ -163,7 +189,7 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState(() => {
     return localStorage.getItem(SELECTED_CATEGORY_STORAGE_KEY) ?? ALL_CATEGORIES;
   });
-  const [selectedItem, setSelectedItem] = useState("");
+  const [selectedSongIdentity, setSelectedSongIdentity] = useState("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedVerse, setSelectedVerse] = useState(0);
   const [selectedVerseCursor, setSelectedVerseCursor] = useState(0);
@@ -281,7 +307,7 @@ export default function Home() {
   useEffect(() => {
     if (filteredData.length === 0) {
       setSelectedSong(null);
-      setSelectedItem("");
+      setSelectedSongIdentity("");
       setSelectedVerse(0);
       setSelectedVerseCursor(0);
       setVerseOrderInput("");
@@ -289,7 +315,7 @@ export default function Home() {
     }
 
     const selectedInFiltered = filteredData.find(
-      (song) => song.cisloP === selectedItem,
+      (song) => getSongIdentity(song) === selectedSongIdentity,
     );
 
     if (selectedInFiltered) {
@@ -300,11 +326,11 @@ export default function Home() {
 
     const firstSong = filteredData[0];
     setSelectedSong(firstSong);
-    setSelectedItem(firstSong.cisloP);
+    setSelectedSongIdentity(getSongIdentity(firstSong));
     setSelectedVerse(0);
     setSelectedVerseCursor(0);
     setVerseOrderInput(formatVerseOrderInput(firstSong));
-  }, [filteredData, selectedItem]);
+  }, [filteredData, selectedSongIdentity]);
 
   useEffect(() => {
     if (!selectedSong || selectedSong.slohy.length === 0) {
@@ -349,11 +375,11 @@ export default function Home() {
 
   function handleClearSearch() {
     setSearchQuery("");
-    setSelectedItem("");
+    setSelectedSongIdentity("");
   }
 
   const handleClickSkokNaPiesen = (item: Song) => {
-    setSelectedItem(item.cisloP);
+    setSelectedSongIdentity(getSongIdentity(item));
     const piesen: Song = {
       cisloP: item.cisloP,
       nazov: item.nazov,
@@ -422,8 +448,7 @@ export default function Home() {
     }
 
     const currentSongIndex = filteredData.findIndex(
-      (song) =>
-        song.cisloP === selectedSong.cisloP && song.nazov === selectedSong.nazov,
+      (song) => isSameSong(song, selectedSong),
     );
 
     if (currentSongIndex === -1) {
@@ -439,7 +464,7 @@ export default function Home() {
     }
 
     const boundary = getSongBoundaryState(nextSong, step);
-    setSelectedItem(nextSong.cisloP);
+    setSelectedSongIdentity(getSongIdentity(nextSong));
     setSelectedSong(nextSong);
     setSelectedVerse(boundary.verseIndex);
     setSelectedVerseCursor(boundary.cursor);
@@ -546,6 +571,8 @@ export default function Home() {
       return;
     }
 
+    const selectedId = getSongId(selectedSong);
+
     queryClient.setQueryData<SongsData | undefined>(
       ["songs", verziaDb],
       (previous) => {
@@ -554,10 +581,11 @@ export default function Home() {
         }
 
         return previous.map((song) => {
-          if (
-            song.cisloP !== selectedSong.cisloP ||
-            song.nazov !== selectedSong.nazov
-          ) {
+          if (selectedId !== undefined) {
+            if (getSongId(song) !== selectedId) {
+              return song;
+            }
+          } else if (!isSameSong(song, selectedSong)) {
             return song;
           }
 
@@ -576,14 +604,16 @@ export default function Home() {
     }
 
     const parsed = parseVerseOrderInput(verseOrderInput);
+    const selectedId = getSongId(selectedSong);
+
+    if (selectedId === undefined) {
+      console.error("Ukladanie poradia zlyhalo: skladba nema stabilne id.");
+      return;
+    }
 
     setIsSavingVerseOrder(true);
     try {
-      await updateSongOrderByKey(
-        selectedSong.cisloP,
-        selectedSong.nazov,
-        parsed.length > 0 ? parsed : undefined,
-      );
+      await updateSongOrderById(selectedId, parsed.length > 0 ? parsed : undefined);
 
       applyVerseOrderLocally(parsed);
       updateSongOrderInCache(parsed);
@@ -599,10 +629,16 @@ export default function Home() {
       return;
     }
 
+    const selectedId = getSongId(selectedSong);
+    if (selectedId === undefined) {
+      console.error("Mazanie poradia zlyhalo: skladba nema stabilne id.");
+      return;
+    }
+
     setVerseOrderInput("");
     setIsSavingVerseOrder(true);
     try {
-      await updateSongOrderByKey(selectedSong.cisloP, selectedSong.nazov, undefined);
+      await updateSongOrderById(selectedId, undefined);
       applyVerseOrderLocally(undefined);
       updateSongOrderInCache(undefined);
     } catch (error) {
@@ -658,13 +694,13 @@ export default function Home() {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         const currentIndex = selectedSong
-          ? filteredData.findIndex((s) => s.cisloP === selectedSong.cisloP)
+          ? filteredData.findIndex((s) => isSameSong(s, selectedSong))
           : -1;
         const step = event.key === "ArrowDown" ? 1 : -1;
         const nextIndex = Math.max(0, Math.min(filteredData.length - 1, currentIndex + step));
         const nextSong = filteredData[nextIndex];
-        if (nextSong && nextSong.cisloP !== selectedSong?.cisloP) {
-          setSelectedItem(nextSong.cisloP);
+        if (nextSong && (!selectedSong || !isSameSong(nextSong, selectedSong))) {
+          setSelectedSongIdentity(getSongIdentity(nextSong));
           setSelectedSong(nextSong);
           setSelectedVerse(0);
           setSelectedVerseCursor(0);
@@ -901,7 +937,7 @@ export default function Home() {
           <ul style={{ listStyleType: "none", padding: 0, margin: 8 }}>
             {filteredData?.map((item, index) => (
               <li
-                key={`${item.cisloP}-${item.nazov}-${index}`}
+                key={`${getSongIdentity(item)}-${index}`}
                 onClick={() => handleClickSkokNaPiesen(item)}
                 style={{
                   fontSize: 25,
@@ -911,7 +947,7 @@ export default function Home() {
                   color: textColor,
                   borderRadius: 15,
                   backgroundColor:
-                    selectedItem === item.cisloP
+                    selectedSongIdentity === getSongIdentity(item)
                       ? activeTabBackground
                       : itemBackground,
                   listStylePosition: "inside",
@@ -926,7 +962,7 @@ export default function Home() {
                     gap: 8,
                   }}
                 >
-                  <span style={{ margin: 5, color: selectedItem === item.cisloP ? "white" : textColor }}>
+                  <span style={{ margin: 5, color: selectedSongIdentity === getSongIdentity(item) ? "white" : textColor }}>
                     {item.cisloP}. {item.nazov}
                   </span>
                   {hasCustomVerseOrder(item) && (
@@ -937,7 +973,7 @@ export default function Home() {
                         borderRadius: 999,
                         padding: "2px 8px",
                         border: "1px solid rgba(0,0,0,0.25)",
-                        backgroundColor: selectedItem === item.cisloP ? "#dbeafe" : "#fef3c7",
+                        backgroundColor: selectedSongIdentity === getSongIdentity(item) ? "#dbeafe" : "#fef3c7",
                         color: "#7c2d12",
                         marginRight: 8,
                       }}
