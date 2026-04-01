@@ -137,6 +137,19 @@ function parseVerseOrderInput(raw: string): string[] {
     .filter((part) => part.length > 0);
 }
 
+function getNextVerseLabel(verses: SongVerse[]): string {
+  const used = new Set(
+    verses.map((v) => String(v.cisloS ?? "").trim().toUpperCase()),
+  );
+
+  let index = 1;
+  while (used.has(`V${index}`)) {
+    index += 1;
+  }
+
+  return `V${index}`;
+}
+
 export default function AdminImport() {
   const [dataMode, setDataModeState] = useState<DataMode>(() => getDataMode());
   const [email, setEmail] = useState("");
@@ -331,6 +344,14 @@ export default function AdminImport() {
     setEditForm({ ...editForm, slohy: newSlohy });
   }
 
+  function handleVerseLabelChange(index: number, label: string) {
+    if (!editForm) return;
+    const newSlohy = editForm.slohy.map((v, i) =>
+      i === index ? { ...v, cisloS: label } : v,
+    );
+    setEditForm({ ...editForm, slohy: newSlohy });
+  }
+
   function handleSplitVerse(index: number) {
     if (!editForm) return;
     const ta = verseRefs.current[index];
@@ -343,17 +364,15 @@ export default function AdminImport() {
     const before = text.slice(0, pos).trimEnd();
     const after = text.slice(pos).trimStart();
     const newSlohy = [...editForm.slohy];
+    const nextLabel = getNextVerseLabel(newSlohy);
     newSlohy[index] = { ...newSlohy[index], textik: before };
-    newSlohy.splice(index + 1, 0, { cisloS: `V${index + 2}`, textik: after });
-    const renumbered = newSlohy.map((v, i) => ({ ...v, cisloS: `V${i + 1}` }));
-    setEditForm({ ...editForm, slohy: renumbered });
+    newSlohy.splice(index + 1, 0, { cisloS: nextLabel, textik: after });
+    setEditForm({ ...editForm, slohy: newSlohy });
   }
 
   function handleRemoveVerse(index: number) {
     if (!editForm || editForm.slohy.length <= 1) return;
-    const newSlohy = editForm.slohy
-      .filter((_, i) => i !== index)
-      .map((v, i) => ({ ...v, cisloS: `V${i + 1}` }));
+    const newSlohy = editForm.slohy.filter((_, i) => i !== index);
     setEditForm({ ...editForm, slohy: newSlohy });
   }
 
@@ -363,7 +382,7 @@ export default function AdminImport() {
       ...editForm,
       slohy: [
         ...editForm.slohy,
-        { cisloS: `V${editForm.slohy.length + 1}`, textik: "" },
+        { cisloS: getNextVerseLabel(editForm.slohy), textik: "" },
       ],
     });
   }
@@ -389,6 +408,14 @@ export default function AdminImport() {
     setAddForm({ ...addForm, slohy: newSlohy });
   }
 
+  function handleAddVerseLabelChange(index: number, label: string) {
+    if (!addForm) return;
+    const newSlohy = addForm.slohy.map((v, i) =>
+      i === index ? { ...v, cisloS: label } : v,
+    );
+    setAddForm({ ...addForm, slohy: newSlohy });
+  }
+
   function handleAddSplitVerse(index: number) {
     if (!addForm) return;
     const ta = addVerseRefs.current[index];
@@ -402,17 +429,15 @@ export default function AdminImport() {
     const before = text.slice(0, pos).trimEnd();
     const after = text.slice(pos).trimStart();
     const newSlohy = [...addForm.slohy];
+    const nextLabel = getNextVerseLabel(newSlohy);
     newSlohy[index] = { ...newSlohy[index], textik: before };
-    newSlohy.splice(index + 1, 0, { cisloS: `V${index + 2}`, textik: after });
-    const renumbered = newSlohy.map((v, i) => ({ ...v, cisloS: `V${i + 1}` }));
-    setAddForm({ ...addForm, slohy: renumbered });
+    newSlohy.splice(index + 1, 0, { cisloS: nextLabel, textik: after });
+    setAddForm({ ...addForm, slohy: newSlohy });
   }
 
   function handleAddRemoveVerse(index: number) {
     if (!addForm || addForm.slohy.length <= 1) return;
-    const newSlohy = addForm.slohy
-      .filter((_, i) => i !== index)
-      .map((v, i) => ({ ...v, cisloS: `V${i + 1}` }));
+    const newSlohy = addForm.slohy.filter((_, i) => i !== index);
     setAddForm({ ...addForm, slohy: newSlohy });
   }
 
@@ -420,7 +445,7 @@ export default function AdminImport() {
     if (!addForm) return;
     setAddForm({
       ...addForm,
-      slohy: [...addForm.slohy, { cisloS: `V${addForm.slohy.length + 1}`, textik: "" }],
+      slohy: [...addForm.slohy, { cisloS: getNextVerseLabel(addForm.slohy), textik: "" }],
     });
   }
 
@@ -1227,7 +1252,13 @@ export default function AdminImport() {
                     marginBottom: 4,
                   }}
                 >
-                  <strong style={{ minWidth: 32 }}>{verse.cisloS}</strong>
+                  <input
+                    value={verse.cisloS}
+                    onChange={(e) => handleVerseLabelChange(i, e.target.value)}
+                    style={{ width: 72, padding: "2px 6px", boxSizing: "border-box" }}
+                    placeholder="V1"
+                    title="Nazov slohy (napr. V1, R, B)"
+                  />
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
@@ -1452,7 +1483,13 @@ export default function AdminImport() {
                     marginBottom: 4,
                   }}
                 >
-                  <strong style={{ minWidth: 32 }}>{verse.cisloS}</strong>
+                  <input
+                    value={verse.cisloS}
+                    onChange={(e) => handleAddVerseLabelChange(i, e.target.value)}
+                    style={{ width: 72, padding: "2px 6px", boxSizing: "border-box" }}
+                    placeholder="V1"
+                    title="Nazov slohy (napr. V1, R, B)"
+                  />
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
