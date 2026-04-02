@@ -8,7 +8,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Song, SongsData } from "../types/myTypes";
 import SongView from "../components/Song";
 import { getSongs } from "../api/dataSources";
-import { SettingsContext, SettingsContextType } from "../context/SettingsContext";
+import {
+  SettingsContext,
+  SettingsContextType,
+} from "../context/SettingsContext";
 import {
   getProjectorChannelConnectionState,
   sendProjectorPayload,
@@ -72,7 +75,9 @@ function getSongIdentity(song: Song): string {
     return `id:${id}`;
   }
 
-  return `legacy:${song.cisloP}|${song.nazov}|${song.kategoria ?? ""}|${song.source ?? ""}`;
+  return `legacy:${song.cisloP}|${song.nazov}|${song.kategoria ?? ""}|${
+    song.source ?? ""
+  }`;
 }
 
 function isSameSong(left: Song, right: Song): boolean {
@@ -105,6 +110,16 @@ function normalizeOrderSignatureFromRaw(raw: string): string {
   return parseVerseOrderInput(raw)
     .map((item) => item.toLocaleLowerCase())
     .join("|");
+}
+
+function buildVersePreviewText(rawText: string, maxChars = 30): string {
+  const lyricsOnly = rawText.replace(/\[[^\]]*\]/g, " ");
+  const compact = lyricsOnly.replace(/\s+/g, " ").trim();
+  if (compact.length <= maxChars) {
+    return compact;
+  }
+
+  return `${compact.slice(0, maxChars)}...`;
 }
 
 function hasCustomVerseOrder(song: Song): boolean {
@@ -160,7 +175,10 @@ function resolveVerseCursor(
   return firstMatch >= 0 ? firstMatch : 0;
 }
 
-function getSongBoundaryState(song: Song, direction: -1 | 1): {
+function getSongBoundaryState(
+  song: Song,
+  direction: -1 | 1,
+): {
   verseIndex: number;
   cursor: number;
 } {
@@ -182,12 +200,16 @@ function getSongBoundaryState(song: Song, direction: -1 | 1): {
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { fontSize, showAkordy } = useContext(SettingsContext) as SettingsContextType;
+  const { fontSize, showAkordy } = useContext(
+    SettingsContext,
+  ) as SettingsContextType;
   const [searchQuery, setSearchQuery] = useState(() => {
     return localStorage.getItem(SEARCH_QUERY_STORAGE_KEY) ?? "";
   });
   const [selectedCategory, setSelectedCategory] = useState(() => {
-    return localStorage.getItem(SELECTED_CATEGORY_STORAGE_KEY) ?? ALL_CATEGORIES;
+    return (
+      localStorage.getItem(SELECTED_CATEGORY_STORAGE_KEY) ?? ALL_CATEGORIES
+    );
   });
   const [selectedSongIdentity, setSelectedSongIdentity] = useState("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -337,7 +359,10 @@ export default function Home() {
       return;
     }
 
-    const nextVerse = Math.max(0, Math.min(selectedVerse, selectedSong.slohy.length - 1));
+    const nextVerse = Math.max(
+      0,
+      Math.min(selectedVerse, selectedSong.slohy.length - 1),
+    );
     if (nextVerse !== selectedVerse) {
       const playbackOrder = buildVersePlaybackOrder(selectedSong);
       const nextCursor = resolveVerseCursor(
@@ -359,7 +384,13 @@ export default function Home() {
         blackout: false,
       });
     }
-  }, [selectedSong, selectedVerse, selectedVerseCursor, showAkordy, isProjectorBlackout]);
+  }, [
+    selectedSong,
+    selectedVerse,
+    selectedVerseCursor,
+    showAkordy,
+    isProjectorBlackout,
+  ]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -392,10 +423,6 @@ export default function Home() {
     setSelectedVerse(0);
     setSelectedVerseCursor(0);
     setVerseOrderInput(formatVerseOrderInput(piesen));
-
-    if (!isSplitView) {
-      navigate("/akordy", { state: { song: piesen } });
-    }
   };
 
   function selectVerse(index: number) {
@@ -447,8 +474,8 @@ export default function Home() {
       return;
     }
 
-    const currentSongIndex = filteredData.findIndex(
-      (song) => isSameSong(song, selectedSong),
+    const currentSongIndex = filteredData.findIndex((song) =>
+      isSameSong(song, selectedSong),
     );
 
     if (currentSongIndex === -1) {
@@ -560,7 +587,11 @@ export default function Home() {
     };
 
     const playbackOrder = buildVersePlaybackOrder(nextSong);
-    const nextCursor = resolveVerseCursor(playbackOrder, selectedVerse, selectedVerseCursor);
+    const nextCursor = resolveVerseCursor(
+      playbackOrder,
+      selectedVerse,
+      selectedVerseCursor,
+    );
 
     setSelectedSong(nextSong);
     setSelectedVerseCursor(nextCursor);
@@ -613,10 +644,20 @@ export default function Home() {
 
     setIsSavingVerseOrder(true);
     try {
-      await updateSongOrderById(selectedId, parsed.length > 0 ? parsed : undefined);
+      await updateSongOrderById(
+        selectedId,
+        parsed.length > 0 ? parsed : undefined,
+      );
 
       applyVerseOrderLocally(parsed);
       updateSongOrderInCache(parsed);
+
+      // Resetujeme input aby sa ukaze aktualne poradie z DB
+      const savedSong: Song = {
+        ...selectedSong,
+        poradieSloh: parsed.length > 0 ? parsed : undefined,
+      };
+      setVerseOrderInput(formatVerseOrderInput(savedSong));
     } catch (error) {
       console.error("Ukladanie poradia zlyhalo:", error);
     } finally {
@@ -697,9 +738,15 @@ export default function Home() {
           ? filteredData.findIndex((s) => isSameSong(s, selectedSong))
           : -1;
         const step = event.key === "ArrowDown" ? 1 : -1;
-        const nextIndex = Math.max(0, Math.min(filteredData.length - 1, currentIndex + step));
+        const nextIndex = Math.max(
+          0,
+          Math.min(filteredData.length - 1, currentIndex + step),
+        );
         const nextSong = filteredData[nextIndex];
-        if (nextSong && (!selectedSong || !isSameSong(nextSong, selectedSong))) {
+        if (
+          nextSong &&
+          (!selectedSong || !isSameSong(nextSong, selectedSong))
+        ) {
           setSelectedSongIdentity(getSongIdentity(nextSong));
           setSelectedSong(nextSong);
           setSelectedVerse(0);
@@ -711,7 +758,13 @@ export default function Home() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isSplitView, selectedSong, selectedVerse, selectedVerseCursor, filteredData]);
+  }, [
+    isSplitView,
+    selectedSong,
+    selectedVerse,
+    selectedVerseCursor,
+    filteredData,
+  ]);
 
   const pageBackground = "var(--color-page-bg)";
   const panelBackground = "var(--color-panel-bg)";
@@ -730,7 +783,15 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: 24, fontSize: 22, color: "#111827", backgroundColor: "#eceff3", minHeight: "100svh" }}>
+      <div
+        style={{
+          padding: 24,
+          fontSize: 22,
+          color: "#111827",
+          backgroundColor: "#eceff3",
+          minHeight: "100svh",
+        }}
+      >
         Loading...
       </div>
     );
@@ -738,7 +799,15 @@ export default function Home() {
 
   if (!isSuccess) {
     return (
-      <div style={{ padding: 24, fontSize: 22, color: "#7f1d1d", backgroundColor: "#fee2e2", minHeight: "100svh" }}>
+      <div
+        style={{
+          padding: 24,
+          fontSize: 22,
+          color: "#7f1d1d",
+          backgroundColor: "#fee2e2",
+          minHeight: "100svh",
+        }}
+      >
         Error loading data
       </div>
     );
@@ -899,7 +968,9 @@ export default function Home() {
               step={1}
               value={splitLeftWidthPercent}
               onChange={(e) =>
-                setSplitLeftWidthPercent(clampSplitWidth(Number(e.target.value)))
+                setSplitLeftWidthPercent(
+                  clampSplitWidth(Number(e.target.value)),
+                )
               }
             />
           </label>
@@ -922,9 +993,7 @@ export default function Home() {
           id="listBox"
           style={{
             padding: 0,
-            flex: isSplitView
-              ? `0 0 ${splitLeftWidthPercent}%`
-              : "1 1 auto",
+            flex: isSplitView ? `0 0 ${splitLeftWidthPercent}%` : "1 1 auto",
             minWidth: 0,
             minHeight: 0,
             overflowY: "auto",
@@ -962,7 +1031,15 @@ export default function Home() {
                     gap: 8,
                   }}
                 >
-                  <span style={{ margin: 5, color: selectedSongIdentity === getSongIdentity(item) ? "white" : textColor }}>
+                  <span
+                    style={{
+                      margin: 5,
+                      color:
+                        selectedSongIdentity === getSongIdentity(item)
+                          ? "white"
+                          : textColor,
+                    }}
+                  >
                     {item.cisloP}. {item.nazov}
                   </span>
                   {hasCustomVerseOrder(item) && (
@@ -973,7 +1050,10 @@ export default function Home() {
                         borderRadius: 999,
                         padding: "2px 8px",
                         border: "1px solid rgba(0,0,0,0.25)",
-                        backgroundColor: selectedSongIdentity === getSongIdentity(item) ? "#dbeafe" : "#fef3c7",
+                        backgroundColor:
+                          selectedSongIdentity === getSongIdentity(item)
+                            ? "#dbeafe"
+                            : "#fef3c7",
                         color: "#7c2d12",
                         marginRight: 8,
                       }}
@@ -988,273 +1068,308 @@ export default function Home() {
           </ul>
         </div>
 
-        {isSplitView && (
+        <div
+          id="previewBox"
+          style={{
+            flex: "1 1 auto",
+            minWidth: 0,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            backgroundColor: surfaceBackground,
+            color: textColor,
+            border: mutedBorder,
+            borderRadius: 15,
+            overflow: "hidden",
+          }}
+        >
           <div
-            id="previewBox"
             style={{
-              flex: "1 1 auto",
-              minWidth: 0,
-              minHeight: 0,
               display: "flex",
-              flexDirection: "column",
-              backgroundColor: surfaceBackground,
-              color: textColor,
-              border: mutedBorder,
-              borderRadius: 15,
-              overflow: "hidden",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 10px",
+              borderBottom: mutedBorder,
+              backgroundColor: panelBackground,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 10px",
-                borderBottom: mutedBorder,
-                backgroundColor: panelBackground,
-              }}
-            >
-              <button
-                onClick={handleOpenFullAkordy}
-                disabled={!selectedSong}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  backgroundColor: "var(--color-input-bg)",
-                  border: mutedBorder,
-                  borderRadius: 12,
-                  color: textColor,
-                  textAlign: "left",
-                  fontSize: 22,
-                  fontWeight: 700,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  padding: "8px 12px",
-                }}
-                title={selectedSong?.nazov ?? "Vyber skladbu"}
-              >
-                {selectedSong ? `${selectedSong.cisloP}. ${selectedSong.nazov}` : "Vyber skladbu zo zoznamu"}
-              </button>
-              <button
-                onClick={handleOpenProjector}
-                disabled={!selectedSong}
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  padding: "8px 12px",
-                  borderRadius: 12,
-                  border: mutedBorder,
-                  backgroundColor: isProjectorConnected ? "#8fd694" : "#f28b82",
-                  color: "black",
-                  cursor: "pointer",
-                }}
-                title={isProjectorConnected ? "Projektor je online" : "Projektor je offline"}
-              >
-                PROJ
-              </button>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "8px 10px",
-                  borderRadius: 12,
-                  border: mutedBorder,
-                  backgroundColor: isProjectorBlackout ? "#111827" : "var(--color-input-bg)",
-                  color: isProjectorBlackout ? "#f9fafb" : textColor,
-                  fontWeight: 800,
-                  fontSize: 13,
-                  userSelect: "none",
-                }}
-                title="BLACK rezim drzi ciernu obrazovku, kym ho nevypnes"
-              >
-                <input
-                  type="checkbox"
-                  checked={isProjectorBlackout}
-                  onChange={(e) => handleProjectorBlackoutToggle(e.target.checked)}
-                />
-                BLACK
-              </label>
-            </div>
-
-            {projectorFeedback && (
-              <div
-                style={{
-                  margin: "8px 10px 0",
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                  border: `1px solid var(--color-border)`,
-                  backgroundColor:
-                    projectorFeedback.tone === "ok" ? "var(--color-success-bg)" : "var(--color-warning-bg)",
-                  fontWeight: 600,
-                  fontSize: 14,
-                }}
-              >
-                {projectorFeedback.message}
-              </div>
-            )}
-
-            <div
+            <button
+              onClick={handleOpenFullAkordy}
+              disabled={!selectedSong}
               style={{
                 flex: 1,
-                minHeight: 0,
-                overflowY: "auto",
-                padding: "10px",
+                minWidth: 0,
+                backgroundColor: "var(--color-input-bg)",
+                border: mutedBorder,
+                borderRadius: 12,
+                color: textColor,
+                textAlign: "left",
+                fontSize: 22,
+                fontWeight: 700,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                padding: "8px 12px",
+              }}
+              title={selectedSong?.nazov ?? "Vyber skladbu"}
+            >
+              {selectedSong
+                ? `${selectedSong.cisloP}. ${selectedSong.nazov}`
+                : "Vyber skladbu zo zoznamu"}
+            </button>
+            <button
+              onClick={handleOpenProjector}
+              disabled={!selectedSong}
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                padding: "8px 12px",
+                borderRadius: 12,
+                border: mutedBorder,
+                backgroundColor: isProjectorConnected ? "#8fd694" : "#f28b82",
+                color: "black",
+                cursor: "pointer",
+              }}
+              title={
+                isProjectorConnected
+                  ? "Projektor je online"
+                  : "Projektor je offline"
+              }
+            >
+              PROJ
+            </button>
+            <label
+              style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
+                gap: 6,
+                padding: "8px 10px",
+                borderRadius: 12,
+                border: mutedBorder,
+                backgroundColor: isProjectorBlackout
+                  ? "#111827"
+                  : "var(--color-input-bg)",
+                color: isProjectorBlackout ? "#f9fafb" : textColor,
+                fontWeight: 800,
+                fontSize: 13,
+                userSelect: "none",
               }}
+              title="BLACK rezim drzi ciernu obrazovku, kym ho nevypnes"
             >
-              {selectedSong ? (
-                <SongView
-                  text={selectedSong.slohy[selectedVerse]?.textik ?? ""}
-                  showChords={showAkordy}
-                  zadanaVelkost={Math.min(80, Math.max(20, Number(fontSize) || 30))}
-                />
-              ) : (
-                <div style={{ color: mutedText, fontSize: 24, textAlign: "center" }}>
-                  Vyber skladbu zo zoznamu vlavo.
-                </div>
-              )}
-            </div>
+              <input
+                type="checkbox"
+                checked={isProjectorBlackout}
+                onChange={(e) =>
+                  handleProjectorBlackoutToggle(e.target.checked)
+                }
+              />
+              BLACK
+            </label>
+          </div>
 
+          {projectorFeedback && (
             <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-                padding: "6px 10px 0",
+                margin: "8px 10px 0",
+                padding: "6px 10px",
+                borderRadius: 10,
+                border: `1px solid var(--color-border)`,
+                backgroundColor:
+                  projectorFeedback.tone === "ok"
+                    ? "var(--color-success-bg)"
+                    : "var(--color-warning-bg)",
+                fontWeight: 600,
+                fontSize: 14,
               }}
             >
-              <label
-                htmlFor="verse-order-input"
-                style={{ fontSize: 13, fontWeight: 700, color: textColor }}
-              >
-                Poradie sloh (napr. R, V1, R, V2)
-              </label>
-              <div style={{ position: "relative" }}>
-                <input
-                  id="verse-order-input"
-                  type="text"
-                  value={verseOrderInput}
-                  onChange={(e) => handleVerseOrderInputChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void handleSaveVerseOrder();
-                      return;
-                    }
+              {projectorFeedback.message}
+            </div>
+          )}
 
-                    if (e.key === "Escape") {
-                      e.preventDefault();
-                      void handleClearVerseOrder();
-                    }
-                  }}
-                  placeholder="Prazdne = povodne poradie"
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              padding: "10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {selectedSong ? (
+              <SongView
+                text={selectedSong.slohy[selectedVerse]?.textik ?? ""}
+                showChords={showAkordy}
+                zadanaVelkost={Math.min(
+                  80,
+                  Math.max(20, Number(fontSize) || 30),
+                )}
+              />
+            ) : (
+              <div
+                style={{
+                  color: mutedText,
+                  fontSize: 24,
+                  textAlign: "center",
+                }}
+              >
+                Vyber skladbu zo zoznamu vlavo.
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              padding: "6px 10px 0",
+            }}
+          >
+            <label
+              htmlFor="verse-order-input"
+              style={{ fontSize: 13, fontWeight: 700, color: textColor }}
+            >
+              Poradie sloh (napr. R, V1, R, V2)
+            </label>
+            <div style={{ position: "relative" }}>
+              <input
+                id="verse-order-input"
+                type="text"
+                value={verseOrderInput}
+                onChange={(e) => handleVerseOrderInputChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleSaveVerseOrder();
+                    return;
+                  }
+
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    void handleClearVerseOrder();
+                  }
+                }}
+                placeholder="Prazdne = povodne poradie"
+                disabled={!selectedSong || isSavingVerseOrder}
+                style={{
+                  width: "100%",
+                  borderRadius: 10,
+                  border: hasUnsavedVerseOrder
+                    ? "2px solid #f59e0b"
+                    : mutedBorder,
+                  backgroundColor: "var(--color-input-bg)",
+                  color: textColor,
+                  fontSize: 14,
+                  padding: "8px 120px 8px 10px",
+                  boxSizing: "border-box",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 6,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "flex",
+                  gap: 6,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleSaveVerseOrder}
                   disabled={!selectedSong || isSavingVerseOrder}
                   style={{
-                    width: "100%",
-                    borderRadius: 10,
-                    border: hasUnsavedVerseOrder
-                      ? "2px solid #f59e0b"
-                      : mutedBorder,
-                    backgroundColor: "var(--color-input-bg)",
-                    color: textColor,
-                    fontSize: 14,
-                    padding: "8px 120px 8px 10px",
-                    boxSizing: "border-box",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 6,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    display: "flex",
-                    gap: 6,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={handleSaveVerseOrder}
-                    disabled={!selectedSong || isSavingVerseOrder}
-                    style={{
-                      borderRadius: 8,
-                      border: "1px solid var(--color-border)",
-                      backgroundColor: "#dcfce7",
-                      color: "#14532d",
-                      fontWeight: 700,
-                      fontSize: 12,
-                      padding: "4px 8px",
-                      cursor: "pointer",
-                    }}
-                    title="Ulozit poradie"
-                  >
-                    OK
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleClearVerseOrder}
-                    disabled={!selectedSong || isSavingVerseOrder}
-                    style={{
-                      borderRadius: 8,
-                      border: "1px solid var(--color-border)",
-                      backgroundColor: "#fee2e2",
-                      color: "#7f1d1d",
-                      fontWeight: 700,
-                      fontSize: 12,
-                      padding: "4px 8px",
-                      cursor: "pointer",
-                    }}
-                    title="Vymazat poradie"
-                  >
-                    CANCEL
-                  </button>
-                </div>
-              </div>
-              {hasUnsavedVerseOrder && !isSavingVerseOrder && (
-                <small style={{ color: "#b45309", fontWeight: 700 }}>
-                  Neulozena zmena. Enter = OK, Esc = CANCEL.
-                </small>
-              )}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                padding: "8px 10px 10px",
-                borderTop: mutedBorder,
-                backgroundColor: panelBackground,
-                overflowX: "auto",
-              }}
-            >
-              {(selectedSong?.slohy ?? []).map((verse, index) => (
-                <button
-                  key={`${verse.cisloS}-${index}`}
-                  onClick={() => selectVerse(index)}
-                  style={{
-                    flex: "1 0 70px",
-                    minWidth: 70,
-                    borderRadius: 12,
-                    border: mutedBorder,
-                    backgroundColor:
-                      selectedVerse === index ? activeTabBackground : "var(--color-input-bg)",
-                    color: selectedVerse === index ? "white" : textColor,
-                    fontSize: 20,
+                    borderRadius: 8,
+                    border: "1px solid var(--color-border)",
+                    backgroundColor: "#dcfce7",
+                    color: "#14532d",
                     fontWeight: 700,
-                    padding: "8px 6px",
+                    fontSize: 12,
+                    padding: "4px 8px",
                     cursor: "pointer",
                   }}
+                  title="Ulozit poradie"
                 >
-                  {verse.cisloS}
+                  OK
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={handleClearVerseOrder}
+                  disabled={!selectedSong || isSavingVerseOrder}
+                  style={{
+                    borderRadius: 8,
+                    border: "1px solid var(--color-border)",
+                    backgroundColor: "#fee2e2",
+                    color: "#7f1d1d",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                  }}
+                  title="Vymazat poradie"
+                >
+                  CANCEL
+                </button>
+              </div>
             </div>
+            {hasUnsavedVerseOrder && !isSavingVerseOrder && (
+              <small style={{ color: "#b45309", fontWeight: 700 }}>
+                Neulozena zmena. Enter = OK, Esc = CANCEL.
+              </small>
+            )}
           </div>
-        )}
+
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              padding: "8px 10px 10px",
+              borderTop: mutedBorder,
+              backgroundColor: panelBackground,
+              overflowX: "auto",
+            }}
+          >
+            {(selectedSong?.slohy ?? []).map((verse, index) => (
+              <button
+                key={`${verse.cisloS}-${index}`}
+                onClick={() => selectVerse(index)}
+                style={{
+                  flex: "1 0 70px",
+                  minWidth: 70,
+                  borderRadius: 12,
+                  border: mutedBorder,
+                  backgroundColor:
+                    selectedVerse === index
+                      ? activeTabBackground
+                      : "var(--color-input-bg)",
+                  color: selectedVerse === index ? "white" : textColor,
+                  padding: "8px 6px",
+                  cursor: "pointer",
+                }}
+                title={verse.textik}
+              >
+                <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.92 }}>
+                  {verse.cisloS}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    opacity: 0.95,
+                  }}
+                >
+                  {buildVersePreviewText(verse.textik ?? "", 30) ||
+                    "(prazdna sloha)"}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   subscribeProjectorConnectionState,
   startProjectorChannel,
 } from "../realtime/projectorChannel";
+import { updateSongOrderById } from "../api/supabaseSongs";
 
 function normalizeVerseLabel(value: string): string {
   return value.trim().toLocaleLowerCase();
@@ -63,6 +64,50 @@ function resolveVerseCursor(
   return firstMatch >= 0 ? firstMatch : 0;
 }
 
+function parseVerseOrderInput(raw: string): string[] {
+  return raw
+    .split(/[\n,;]+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+function formatVerseOrderInput(song: SongType | null | undefined): string {
+  if (!song || !Array.isArray(song.poradieSloh)) {
+    return "";
+  }
+
+  return song.poradieSloh.join(", ");
+}
+
+function normalizeOrderSignatureFromRaw(raw: string): string {
+  return parseVerseOrderInput(raw)
+    .map((item) => item.toLocaleLowerCase())
+    .join("|");
+}
+
+function buildVersePreviewText(rawText: string, maxChars = 30): string {
+  const lyricsOnly = rawText.replace(/\[[^\]]*\]/g, " ");
+  const compact = lyricsOnly.replace(/\s+/g, " ").trim();
+  if (compact.length <= maxChars) {
+    return compact;
+  }
+
+  return `${compact.slice(0, maxChars)}...`;
+}
+
+function getSongId(song: SongType | null | undefined): number | undefined {
+  if (!song) {
+    return undefined;
+  }
+
+  const parsed = Number(song.id);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return Math.trunc(parsed);
+}
+
 export default function Akordy1() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -70,10 +115,17 @@ export default function Akordy1() {
   const { fontSize, showAkordy } = useContext(
     SettingsContext,
   ) as SettingsContextType;
-  const piesenka = location.state?.song;
+  const piesenka = location.state?.song as SongType | undefined;
+  const [activeSong, setActiveSong] = useState<SongType | null>(
+    piesenka ?? null,
+  );
 
   const [selectedView, setSelectedView] = useState(0);
   const [selectedViewCursor, setSelectedViewCursor] = useState(0);
+  const [verseOrderInput, setVerseOrderInput] = useState(() =>
+    formatVerseOrderInput(piesenka),
+  );
+  const [isSavingVerseOrder, setIsSavingVerseOrder] = useState(false);
   const effectiveFontSize = Math.min(80, Math.max(20, Number(fontSize) || 30));
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
@@ -87,8 +139,10 @@ export default function Akordy1() {
   } | null>(null);
 
   useEffect(() => {
+    setActiveSong(piesenka ?? null);
     setSelectedView(0);
     setSelectedViewCursor(0);
+    setVerseOrderInput(formatVerseOrderInput(piesenka));
   }, [piesenka?.cisloP]);
 
   useEffect(() => {
@@ -161,10 +215,6 @@ export default function Akordy1() {
     34,
     Math.max(14, Math.round(height * 0.038)),
   );
-  const responsiveVerseBadge = Math.min(
-    44,
-    Math.max(14, Math.round(height * 0.055)),
-  );
   const pageBackground = "var(--color-page-bg)";
   const surfaceBackground = "var(--color-surface-bg)";
   const panelBackground = "var(--color-panel-bg)";
@@ -183,6 +233,10 @@ export default function Akordy1() {
   }
 
   function handleOpenProjector() {
+    if (!activeSong) {
+      return;
+    }
+
     if (isProjectorBlackout) {
       setProjectorFeedback({
         message: "BLACK rezim je aktivny. Vypni BLACK pre obnovenie projekcie.",
@@ -196,7 +250,7 @@ export default function Akordy1() {
     }
 
     sendProjectorPayload({
-      song: piesenka,
+      song: activeSong,
       selectedView,
       showAkordy,
       blackout: false,
@@ -227,12 +281,16 @@ export default function Akordy1() {
           : { message: "Projektor server nie je dostupny.", tone: "warn" },
       );
     } else {
-      sendProjectorPayload({
-        song: piesenka,
-        selectedView,
-        showAkordy,
-        blackout: false,
-      });
+      if (activeSong) {
+        sendProjectorPayload({
+          song: activeSong,
+          selectedView,
+          showAkordy,
+          blackout: false,
+        });
+      } else {
+        sendProjectorPayload({ blackout: false });
+      }
       setProjectorFeedback({ message: "BLACK rezim vypnuty.", tone: "ok" });
     }
 
@@ -242,13 +300,13 @@ export default function Akordy1() {
   }
 
   function selectVerse(index: number) {
-    if (!piesenka || piesenka.slohy.length === 0) {
+    if (!activeSong || activeSong.slohy.length === 0) {
       return;
     }
 
-    const lastIndex = piesenka.slohy.length - 1;
+    const lastIndex = activeSong.slohy.length - 1;
     const nextIndex = Math.max(0, Math.min(index, lastIndex));
-    const playbackOrder = buildVersePlaybackOrder(piesenka);
+    const playbackOrder = buildVersePlaybackOrder(activeSong);
     const nextCursor = resolveVerseCursor(
       playbackOrder,
       nextIndex,
@@ -259,7 +317,7 @@ export default function Akordy1() {
     setSelectedView(nextIndex);
     if (!isProjectorBlackout) {
       sendProjectorPayload({
-        song: piesenka,
+        song: activeSong,
         selectedView: nextIndex,
         showAkordy,
         blackout: false,
@@ -268,11 +326,11 @@ export default function Akordy1() {
   }
 
   function moveVerse(step: -1 | 1) {
-    if (!piesenka || piesenka.slohy.length === 0) {
+    if (!activeSong || activeSong.slohy.length === 0) {
       return;
     }
 
-    const playbackOrder = buildVersePlaybackOrder(piesenka);
+    const playbackOrder = buildVersePlaybackOrder(activeSong);
     if (playbackOrder.length === 0) {
       return;
     }
@@ -290,7 +348,7 @@ export default function Akordy1() {
     setSelectedView(nextVerseIndex);
     if (!isProjectorBlackout) {
       sendProjectorPayload({
-        song: piesenka,
+        song: activeSong,
         selectedView: nextVerseIndex,
         showAkordy,
         blackout: false,
@@ -298,21 +356,121 @@ export default function Akordy1() {
     }
   }
 
+  function applyVerseOrderLocally(order?: string[]) {
+    if (!activeSong) {
+      return;
+    }
+
+    const nextSong: SongType = {
+      ...activeSong,
+      poradieSloh: order && order.length > 0 ? order : undefined,
+    };
+
+    const playbackOrder = buildVersePlaybackOrder(nextSong);
+    const nextCursor = resolveVerseCursor(
+      playbackOrder,
+      selectedView,
+      selectedViewCursor,
+    );
+
+    setActiveSong(nextSong);
+    setSelectedViewCursor(nextCursor);
+  }
+
+  async function handleSaveVerseOrder() {
+    if (!activeSong || isSavingVerseOrder) {
+      return;
+    }
+
+    const songId = getSongId(activeSong);
+    if (songId === undefined) {
+      console.error("Ukladanie poradia zlyhalo: skladba nema stabilne id.");
+      return;
+    }
+
+    const parsedOrder = parseVerseOrderInput(verseOrderInput);
+    setIsSavingVerseOrder(true);
+    try {
+      await updateSongOrderById(
+        songId,
+        parsedOrder.length > 0 ? parsedOrder : undefined,
+      );
+      applyVerseOrderLocally(parsedOrder);
+
+      // Resetujeme input aby sa ukaze aktualne poradie z DB
+      const savedSong: SongType = {
+        ...activeSong,
+        poradieSloh: parsedOrder.length > 0 ? parsedOrder : undefined,
+      };
+      setVerseOrderInput(formatVerseOrderInput(savedSong));
+
+      setProjectorFeedback({
+        message: "Poradie sloh bolo ulozene.",
+        tone: "ok",
+      });
+    } catch (error) {
+      console.error("Ukladanie poradia zlyhalo:", error);
+      setProjectorFeedback({
+        message: "Ukladanie poradia zlyhalo.",
+        tone: "warn",
+      });
+    } finally {
+      setIsSavingVerseOrder(false);
+      window.setTimeout(() => {
+        setProjectorFeedback(null);
+      }, 2200);
+    }
+  }
+
+  async function handleClearVerseOrder() {
+    if (!activeSong || isSavingVerseOrder) {
+      return;
+    }
+
+    const songId = getSongId(activeSong);
+    if (songId === undefined) {
+      console.error("Mazanie poradia zlyhalo: skladba nema stabilne id.");
+      return;
+    }
+
+    setVerseOrderInput("");
+    setIsSavingVerseOrder(true);
+    try {
+      await updateSongOrderById(songId, undefined);
+      applyVerseOrderLocally(undefined);
+      setProjectorFeedback({
+        message: "Poradie sloh bolo vymazane.",
+        tone: "ok",
+      });
+    } catch (error) {
+      console.error("Mazanie poradia zlyhalo:", error);
+      setProjectorFeedback({
+        message: "Mazanie poradia zlyhalo.",
+        tone: "warn",
+      });
+    } finally {
+      setIsSavingVerseOrder(false);
+      window.setTimeout(() => {
+        setProjectorFeedback(null);
+      }, 2200);
+    }
+  }
+
   useEffect(() => {
-    if (!piesenka) return;
+    if (!activeSong) return;
 
     if (!isProjectorBlackout) {
       sendProjectorPayload({
-        song: piesenka,
+        song: activeSong,
         selectedView,
         showAkordy,
         blackout: false,
       });
     }
-  }, [piesenka, selectedView, showAkordy, isProjectorBlackout]);
+  }, [activeSong, selectedView, showAkordy, isProjectorBlackout]);
 
   useEffect(() => {
-    if (!piesenka || piesenka.slohy.length === 0) {
+    if (!activeSong || activeSong.slohy.length === 0) {
       return;
     }
 
@@ -352,7 +510,18 @@ export default function Akordy1() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [piesenka, selectedView, selectedViewCursor, showAkordy, isProjectorBlackout]);
+  }, [
+    activeSong,
+    selectedView,
+    selectedViewCursor,
+    showAkordy,
+    isProjectorBlackout,
+  ]);
+
+  const savedVerseOrderInput = formatVerseOrderInput(activeSong);
+  const hasUnsavedVerseOrder =
+    normalizeOrderSignatureFromRaw(verseOrderInput) !==
+    normalizeOrderSignatureFromRaw(savedVerseOrderInput);
 
   return (
     <div
@@ -401,7 +570,7 @@ export default function Akordy1() {
           onClick={handleBackToList}
           title="Spat na zoznam skladieb"
         >
-          {piesenka.nazov}
+          {activeSong?.nazov ?? "Skladba"}
         </button>
         <button
           style={{
@@ -473,7 +642,9 @@ export default function Akordy1() {
             borderRadius: 10,
             border: `1px solid ${borderColor}`,
             backgroundColor:
-              projectorFeedback.tone === "ok" ? "var(--color-success-bg)" : "var(--color-warning-bg)",
+              projectorFeedback.tone === "ok"
+                ? "var(--color-success-bg)"
+                : "var(--color-warning-bg)",
             fontWeight: 600,
             fontSize: 14,
           }}
@@ -481,6 +652,109 @@ export default function Akordy1() {
           {projectorFeedback.message}
         </div>
       )}
+
+      <div
+        style={{
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          margin: "0 10px",
+        }}
+      >
+        <label
+          htmlFor="akordy-verse-order-input"
+          style={{ fontSize: 13, fontWeight: 700, color: textColor }}
+        >
+          Poradie sloh (napr. R, V1, R, V2)
+        </label>
+        <div style={{ position: "relative" }}>
+          <input
+            id="akordy-verse-order-input"
+            type="text"
+            value={verseOrderInput}
+            onChange={(e) => setVerseOrderInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleSaveVerseOrder();
+                return;
+              }
+
+              if (e.key === "Escape") {
+                e.preventDefault();
+                void handleClearVerseOrder();
+              }
+            }}
+            placeholder="Prazdne = povodne poradie"
+            disabled={!activeSong || isSavingVerseOrder}
+            style={{
+              width: "100%",
+              borderRadius: 10,
+              border: hasUnsavedVerseOrder
+                ? "2px solid #f59e0b"
+                : `1px solid ${borderColor}`,
+              backgroundColor: "var(--color-input-bg)",
+              color: textColor,
+              fontSize: 14,
+              padding: "8px 120px 8px 10px",
+              boxSizing: "border-box",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              right: 6,
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              gap: 6,
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleSaveVerseOrder}
+              disabled={!activeSong || isSavingVerseOrder}
+              style={{
+                borderRadius: 8,
+                border: `1px solid ${borderColor}`,
+                backgroundColor: "#dcfce7",
+                color: "#14532d",
+                fontWeight: 700,
+                fontSize: 12,
+                padding: "4px 8px",
+                cursor: "pointer",
+              }}
+              title="Ulozit poradie"
+            >
+              OK
+            </button>
+            <button
+              type="button"
+              onClick={handleClearVerseOrder}
+              disabled={!activeSong || isSavingVerseOrder}
+              style={{
+                borderRadius: 8,
+                border: `1px solid ${borderColor}`,
+                backgroundColor: "#fee2e2",
+                color: "#7f1d1d",
+                fontWeight: 700,
+                fontSize: 12,
+                padding: "4px 8px",
+                cursor: "pointer",
+              }}
+              title="Vymazat poradie"
+            >
+              CANCEL
+            </button>
+          </div>
+        </div>
+        {hasUnsavedVerseOrder && !isSavingVerseOrder && (
+          <small style={{ color: "#b45309", fontWeight: 700 }}>
+            Neulozena zmena. Enter = OK, Esc = CANCEL.
+          </small>
+        )}
+      </div>
 
       {/* TEXT SKLADBY */}
       <div
@@ -500,11 +774,13 @@ export default function Akordy1() {
           boxSizing: "border-box",
         }}
       >
-        <SongRenderer
-          text={piesenka.slohy[selectedView].textik}
-          showChords={showAkordy}
-          zadanaVelkost={responsiveSongSize}
-        />
+        {activeSong ? (
+          <SongRenderer
+            text={activeSong.slohy[selectedView]?.textik ?? ""}
+            showChords={showAkordy}
+            zadanaVelkost={responsiveSongSize}
+          />
+        ) : null}
       </div>
 
       {/* LIŠTA SLÔH */}
@@ -520,7 +796,7 @@ export default function Akordy1() {
           boxSizing: "border-box",
         }}
       >
-        {piesenka?.slohy.map(function (sloha: SongVerse, i: number) {
+        {activeSong?.slohy.map(function (sloha: SongVerse, i: number) {
           return (
             <div
               key={i}
@@ -532,15 +808,35 @@ export default function Akordy1() {
                 border: `2px solid ${borderColor}`,
                 borderRadius: 15,
                 cursor: "pointer",
-                backgroundColor: selectedView === i ? activeTabBackground : panelBackground,
+                backgroundColor:
+                  selectedView === i ? activeTabBackground : panelBackground,
                 color: selectedView === i ? "white" : textColor,
+                flexDirection: "column",
+                gap: 2,
+                padding: "4px 6px",
+                overflow: "hidden",
               }}
+              title={sloha.textik}
               onClick={() => {
                 selectVerse(i);
               }}
             >
-              <span style={{ fontSize: responsiveVerseBadge, fontWeight: 600 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.92 }}>
                 {sloha.cisloS}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  width: "100%",
+                  textAlign: "center",
+                }}
+              >
+                {buildVersePreviewText(sloha.textik ?? "", 30) ||
+                  "(prazdna sloha)"}
               </span>
             </div>
           );
