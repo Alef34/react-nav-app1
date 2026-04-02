@@ -156,7 +156,7 @@ export default function ProjectorView() {
               {song.cisloP}. {song.nazov}
             </h1>
             <div style={{ fontSize: Math.round(height * 0.038), opacity: 0.9 }}>
-              Cast: {verseLabel}
+              Piesen: {song.cisloP}
             </div>
           </div>
 
