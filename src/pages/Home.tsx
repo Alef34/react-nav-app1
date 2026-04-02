@@ -28,6 +28,15 @@ const SPLIT_BREAKPOINT = 1100;
 const SPLIT_LEFT_WIDTH_STORAGE_KEY = "home.splitLeftWidthPercent";
 const DEFAULT_SPLIT_LEFT_WIDTH_PERCENT = 42;
 
+function shouldUseSplitView(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const hasCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+  return window.innerWidth >= SPLIT_BREAKPOINT && !hasCoarsePointer;
+}
+
 function clampSplitWidth(value: number): number {
   if (!Number.isFinite(value)) {
     return DEFAULT_SPLIT_LEFT_WIDTH_PERCENT;
@@ -217,9 +226,7 @@ export default function Home() {
   const [selectedVerseCursor, setSelectedVerseCursor] = useState(0);
   const [verseOrderInput, setVerseOrderInput] = useState("");
   const [isSavingVerseOrder, setIsSavingVerseOrder] = useState(false);
-  const [isSplitView, setIsSplitView] = useState(
-    () => window.innerWidth >= SPLIT_BREAKPOINT,
-  );
+  const [isSplitView, setIsSplitView] = useState(() => shouldUseSplitView());
   const [splitLeftWidthPercent, setSplitLeftWidthPercent] = useState(() => {
     const stored = Number(localStorage.getItem(SPLIT_LEFT_WIDTH_STORAGE_KEY));
     return clampSplitWidth(stored);
@@ -277,7 +284,7 @@ export default function Home() {
 
   useEffect(() => {
     const onResize = () => {
-      setIsSplitView(window.innerWidth >= SPLIT_BREAKPOINT);
+      setIsSplitView(shouldUseSplitView());
     };
 
     window.addEventListener("resize", onResize);
@@ -819,12 +826,13 @@ export default function Home() {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100svh",
+        height: "100dvh",
         minHeight: "100svh",
         overflow: "hidden",
-        padding: 0,
+        boxSizing: "border-box",
+        gap: 10,
+        padding: "20px 10px 10px",
         margin: 0,
-        paddingTop: "20px",
         top: 0,
         left: 0,
         color: textColor,
@@ -838,7 +846,8 @@ export default function Home() {
           display: "flex",
           alignItems: "center",
           gap: 8,
-          margin: 10, // Prispôsob vzhľad podľa potreby
+          flex: "0 0 auto",
+          margin: 0,
           padding: 0,
           flexDirection: "row",
         }}
@@ -921,10 +930,8 @@ export default function Home() {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 10,
-          marginLeft: 10,
-          marginRight: 10,
-          marginTop: 0,
-          marginBottom: 10,
+          flex: "0 0 auto",
+          margin: 0,
         }}
       >
         <select
@@ -983,17 +990,17 @@ export default function Home() {
           display: "flex",
           flexDirection: isSplitView ? "row" : "column",
           gap: 10,
-          flexGrow: 1,
+          flex: "1 1 auto",
           minHeight: 0,
-          margin: 10,
-          marginTop: 0,
+          margin: 0,
+          overflow: "hidden",
         }}
       >
         <div
           id="listBox"
           style={{
             padding: 0,
-            flex: isSplitView ? `0 0 ${splitLeftWidthPercent}%` : "1 1 auto",
+            flex: isSplitView ? `0 0 ${splitLeftWidthPercent}%` : "0 0 42%",
             minWidth: 0,
             minHeight: 0,
             overflowY: "auto",
@@ -1071,7 +1078,7 @@ export default function Home() {
         <div
           id="previewBox"
           style={{
-            flex: "1 1 auto",
+            flex: isSplitView ? "1 1 auto" : "1 1 58%",
             minWidth: 0,
             minHeight: 0,
             display: "flex",
