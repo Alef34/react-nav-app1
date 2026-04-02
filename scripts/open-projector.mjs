@@ -13,6 +13,22 @@ const AUTO_URL_CANDIDATES = [
   "http://localhost:5179/projector",
 ];
 
+function getBrowserFlags() {
+  const flags = [
+    "--new-window",
+    "--start-fullscreen",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-session-crashed-bubble",
+  ];
+
+  if (isKiosk) {
+    flags.push("--kiosk");
+  }
+
+  return flags;
+}
+
 async function isUrlReachable(targetUrl) {
   try {
     const response = await fetch(targetUrl, {
@@ -74,27 +90,13 @@ function commandExists(command) {
 }
 
 function macOpen() {
-  const args = [
-    "-na",
-    "Google Chrome",
-    "--args",
-    "--new-window",
-    "--start-fullscreen",
-  ];
-
-  if (isKiosk) {
-    args.push("--kiosk");
-  }
-
+  const args = ["-na", "Google Chrome", "--args", ...getBrowserFlags()];
   args.push(url);
   return run("open", args);
 }
 
 function windowsOpen() {
-  const flags = ["--new-window", "--start-fullscreen"];
-  if (isKiosk) {
-    flags.push("--kiosk");
-  }
+  const flags = getBrowserFlags();
 
   const browsersInPath = ["chrome.exe", "chrome", "msedge.exe", "msedge"];
   const browserPaths = [
@@ -128,10 +130,7 @@ function windowsOpen() {
 }
 
 function linuxOpen() {
-  const flags = ["--new-window", "--start-fullscreen"];
-  if (isKiosk) {
-    flags.push("--kiosk");
-  }
+  const flags = getBrowserFlags();
 
   const browsers = ["google-chrome", "chromium-browser", "chromium"];
 
