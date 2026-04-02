@@ -1,5 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 const mode = process.argv[2] === "fullscreen" ? "fullscreen" : "kiosk";
 const explicitUrl = process.argv[3];
@@ -26,6 +28,19 @@ function getBrowserFlags() {
     flags.push("--kiosk");
   }
 
+  return flags;
+}
+
+function getLinuxBrowserFlags() {
+  const flags = [...getBrowserFlags()];
+  const kioskProfileDir = path.join(
+    os.homedir(),
+    ".config",
+    "chromium-projector",
+  );
+
+  mkdirSync(kioskProfileDir, { recursive: true });
+  flags.push(`--user-data-dir=${kioskProfileDir}`);
   return flags;
 }
 
@@ -130,7 +145,7 @@ function windowsOpen() {
 }
 
 function linuxOpen() {
-  const flags = getBrowserFlags();
+  const flags = getLinuxBrowserFlags();
 
   const browsers = ["google-chrome", "chromium-browser", "chromium"];
 
