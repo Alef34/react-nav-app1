@@ -75,7 +75,9 @@ function readLocalDb(): LocalDbState {
           source: String(row?.source ?? ""),
           kategoria: String(row?.kategoria ?? "Nabozenske"),
           poradie_sloh: Array.isArray(row?.poradie_sloh)
-            ? row.poradie_sloh.map((item) => String(item ?? "").trim()).filter((item) => item.length > 0)
+            ? row.poradie_sloh
+                .map((item) => String(item ?? "").trim())
+                .filter((item) => item.length > 0)
             : [],
           slohy: Array.isArray(row?.slohy) ? row.slohy : [],
           updated_at: String(row?.updated_at ?? ""),
@@ -127,9 +129,9 @@ function writeLocalDb(state: LocalDbState): void {
   window.localStorage.setItem(LOCAL_DB_STORAGE_KEY, JSON.stringify(state));
 }
 
-function sortSongsByNumberThenTitle<T extends { cislo_p: string; nazov: string }>(
-  songs: T[],
-): T[] {
+function sortSongsByNumberThenTitle<
+  T extends { cislo_p: string; nazov: string },
+>(songs: T[]): T[] {
   return [...songs].sort((a, b) => {
     const byNumber = a.cislo_p.localeCompare(b.cislo_p, undefined, {
       numeric: true,
@@ -172,7 +174,8 @@ async function loadSongsFromLocalDb(filter: string): Promise<Song[]> {
   const lowered = filter.toLowerCase();
   return songs.filter((song) =>
     Object.values(song).some(
-      (value) => typeof value === "string" && value.toLowerCase().includes(lowered),
+      (value) =>
+        typeof value === "string" && value.toLowerCase().includes(lowered),
     ),
   );
 }
@@ -181,9 +184,7 @@ async function upsertSongsToLocalDb(payload: Udaje): Promise<number> {
   const songs = (payload.piesne ?? []).map((song) => normalizeSong(song));
   const rows = songs.filter(
     (song) =>
-      song.cisloP.length > 0 &&
-      song.nazov.length > 0 &&
-      song.slohy.length > 0,
+      song.cisloP.length > 0 && song.nazov.length > 0 && song.slohy.length > 0,
   );
 
   if (rows.length === 0) {
@@ -207,7 +208,9 @@ async function upsertSongsToLocalDb(payload: Udaje): Promise<number> {
 
   rows.forEach((song) => {
     const songId = parseSongId(song.id);
-    const key = `${song.cisloP}|${song.nazov}|${song.kategoria ?? "Nabozenske"}|${song.source ?? ""}`;
+    const key = `${song.cisloP}|${song.nazov}|${
+      song.kategoria ?? "Nabozenske"
+    }|${song.source ?? ""}`;
 
     if (songId !== undefined) {
       const existingIndex = songIndexById.get(songId);
@@ -506,16 +509,20 @@ async function upsertSongsToSupabaseDirect(payload: Udaje): Promise<number> {
         song.nazov.length > 0 &&
         song.slohy.length > 0,
     )
-    .map((song) => ({
-      id: parseSongId(song.id),
-      cislo_p: song.cisloP,
-      nazov: song.nazov,
-      source: song.source ?? "",
-      kategoria: song.kategoria ?? "Nabozenske",
-      poradie_sloh: song.poradieSloh ?? null,
-      slohy: song.slohy,
-      updated_at: new Date().toISOString(),
-    }));
+    .map((song) => {
+      const parsedId = parseSongId(song.id);
+
+      return {
+        ...(parsedId !== undefined ? { id: parsedId } : {}),
+        cislo_p: song.cisloP,
+        nazov: song.nazov,
+        source: song.source ?? "",
+        kategoria: song.kategoria ?? "Nabozenske",
+        poradie_sloh: song.poradieSloh ?? null,
+        slohy: song.slohy,
+        updated_at: new Date().toISOString(),
+      };
+    });
 
   if (rows.length === 0) {
     throw new Error("Import neobsahuje ziadne validne skladby.");
@@ -549,21 +556,23 @@ async function upsertSongsToSupabaseDirect(payload: Udaje): Promise<number> {
   ((existingRows ?? []) as DbSongKeyRow[]).forEach((row) => {
     existingById.add(row.id);
     existingKeys.add(
-      `${row.cislo_p}|${row.nazov}|${row.kategoria ?? "Nabozenske"}|${row.source ?? ""}`,
+      `${row.cislo_p}|${row.nazov}|${row.kategoria ?? "Nabozenske"}|${
+        row.source ?? ""
+      }`,
     );
   });
 
-  const rowsToInsert = rows.filter(
-    (row) => {
-      const rowId = parseSongId(row.id);
-      if (rowId !== undefined) {
-        return !existingById.has(rowId);
-      }
+  const rowsToInsert = rows.filter((row) => {
+    const rowId = parseSongId(row.id);
+    if (rowId !== undefined) {
+      return !existingById.has(rowId);
+    }
 
-      const key = `${row.cislo_p}|${row.nazov}|${row.kategoria ?? "Nabozenske"}|${row.source ?? ""}`;
-      return !existingKeys.has(key);
-    },
-  );
+    const key = `${row.cislo_p}|${row.nazov}|${row.kategoria ?? "Nabozenske"}|${
+      row.source ?? ""
+    }`;
+    return !existingKeys.has(key);
+  });
 
   if (rowsToInsert.length === 0) {
     return 0;
@@ -631,7 +640,9 @@ export type SongWithId = {
   source: string;
 };
 
-export async function syncSupabaseToLocal(replaceAll: boolean): Promise<number> {
+export async function syncSupabaseToLocal(
+  replaceAll: boolean,
+): Promise<number> {
   if (!supabase) {
     throw new Error("Supabase nie je nakonfigurovany.");
   }
@@ -647,7 +658,9 @@ export async function syncSupabaseToLocal(replaceAll: boolean): Promise<number> 
     : upsertSongsToLocalDb(payload);
 }
 
-export async function syncLocalToSupabase(replaceAll: boolean): Promise<number> {
+export async function syncLocalToSupabase(
+  replaceAll: boolean,
+): Promise<number> {
   if (!supabase) {
     throw new Error("Supabase nie je nakonfigurovany.");
   }
@@ -824,7 +837,8 @@ export async function createSongInSupabase(song: Song): Promise<SongWithId> {
       source: normalized.source ?? "",
       kategoria: normalized.kategoria ?? "Nabozenske",
       poradie_sloh:
-        Array.isArray(normalized.poradieSloh) && normalized.poradieSloh.length > 0
+        Array.isArray(normalized.poradieSloh) &&
+        normalized.poradieSloh.length > 0
           ? normalized.poradieSloh
           : null,
       slohy: normalized.slohy,
