@@ -24,7 +24,9 @@ import { updateSongOrderById } from "../api/supabaseSongs";
 const ALL_CATEGORIES = "Vsetky";
 const SEARCH_QUERY_STORAGE_KEY = "home.searchQuery";
 const SELECTED_CATEGORY_STORAGE_KEY = "home.selectedCategory";
-const SPLIT_BREAKPOINT = 1100;
+const SPLIT_BREAKPOINT = 820;
+const SPLIT_MIN_HEIGHT = 600;
+const COMPACT_SPLIT_BREAKPOINT = 1180;
 const SPLIT_LEFT_WIDTH_STORAGE_KEY = "home.splitLeftWidthPercent";
 const DEFAULT_SPLIT_LEFT_WIDTH_PERCENT = 42;
 
@@ -33,8 +35,10 @@ function shouldUseSplitView(): boolean {
     return false;
   }
 
-  const hasCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
-  return window.innerWidth >= SPLIT_BREAKPOINT && !hasCoarsePointer;
+  return (
+    window.innerWidth >= SPLIT_BREAKPOINT &&
+    window.innerHeight >= SPLIT_MIN_HEIGHT
+  );
 }
 
 function clampSplitWidth(value: number): number {
@@ -226,6 +230,9 @@ export default function Home() {
   const [selectedVerseCursor, setSelectedVerseCursor] = useState(0);
   const [verseOrderInput, setVerseOrderInput] = useState("");
   const [isSavingVerseOrder, setIsSavingVerseOrder] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 0 : window.innerWidth,
+  );
   const [isSplitView, setIsSplitView] = useState(() => shouldUseSplitView());
   const [splitLeftWidthPercent, setSplitLeftWidthPercent] = useState(() => {
     const stored = Number(localStorage.getItem(SPLIT_LEFT_WIDTH_STORAGE_KEY));
@@ -284,6 +291,7 @@ export default function Home() {
 
   useEffect(() => {
     const onResize = () => {
+      setViewportWidth(window.innerWidth);
       setIsSplitView(shouldUseSplitView());
     };
 
@@ -783,6 +791,8 @@ export default function Home() {
   const itemBorder = "3px ridge var(--color-item-border)";
   const activeTabBackground = "var(--color-active-tab-bg)";
   const mutedText = "var(--color-text-muted)";
+  const isCompactSplitView =
+    isSplitView && viewportWidth < COMPACT_SPLIT_BREAKPOINT;
   const savedVerseOrderInput = formatVerseOrderInput(selectedSong);
   const hasUnsavedVerseOrder =
     normalizeOrderSignatureFromRaw(verseOrderInput) !==
@@ -850,15 +860,16 @@ export default function Home() {
           margin: 0,
           padding: 0,
           flexDirection: "row",
+          flexWrap: isCompactSplitView ? "wrap" : "nowrap",
         }}
       >
         <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
           <input
             type="text"
             style={{
-              fontSize: 30,
+              fontSize: isCompactSplitView ? 22 : 30,
               width: "100%",
-              height: 80,
+              height: isCompactSplitView ? 62 : 80,
               boxSizing: "border-box",
               backgroundColor: inputBackground,
               borderRadius: 15,
@@ -896,11 +907,14 @@ export default function Home() {
             </button>
           )}
         </div>
-        <button onClick={handleShowSetting} style={getStyles(40).button}>
+        <button
+          onClick={handleShowSetting}
+          style={getStyles(isCompactSplitView ? 30 : 40).button}
+        >
           <GiSettingsKnobs
             style={{
-              width: 40,
-              height: 40,
+              width: isCompactSplitView ? 30 : 40,
+              height: isCompactSplitView ? 30 : 40,
               borderColor: "black",
               color: "black",
             }}
@@ -909,14 +923,15 @@ export default function Home() {
         <button
           onClick={handleGoToAdmin}
           style={{
-            fontSize: 20,
+            fontSize: isCompactSplitView ? 16 : 20,
             fontWeight: 700,
-            padding: "0 16px",
+            padding: isCompactSplitView ? "0 12px" : "0 16px",
             borderRadius: 14,
             border: mutedBorder,
             backgroundColor: surfaceBackground,
             color: textColor,
             cursor: "pointer",
+            height: isCompactSplitView ? 48 : undefined,
           }}
         >
           Admin
@@ -963,7 +978,7 @@ export default function Home() {
               display: "flex",
               alignItems: "center",
               gap: 8,
-              fontSize: 16,
+              fontSize: isCompactSplitView ? 14 : 16,
               fontWeight: 700,
             }}
           >
@@ -1111,7 +1126,7 @@ export default function Home() {
                 borderRadius: 12,
                 color: textColor,
                 textAlign: "left",
-                fontSize: 22,
+                fontSize: isCompactSplitView ? 18 : 22,
                 fontWeight: 700,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -1128,7 +1143,7 @@ export default function Home() {
               onClick={handleOpenProjector}
               disabled={!selectedSong}
               style={{
-                fontSize: 16,
+                fontSize: isCompactSplitView ? 14 : 16,
                 fontWeight: 700,
                 padding: "8px 12px",
                 borderRadius: 12,
@@ -1158,7 +1173,7 @@ export default function Home() {
                   : "var(--color-input-bg)",
                 color: isProjectorBlackout ? "#f9fafb" : textColor,
                 fontWeight: 800,
-                fontSize: 13,
+                fontSize: isCompactSplitView ? 12 : 13,
                 userSelect: "none",
               }}
               title="BLACK rezim drzi ciernu obrazovku, kym ho nevypnes"
