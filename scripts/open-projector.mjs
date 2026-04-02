@@ -3,14 +3,14 @@ import { existsSync } from "node:fs";
 
 const mode = process.argv[2] === "fullscreen" ? "fullscreen" : "kiosk";
 const explicitUrl = process.argv[3];
-let url = explicitUrl ?? "http://127.0.0.1:5173/projector";
+let url = explicitUrl ?? "http://127.0.0.1:5179/projector";
 const isKiosk = mode === "kiosk";
 
 const AUTO_URL_CANDIDATES = [
   "http://127.0.0.1:5173/projector",
-  "http://127.0.0.1:5174/projector",
+  "http://127.0.0.1:5179/projector",
   "http://localhost:5173/projector",
-  "http://localhost:5174/projector",
+  "http://localhost:5179/projector",
 ];
 
 async function isUrlReachable(targetUrl) {
@@ -67,7 +67,10 @@ function launchDetached(command, args) {
 }
 
 function commandExists(command) {
-  return spawnSync("where", [command], { stdio: "ignore", shell: false }).status === 0;
+  return (
+    spawnSync("where", [command], { stdio: "ignore", shell: false }).status ===
+    0
+  );
 }
 
 function macOpen() {
