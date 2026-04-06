@@ -88,15 +88,6 @@ export default function ProjectorView() {
     return song.slohy[safeIndex]?.textik ?? "";
   }, [song, verseIndex]);
 
-  const verseLabel = useMemo(() => {
-    if (!song?.slohy?.length) {
-      return "";
-    }
-
-    const safeIndex = Math.min(Math.max(verseIndex, 0), song.slohy.length - 1);
-    return song.slohy[safeIndex]?.cisloS ?? "";
-  }, [song, verseIndex]);
-
   if (isBlackout) {
     return (
       <div

@@ -28,7 +28,9 @@ const SPLIT_BREAKPOINT = 820;
 const SPLIT_MIN_HEIGHT = 600;
 const COMPACT_SPLIT_BREAKPOINT = 1180;
 const SPLIT_LEFT_WIDTH_STORAGE_KEY = "home.splitLeftWidthPercent";
-const DEFAULT_SPLIT_LEFT_WIDTH_PERCENT = 42;
+const DEFAULT_SPLIT_LEFT_WIDTH_PERCENT = 34;
+const MIN_SPLIT_LEFT_WIDTH_PERCENT = 10;
+const MAX_SPLIT_LEFT_WIDTH_PERCENT = 90;
 
 function shouldUseSplitView(): boolean {
   if (typeof window === "undefined") {
@@ -46,7 +48,10 @@ function clampSplitWidth(value: number): number {
     return DEFAULT_SPLIT_LEFT_WIDTH_PERCENT;
   }
 
-  return Math.max(25, Math.min(65, Math.round(value)));
+  return Math.max(
+    MIN_SPLIT_LEFT_WIDTH_PERCENT,
+    Math.min(MAX_SPLIT_LEFT_WIDTH_PERCENT, Math.round(value)),
+  );
 }
 
 function normalizeCategory(value: string): string {
@@ -102,6 +107,108 @@ function parseCommaSeparatedQuery(query: string): string[] {
     .split(",")
     .map((part) => normalizeSongNumber(part))
     .filter((part) => part.length > 0);
+}
+
+function compareSongsByNumberAndTitle(left: Song, right: Song): number {
+  const byNumber = left.cisloP.localeCompare(right.cisloP, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+
+  if (byNumber !== 0) {
+    return byNumber;
+  }
+
+  return left.nazov.localeCompare(right.nazov, undefined, {
+    sensitivity: "base",
+  });
+}
+
+function getSongFilterRank(song: Song, query: string): number {
+  const normalizedSongNumber = normalizeSongNumber(song.cisloP);
+  const normalizedTitle = song.nazov.toLocaleLowerCase();
+
+  if (normalizedSongNumber === query || normalizedTitle === query) {
+    return 0;
+  }
+
+  if (normalizedSongNumber.startsWith(query)) {
+    return 1;
+  }
+
+  if (normalizedTitle.startsWith(query)) {
+    return 2;
+  }
+
+  if (normalizedTitle.split(/\s+/).some((word) => word.startsWith(query))) {
+    return 3;
+  }
+
+  if (normalizedSongNumber.includes(query)) {
+    return 4;
+  }
+
+  if (normalizedTitle.includes(query)) {
+    return 5;
+  }
+
+  return 6;
+}
+
+function sortSongsByFilter(items: SongsData, query: string): SongsData {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+
+  if (normalizedQuery.length === 0) {
+    return [...items].sort(compareSongsByNumberAndTitle);
+  }
+
+  const commaSeparatedTerms = parseCommaSeparatedQuery(normalizedQuery);
+  const shouldUseCommaFilter =
+    normalizedQuery.includes(",") && commaSeparatedTerms.length > 0;
+
+  if (shouldUseCommaFilter) {
+    return [...items].sort((left, right) => {
+      const leftNumber = normalizeSongNumber(left.cisloP);
+      const rightNumber = normalizeSongNumber(right.cisloP);
+      const leftTitle = left.nazov.toLocaleLowerCase();
+      const rightTitle = right.nazov.toLocaleLowerCase();
+      const leftTermIndex = commaSeparatedTerms.findIndex(
+        (term) => leftNumber === term || leftTitle.includes(term),
+      );
+      const rightTermIndex = commaSeparatedTerms.findIndex(
+        (term) => rightNumber === term || rightTitle.includes(term),
+      );
+
+      if (leftTermIndex !== rightTermIndex) {
+        return leftTermIndex - rightTermIndex;
+      }
+
+      const leftExactNumberMatch = Number(
+        leftNumber === commaSeparatedTerms[leftTermIndex],
+      );
+      const rightExactNumberMatch = Number(
+        rightNumber === commaSeparatedTerms[rightTermIndex],
+      );
+
+      if (leftExactNumberMatch !== rightExactNumberMatch) {
+        return rightExactNumberMatch - leftExactNumberMatch;
+      }
+
+      return compareSongsByNumberAndTitle(left, right);
+    });
+  }
+
+  return [...items].sort((left, right) => {
+    const rankDiff =
+      getSongFilterRank(left, normalizedQuery) -
+      getSongFilterRank(right, normalizedQuery);
+
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+
+    return compareSongsByNumberAndTitle(left, right);
+  });
 }
 
 function parseVerseOrderInput(raw: string): string[] {
@@ -323,7 +430,7 @@ export default function Home() {
       formattedQuery.includes(",") && commaSeparatedTerms.length > 0;
     const normalizedSelectedCategory = normalizeCategory(selectedCategory);
 
-    return songsData.filter((song) => {
+    const matchingSongs = songsData.filter((song) => {
       const normalizedSongNumber = normalizeSongNumber(song.cisloP);
       const songTitleLower = song.nazov.toLocaleLowerCase();
       const queryMatch = shouldUseCommaFilter
@@ -339,6 +446,8 @@ export default function Home() {
 
       return queryMatch && categoryMatch;
     });
+
+    return sortSongsByFilter(matchingSongs, formattedQuery);
   }, [songsData, searchQuery, selectedCategory]);
 
   useEffect(() => {
@@ -985,8 +1094,8 @@ export default function Home() {
             Sirka zoznamu: {splitLeftWidthPercent}%
             <input
               type="range"
-              min={25}
-              max={65}
+              min={MIN_SPLIT_LEFT_WIDTH_PERCENT}
+              max={MAX_SPLIT_LEFT_WIDTH_PERCENT}
               step={1}
               value={splitLeftWidthPercent}
               onChange={(e) =>
@@ -1015,7 +1124,7 @@ export default function Home() {
           id="listBox"
           style={{
             padding: 0,
-            flex: isSplitView ? `0 0 ${splitLeftWidthPercent}%` : "0 0 42%",
+            flex: isSplitView ? `0 0 ${splitLeftWidthPercent}%` : "0 0 36%",
             minWidth: 0,
             minHeight: 0,
             overflowY: "auto",
@@ -1031,38 +1140,72 @@ export default function Home() {
                 key={`${getSongIdentity(item)}-${index}`}
                 onClick={() => handleClickSkokNaPiesen(item)}
                 style={{
-                  fontSize: 25,
-                  padding: "1px",
-                  marginTop: "5px",
+                  padding: 0,
+                  marginTop: "6px",
                   cursor: "pointer",
                   color: textColor,
-                  borderRadius: 15,
+                  borderRadius: 14,
                   backgroundColor:
                     selectedSongIdentity === getSongIdentity(item)
                       ? activeTabBackground
                       : itemBackground,
                   listStylePosition: "inside",
                   border: itemBorder,
+                  overflow: "hidden",
                 }}
               >
                 <div
                   style={{
-                    textAlign: "start",
                     display: "flex",
-                    alignItems: "center",
-                    gap: 8,
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: 4,
+                    padding: "9px 12px 10px",
                   }}
                 >
                   <span
                     style={{
-                      margin: 5,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 44,
+                      padding: "4px 10px",
+                      borderRadius: 10,
+                      fontSize: 12,
+                      fontWeight: 800,
+                      letterSpacing: "0.04em",
+                      lineHeight: 1,
+                      backgroundColor:
+                        selectedSongIdentity === getSongIdentity(item)
+                          ? "rgba(255,255,255,0.22)"
+                          : panelBackground,
                       color:
                         selectedSongIdentity === getSongIdentity(item)
                           ? "white"
                           : textColor,
                     }}
                   >
-                    {item.cisloP}. {item.nazov}
+                    {item.cisloP}
+                  </span>
+                  <span
+                    style={{
+                      display: "-webkit-box",
+                      WebkitBoxOrient: "vertical",
+                      WebkitLineClamp: 2,
+                      overflow: "hidden",
+                      textAlign: "start",
+                      fontSize: 16,
+                      fontWeight: 700,
+                      lineHeight: 1.15,
+                      width: "100%",
+                      color:
+                        selectedSongIdentity === getSongIdentity(item)
+                          ? "white"
+                          : textColor,
+                    }}
+                    title={`${item.cisloP}. ${item.nazov}`}
+                  >
+                    {item.nazov}
                   </span>
                   {hasCustomVerseOrder(item) && (
                     <span
