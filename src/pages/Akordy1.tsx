@@ -496,13 +496,23 @@ export default function Akordy1() {
         return;
       }
 
-      if (event.key === "ArrowRight" || event.key === "PageDown") {
+      const normalizedKey = event.key.toLocaleLowerCase();
+
+      if (
+        event.key === "ArrowRight" ||
+        event.key === "PageDown" ||
+        normalizedKey === "b"
+      ) {
         event.preventDefault();
         moveVerse(1);
         return;
       }
 
-      if (event.key === "ArrowLeft" || event.key === "PageUp") {
+      if (
+        event.key === "ArrowLeft" ||
+        event.key === "PageUp" ||
+        normalizedKey === "a"
+      ) {
         event.preventDefault();
         moveVerse(-1);
       }

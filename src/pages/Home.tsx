@@ -389,12 +389,16 @@ export default function Home() {
   }, [splitLeftWidthPercent]);
 
   useEffect(() => {
+    if (!isSuccess) {
+      return;
+    }
+
     if (categories.includes(selectedCategory)) {
       return;
     }
 
     setSelectedCategory(ALL_CATEGORIES);
-  }, [categories, selectedCategory]);
+  }, [categories, isSuccess, selectedCategory]);
 
   useEffect(() => {
     const onResize = () => {
@@ -840,7 +844,13 @@ export default function Home() {
         return;
       }
 
-      if (event.key === "ArrowRight" || event.key === "PageDown") {
+      const normalizedKey = event.key.toLocaleLowerCase();
+
+      if (
+        event.key === "ArrowRight" ||
+        event.key === "PageDown" ||
+        normalizedKey === "b"
+      ) {
         if (selectedSong && selectedSong.slohy.length > 0) {
           event.preventDefault();
           moveVerse(1);
@@ -848,7 +858,11 @@ export default function Home() {
         return;
       }
 
-      if (event.key === "ArrowLeft" || event.key === "PageUp") {
+      if (
+        event.key === "ArrowLeft" ||
+        event.key === "PageUp" ||
+        normalizedKey === "a"
+      ) {
         if (selectedSong && selectedSong.slohy.length > 0) {
           event.preventDefault();
           moveVerse(-1);
