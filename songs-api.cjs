@@ -1,3 +1,4 @@
+
 const express = require('express');
 const Database = require('better-sqlite3');
 const cors = require('cors');
@@ -20,6 +21,21 @@ db.exec(`
     updated_at TEXT
   )
 `);
+
+// PATCH: aktualizuj poradie_sloh podľa id
+app.patch('/api/songs/:id/poradie', (req, res) => {
+  const id = Number(req.params.id);
+  const { poradie_sloh } = req.body;
+  if (!Array.isArray(poradie_sloh)) {
+    return res.status(400).json({ error: 'poradie_sloh musí byť pole.' });
+  }
+  const stmt = db.prepare('UPDATE songs SET poradie_sloh = ?, updated_at = datetime(\'now\') WHERE id = ?');
+  const result = stmt.run(JSON.stringify(poradie_sloh), id);
+  if (result.changes === 0) {
+    return res.status(404).json({ error: 'Skladba neexistuje.' });
+  }
+  res.json({ updated: true });
+});
 
 
 // Hromadný import piesní (pole piesní v tele požiadavky)

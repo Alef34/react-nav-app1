@@ -1279,7 +1279,7 @@ export default function AdminImport() {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleSplitVerse(i)}
-                    style={{ fontSize: 12, padding: "2px 8px" }}
+                    style={{ fontSize: 12, padding: "2px 8px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, marginRight: 4 }}
                     title="Umiestni kurzor v texte a klikni pre rozdelenie"
                   >
                     Rozdelit (pri kurzore)
@@ -1291,9 +1291,12 @@ export default function AdminImport() {
                       style={{
                         fontSize: 12,
                         padding: "2px 8px",
-                        color: "#c00",
-                        border: "1px solid #c00",
+                        background: "#d32f2f",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 4,
                         cursor: "pointer",
+                        fontWeight: 600,
                       }}
                     >
                       Odstranit
@@ -1320,7 +1323,7 @@ export default function AdminImport() {
             <button
               type="button"
               onClick={handleAddVerse}
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: 16, background: "#1976d2", color: "#fff", border: "none", borderRadius: 4, fontWeight: 600, padding: "6px 16px", cursor: "pointer" }}
             >
               + Pridat slohu
             </button>
@@ -1344,11 +1347,12 @@ export default function AdminImport() {
                 disabled={editLoading}
                 style={{
                   padding: "8px 20px",
-                  backgroundColor: "#007bff",
+                  backgroundColor: "#1976d2",
                   color: "#fff",
                   border: "none",
                   borderRadius: 4,
                   cursor: "pointer",
+                  fontWeight: 600,
                 }}
               >
                 {editLoading ? "Ukladam..." : "Ulozit"}
@@ -1359,7 +1363,7 @@ export default function AdminImport() {
                   setEditForm(null);
                   setEditSaveState({ status: "idle", message: "" });
                 }}
-                style={{ padding: "8px 20px" }}
+                style={{ padding: "8px 20px", background: "#eee", color: "#222", border: "none", borderRadius: 4, fontWeight: 600, cursor: "pointer" }}
               >
                 Zavrit
               </button>

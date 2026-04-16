@@ -892,7 +892,13 @@ export async function updateSongOrderById(
     : [];
 
   if (shouldUseOfflineDb()) {
-    return updateSongOrderInLocalDbById(id, normalizedOrder);
+    // Ulož do SQLite backendu namiesto localStorage
+    await fetch(`http://localhost:3001/api/songs/${id}/poradie`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ poradie_sloh: normalizedOrder }),
+    });
+    return;
   }
 
   if (!supabase) {

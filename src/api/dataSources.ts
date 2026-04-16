@@ -47,7 +47,11 @@ export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
     nazov: String(row.nazov ?? "").trim(),
     source: row.source ? String(row.source) : "",
     kategoria: row.kategoria ? String(row.kategoria) : "",
-    poradieSloh: Array.isArray(row.poradie_sloh) ? row.poradie_sloh : [],
+    poradieSloh: Array.isArray(row.poradie_sloh)
+      ? row.poradie_sloh
+      : typeof row.poradie_sloh === 'string' && row.poradie_sloh.trim().length > 0
+        ? (() => { try { return JSON.parse(row.poradie_sloh); } catch { return []; } })()
+        : [],
     slohy: Array.isArray(row.slohy) ? row.slohy : [],
   }));
   if (!filter || filter.trim() === "") {
