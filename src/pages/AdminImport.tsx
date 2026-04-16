@@ -1105,6 +1105,8 @@ export default function AdminImport() {
                           padding: "2px 8px",
                           border: "1px solid #aaa",
                           borderRadius: 3,
+                          background: "#eee", 
+                          color: "#222", 
                           cursor: "pointer",
                           flexShrink: 0,
                         }}
@@ -1363,9 +1365,15 @@ export default function AdminImport() {
                   setEditForm(null);
                   setEditSaveState({ status: "idle", message: "" });
                 }}
-                style={{ padding: "8px 20px", background: "#eee", color: "#222", border: "none", borderRadius: 4, fontWeight: 600, cursor: "pointer" }}
+                style={{ padding: "8px 20px", 
+                  background: "#eee", 
+                  color: "#222", 
+                  border: "none", 
+                  borderRadius: 4, 
+                  fontWeight: 600, 
+                  cursor: "pointer" }}
               >
-                Zavrit
+                Zatvoriť
               </button>
             </div>
           </div>
@@ -1596,7 +1604,7 @@ export default function AdminImport() {
                 }}
                 style={{ padding: "8px 20px" }}
               >
-                Zavrit
+                Zatvoriť
               </button>
             </div>
           </div>
