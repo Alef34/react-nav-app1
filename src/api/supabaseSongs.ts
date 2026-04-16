@@ -385,31 +385,6 @@ async function createSongInLocalDb(song: Song): Promise<SongWithId> {
   };
 }
 
-async function updateSongOrderInLocalDbById(
-  id: number,
-  poradieSloh?: string[],
-): Promise<void> {
-  const state = readLocalDb();
-  const index = state.songs.findIndex((row) => row.id === id);
-
-  if (index === -1) {
-    throw new Error("Skladba pre ulozenie poradia neexistuje.");
-  }
-
-  const normalizedOrder = Array.isArray(poradieSloh)
-    ? poradieSloh
-        .map((item) => String(item ?? "").trim())
-        .filter((item) => item.length > 0)
-    : [];
-
-  state.songs[index] = {
-    ...state.songs[index],
-    poradie_sloh: normalizedOrder,
-    updated_at: new Date().toISOString(),
-  };
-
-  writeLocalDb(state);
-}
 
 function normalizeVerse(verse: SongVerse, index: number): SongVerse {
   return {
