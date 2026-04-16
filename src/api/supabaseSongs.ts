@@ -55,6 +55,19 @@ function getDefaultLocalDbState(): LocalDbState {
   };
 }
 
+// Príklad fetchu piesní z lokálneho backendu
+export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
+  const response = await fetch('http://localhost:3001/api/songs');
+  const songs = await response.json();
+  // Prípadne filtrovanie podľa filter
+  return songs.filter(song =>
+    Object.values(song).some(
+      value => typeof value === "string" && value.toLowerCase().includes(filter.toLowerCase())
+    )
+  );
+}
+
+
 function readLocalDb(): LocalDbState {
   if (typeof window === "undefined") {
     return getDefaultLocalDbState();

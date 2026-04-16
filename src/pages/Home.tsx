@@ -70,8 +70,8 @@ function getSongCategory(song: Song): string {
   return "Nabozenske";
 }
 
-function normalizeSongNumber(value: string): string {
-  return value.trim().replace(/\.$/, "").toLocaleLowerCase();
+function normalizeSongNumber(value: string | undefined | null): string {
+  return (value ?? '').trim().replace(/\.$/, '').toLocaleLowerCase();
 }
 
 function getSongId(song: Song | null | undefined): number | undefined {
@@ -431,8 +431,12 @@ export default function Home() {
     const normalizedSelectedCategory = normalizeCategory(selectedCategory);
 
     const matchingSongs = songsData.filter((song) => {
+      // Ignoruj piesne bez čísla alebo názvu
+      if (!song || !(song.cisloP ?? '').trim() || !(song.nazov ?? '').trim()) {
+        return false;
+      }
       const normalizedSongNumber = normalizeSongNumber(song.cisloP);
-      const songTitleLower = song.nazov.toLocaleLowerCase();
+      const songTitleLower = (song.nazov ?? '').toLocaleLowerCase();
       const queryMatch = shouldUseCommaFilter
         ? commaSeparatedTerms.some(
             (term) =>

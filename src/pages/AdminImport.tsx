@@ -1,3 +1,5 @@
+import { APP_VERSION } from "../version";
+import { loadSongsFromSupabase } from "../api/supabaseSongs";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -15,7 +17,6 @@ import {
   loadSongForEdit,
   replaceSongsInSupabase,
   syncLocalToSupabase,
-  syncSupabaseToLocal,
   SongWithId,
   updateSongInSupabase,
   upsertSongsToSupabase,
@@ -108,7 +109,7 @@ function formatImportError(error: unknown): string {
     };
 
     const parts = [maybe.message, maybe.details, maybe.hint, maybe.code]
-      .filter((value) => typeof value === "string" && value.trim().length > 0)
+      .filter((value) => typeof value === "string" && (value ?? '').trim().length > 0)
       .map((value) => String(value));
 
     if (parts.length > 0) {
@@ -120,7 +121,7 @@ function formatImportError(error: unknown): string {
 }
 
 function normalizeSongNumber(value: string): string {
-  return value.trim().replace(/\.$/, "").toLocaleLowerCase();
+  return (value ?? '').trim().replace(/\.$/, "").toLocaleLowerCase();
 }
 
 function parseCommaSeparatedQuery(query: string): string[] {
@@ -133,13 +134,13 @@ function parseCommaSeparatedQuery(query: string): string[] {
 function parseVerseOrderInput(raw: string): string[] {
   return raw
     .split(/[\n,;]+/)
-    .map((part) => part.trim())
+    .map((part) => (part ?? '').trim())
     .filter((part) => part.length > 0);
 }
 
 function getNextVerseLabel(verses: SongVerse[]): string {
   const used = new Set(
-    verses.map((v) => String(v.cisloS ?? "").trim().toUpperCase()),
+    verses.map((v) => String(v?.cisloS ?? '').trim().toUpperCase()),
   );
 
   let index = 1;
@@ -227,8 +228,8 @@ export default function AdminImport() {
   );
 
   const filteredAdminSongs = useMemo(() => {
-    if (!adminFilter.trim()) return adminSongs;
-    const lower = adminFilter.toLowerCase().trim();
+    if (!(adminFilter ?? '').trim()) return adminSongs;
+    const lower = (adminFilter ?? '').toLowerCase().trim();
     const commaSeparatedTerms = parseCommaSeparatedQuery(lower);
     const shouldUseCommaFilter =
       lower.includes(",") && commaSeparatedTerms.length > 0;
@@ -361,8 +362,8 @@ export default function AdminImport() {
       const nl = text.indexOf("\n");
       pos = nl > 0 ? nl : Math.floor(text.length / 2);
     }
-    const before = text.slice(0, pos).trimEnd();
-    const after = text.slice(pos).trimStart();
+    const before = (text ?? '').slice(0, pos).trimEnd();
+    const after = (text ?? '').slice(pos).trimStart();
     const newSlohy = [...editForm.slohy];
     const nextLabel = getNextVerseLabel(newSlohy);
     newSlohy[index] = { ...newSlohy[index], textik: before };
@@ -426,8 +427,8 @@ export default function AdminImport() {
       pos = nl > 0 ? nl : Math.floor(text.length / 2);
     }
 
-    const before = text.slice(0, pos).trimEnd();
-    const after = text.slice(pos).trimStart();
+    const before = (text ?? '').slice(0, pos).trimEnd();
+    const after = (text ?? '').slice(pos).trimStart();
     const newSlohy = [...addForm.slohy];
     const nextLabel = getNextVerseLabel(newSlohy);
     newSlohy[index] = { ...newSlohy[index], textik: before };
@@ -456,10 +457,10 @@ export default function AdminImport() {
     setAddSaveState({ status: "loading", message: "Ukladam novu skladbu..." });
     try {
       const song: Song = {
-        cisloP: addForm.cisloP.trim(),
-        nazov: addForm.nazov.trim(),
-        kategoria: addForm.kategoria.trim(),
-        source: addForm.source.trim(),
+        cisloP: (addForm.cisloP ?? '').trim(),
+        nazov: (addForm.nazov ?? '').trim(),
+        kategoria: (addForm.kategoria ?? '').trim(),
+        source: (addForm.source ?? '').trim(),
         poradieSloh: parseVerseOrderInput(addForm.poradieSlohRaw),
         slohy: addForm.slohy,
       };
@@ -482,10 +483,10 @@ export default function AdminImport() {
     setEditSaveState({ status: "loading", message: "Ukladam..." });
     try {
       const song: Song = {
-        cisloP: editForm.cisloP.trim(),
-        nazov: editForm.nazov.trim(),
-        kategoria: editForm.kategoria.trim(),
-        source: editForm.source.trim(),
+        cisloP: (editForm.cisloP ?? '').trim(),
+        nazov: (editForm.nazov ?? '').trim(),
+        kategoria: (editForm.kategoria ?? '').trim(),
+        source: (editForm.source ?? '').trim(),
         poradieSloh: parseVerseOrderInput(editForm.poradieSlohRaw),
         slohy: editForm.slohy,
       };
@@ -553,8 +554,8 @@ export default function AdminImport() {
   function removeDuplicatesByKey(songs: any[]) {
     const seen = new Set();
     return songs.filter((song) => {
-      const key = `${String(song?.cisloP ?? "").trim()}|${String(
-        song?.nazov ?? "",
+      const key = `${String(song?.cisloP ?? '').trim()}|${String(
+        song?.nazov ?? '',
       ).trim()}`;
       if (key === "|") {
         return true;
@@ -657,6 +658,7 @@ export default function AdminImport() {
   }
 
   async function handleSyncSupabaseToLocal() {
+    // Nová implementácia: Sync Supabase -> SQLite backend
     if (!canSyncWithSupabase) {
       setSyncState({
         status: "error",
@@ -672,10 +674,24 @@ export default function AdminImport() {
 
     setSyncState({ status: "loading", message: "Synchronizujem Supabase -> lokal..." });
     try {
-      const count = await syncSupabaseToLocal(replaceLocalOnSync);
+      // 1. Načítaj všetky piesne zo Supabase
+      const songs = await loadSongsFromSupabase("");
+
+      // 2. Ak treba, vymaž SQLite databázu (voliteľné, podľa replaceLocalOnSync)
+      if (replaceLocalOnSync) {
+        await fetch("http://localhost:3001/api/songs", { method: "DELETE" });
+      }
+
+      // 3. Pošli piesne do backendu cez /api/import
+      const resp = await fetch("http://localhost:3001/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(songs),
+      });
+      const result = await resp.json();
       setSyncState({
         status: "success",
-        message: `Hotovo. Prenesenych ${count} skladieb do lokalnej DB (${replaceLocalOnSync ? "prepisat ciel" : "pridat nove"}).`,
+        message: `Hotovo. Prenesenych ${result.imported ?? songs.length} skladieb do lokalnej DB (${replaceLocalOnSync ? "prepisat ciel" : "pridat nove"}).`,
       });
 
       if (adminSongsLoaded && isOfflineMode) {
@@ -718,9 +734,9 @@ export default function AdminImport() {
 
   return (
     <div
-      style={{ padding: 20, maxWidth: 800, margin: "0 auto", color: "black" }}
+      style={{ padding: 20, maxWidth: 800, margin: "0 auto", color: "#222", background: "#fff", borderRadius: 12, boxShadow: "0 2px 12px #0001" }}
     >
-      <h1>Admin Import</h1>
+      <h1>Admin Import <span style={{fontSize:14, fontWeight:400, color:'#888'}}>v{APP_VERSION}</span></h1>
       <p>
         {isOfflineMode
           ? "Offline rezim uklada skladby do lokalnej DB v tomto zariadeni (bez internetu)."
@@ -793,7 +809,7 @@ export default function AdminImport() {
               type="button"
               onClick={handleSyncSupabaseToLocal}
               disabled={!canSyncWithSupabase || syncState.status === "loading"}
-              style={{ padding: "8px 12px" }}
+              style={{ padding: "10px 18px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
             >
               Supabase {"->"} Lokal
             </button>
@@ -819,7 +835,7 @@ export default function AdminImport() {
               type="button"
               onClick={handleSyncLocalToSupabase}
               disabled={!canSyncWithSupabase || syncState.status === "loading"}
-              style={{ padding: "8px 12px" }}
+              style={{ padding: "10px 18px", background: "#388e3c", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
             >
               Lokal {"->"} Supabase
             </button>
@@ -895,7 +911,7 @@ export default function AdminImport() {
               style={{ width: "100%", padding: 8 }}
             />
           </label>
-          <button type="submit" style={{ width: 180, padding: "10px 12px" }}>
+          <button type="submit" style={{ width: 180, padding: "10px 12px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}>
             Prihlasit sa
           </button>
         </form>
@@ -908,7 +924,7 @@ export default function AdminImport() {
               <button
                 type="button"
                 onClick={handleLogout}
-                style={{ width: 180, padding: "10px 12px" }}
+                style={{ width: 180, padding: "10px 12px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
               >
                 Odhlasit sa
               </button>
@@ -967,7 +983,7 @@ export default function AdminImport() {
               type="button"
               onClick={handleLoadAdminSongs}
               disabled={adminSongsLoading}
-              style={{ padding: "8px 16px" }}
+              style={{ padding: "10px 18px", background: "#d32f2f", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
             >
               {adminSongsLoading
                 ? "Nacitavam..."
@@ -978,7 +994,7 @@ export default function AdminImport() {
             <button
               type="button"
               onClick={openAddSongForm}
-              style={{ padding: "8px 16px" }}
+              style={{ padding: "10px 18px", background: "#ffa000", color: "#222", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
             >
               Pridat novu skladbu
             </button>
