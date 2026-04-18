@@ -3,7 +3,17 @@ import { supabase } from "./supabaseClient";
 import { getDataMode } from "./dataMode";
 
 const LOCAL_DB_STORAGE_KEY = "songs.localDb.v1";
-const OFFLINE_API_BASE_URL = "http://localhost:3001/api/songs";
+
+function getOfflineApiOrigin(): string {
+  if (typeof window === "undefined") {
+    return "http://localhost:3001";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  return `${protocol}//${window.location.hostname}:3001`;
+}
+
+const OFFLINE_API_BASE_URL = `${getOfflineApiOrigin()}/api/songs`;
 
 type DbSongRow = {
   id?: number;
@@ -232,7 +242,7 @@ async function deleteSongsFromOfflineApi(ids: number[]): Promise<number> {
 
 // Príklad fetchu piesní z lokálneho backendu
 export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
-  const response = await fetch("http://localhost:3001/api/songs");
+  const response = await fetch(OFFLINE_API_BASE_URL);
   const songs: Song[] = await response.json();
   // Prípadne filtrovanie podľa filter
   return songs.filter((song: Song) =>
@@ -1089,14 +1099,11 @@ export async function updateSongOrderById(
     let backendError: Error | null = null;
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/songs/${id}/poradie`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ poradie_sloh: normalizedOrder }),
-        },
-      );
+      const response = await fetch(`${OFFLINE_API_BASE_URL}/${id}/poradie`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ poradie_sloh: normalizedOrder }),
+      });
 
       if (response.ok) {
         return;

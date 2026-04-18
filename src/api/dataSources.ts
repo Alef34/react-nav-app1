@@ -1,4 +1,3 @@
-
 import { Song, Udaje } from "../types/myTypes";
 import { localData } from "./localData";
 import { checkInternetConnection } from "./myTools";
@@ -7,7 +6,17 @@ import { getDataMode } from "./dataMode";
 import { loadSongsFromSupabase } from "./supabaseSongs";
 
 const LOCAL_SONGS_URL = `${import.meta.env.BASE_URL}songs.json`;
-const REMOTE_SONGS_URL = "https://texty-piesni-csv.azurewebsites.net/WeatherForecast";
+const REMOTE_SONGS_URL =
+  "https://texty-piesni-csv.azurewebsites.net/WeatherForecast";
+
+function getOfflineApiSongsUrl(): string {
+  if (typeof window === "undefined") {
+    return "http://localhost:3001/api/songs";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  return `${protocol}//${window.location.hostname}:3001/api/songs`;
+}
 
 function normalizeSong(raw: unknown): Song {
   const song = (raw ?? {}) as Partial<Song>;
@@ -35,11 +44,42 @@ function normalizeSong(raw: unknown): Song {
   };
 }
 
-
 // Príklad fetchu piesní z lokálneho backendu
 export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
-  const response = await fetch('http://localhost:3001/api/songs');
-  const rawSongs = await response.json();
+  const offlineApiUrl = getOfflineApiSongsUrl();
+  let response: Response;
+
+  try {
+    response = await fetch(offlineApiUrl);
+  } catch {
+    throw new Error(
+      `Offline API nie je dostupne na ${offlineApiUrl}. Skontroluj, ci backend bezi na RPI (port 3001).`,
+    );
+  }
+
+  if (!response.ok) {
+    const rawBody = await response.text();
+    const body = rawBody.trim();
+    throw new Error(
+      body.length > 0
+        ? `Offline API vratilo chybu ${response.status}: ${body}`
+        : `Offline API vratilo chybu ${response.status}.`,
+    );
+  }
+
+  let rawSongs: unknown;
+  try {
+    rawSongs = await response.json();
+  } catch {
+    throw new Error("Offline API vratilo neplatne JSON data.");
+  }
+
+  if (!Array.isArray(rawSongs)) {
+    throw new Error(
+      "Offline API vratilo neocakavany format dat (ocakavane pole skladieb).",
+    );
+  }
+
   // Premapuj polia z SQLite na očakávané názvy
   const songs: Song[] = rawSongs.map((row: any) => ({
     id: row.id,
@@ -49,18 +89,27 @@ export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
     kategoria: row.kategoria ? String(row.kategoria) : "",
     poradieSloh: Array.isArray(row.poradie_sloh)
       ? row.poradie_sloh
-      : typeof row.poradie_sloh === 'string' && row.poradie_sloh.trim().length > 0
-        ? (() => { try { return JSON.parse(row.poradie_sloh); } catch { return []; } })()
-        : [],
+      : typeof row.poradie_sloh === "string" &&
+        row.poradie_sloh.trim().length > 0
+      ? (() => {
+          try {
+            return JSON.parse(row.poradie_sloh);
+          } catch {
+            return [];
+          }
+        })()
+      : [],
     slohy: Array.isArray(row.slohy) ? row.slohy : [],
   }));
   if (!filter || filter.trim() === "") {
     return songs;
   }
-  return songs.filter(song =>
+  return songs.filter((song) =>
     Object.values(song).some(
-      value => typeof value === "string" && value.toLowerCase().includes(filter.toLowerCase())
-    )
+      (value) =>
+        typeof value === "string" &&
+        value.toLowerCase().includes(filter.toLowerCase()),
+    ),
   );
 }
 
@@ -115,72 +164,71 @@ export async function getSongs(filter: string): Promise<Song[]> {
   let ud: Song[] = [];
   const localSongs = await loadLocalSongs();
   if (localSongs) {
-    localData.set('udaje', localSongs);
+    localData.set("udaje", localSongs);
     ud = normalizeSongs(localSongs.piesne);
     return ud.filter((piesen) =>
       Object.values(piesen).some(
-        (value) => typeof value === "string" && value.toLowerCase().includes(loweredFilter)
-      )
+        (value) =>
+          typeof value === "string" &&
+          value.toLowerCase().includes(loweredFilter),
+      ),
     );
   }
 
-  const cachedUdaje = localData.get('udaje');
+  const cachedUdaje = localData.get("udaje");
   if (cachedUdaje != undefined) {
     const vvNew: string = await getVersion();
     const vvOld: string = String(cachedUdaje?.verzia ?? "");
     if (vvNew != vvOld) {
       const jeInternet: boolean = await checkInternetConnection();
-      if (jeInternet)
-        localData.remove('udaje');
-      else
-        alert('su nove udaje');
+      if (jeInternet) localData.remove("udaje");
+      else alert("su nove udaje");
     }
   }
 
-  if (localData.get('udaje') == undefined) {
+  if (localData.get("udaje") == undefined) {
     const response = await fetch(REMOTE_SONGS_URL);
     const noveData: Udaje = await response.json();
     ud = normalizeSongs(noveData.piesne);
-    localData.set('udaje', noveData);
+    localData.set("udaje", noveData);
   } else {
-    const jsonData = localData.get('udaje'); // Načítaj reťazec z localStorage
+    const jsonData = localData.get("udaje"); // Načítaj reťazec z localStorage
     if (jsonData) {
       ud = normalizeSongs(jsonData.piesne);
     }
   }
   const poslaneData: Song[] = ud.filter((piesen) =>
     Object.values(piesen).some(
-      (value) => typeof value === "string" && value.toLowerCase().includes(loweredFilter)
-    )
+      (value) =>
+        typeof value === "string" &&
+        value.toLowerCase().includes(loweredFilter),
+    ),
   );
   return poslaneData;
 }
 
+export async function getVersion(): Promise<string> {
+  const dataMode = getDataMode();
 
-  export async function getVersion():Promise<string> {
-    const dataMode = getDataMode();
-
-    if (dataMode === "offline") {
-      return "offline-local-db";
-    }
-
-    if (isSupabaseConfigured) {
-      return "supabase";
-    }
-
-    let ver:string = "";
-    
-      const localSongs = await loadLocalSongs();
-      if (localSongs?.verzia) {
-        return localSongs.verzia;
-      }
-
-      const response = await fetch(REMOTE_SONGS_URL);
-      const noveData:Udaje = await response.json();
-      ver = noveData.verzia;
-      //localData.set('udaje', noveData);
-    
-  
-    return ver;
-  
+  if (dataMode === "offline") {
+    return "offline-local-db";
   }
+
+  if (isSupabaseConfigured) {
+    return "supabase";
+  }
+
+  let ver: string = "";
+
+  const localSongs = await loadLocalSongs();
+  if (localSongs?.verzia) {
+    return localSongs.verzia;
+  }
+
+  const response = await fetch(REMOTE_SONGS_URL);
+  const noveData: Udaje = await response.json();
+  ver = noveData.verzia;
+  //localData.set('udaje', noveData);
+
+  return ver;
+}

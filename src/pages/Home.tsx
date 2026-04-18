@@ -71,7 +71,7 @@ function getSongCategory(song: Song): string {
 }
 
 function normalizeSongNumber(value: string | undefined | null): string {
-  return (value ?? '').trim().replace(/\.$/, '').toLocaleLowerCase();
+  return (value ?? "").trim().replace(/\.$/, "").toLocaleLowerCase();
 }
 
 function getSongId(song: Song | null | undefined): number | undefined {
@@ -354,7 +354,7 @@ export default function Home() {
   const { verziaDb } = useVersionStore();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isSuccess } = useQuery({
+  const { data, error, isLoading, isSuccess } = useQuery({
     queryKey: ["songs", verziaDb],
     queryFn: () => getSongs(""),
   });
@@ -436,11 +436,11 @@ export default function Home() {
 
     const matchingSongs = songsData.filter((song) => {
       // Ignoruj piesne bez čísla alebo názvu
-      if (!song || !(song.cisloP ?? '').trim() || !(song.nazov ?? '').trim()) {
+      if (!song || !(song.cisloP ?? "").trim() || !(song.nazov ?? "").trim()) {
         return false;
       }
       const normalizedSongNumber = normalizeSongNumber(song.cisloP);
-      const songTitleLower = (song.nazov ?? '').toLocaleLowerCase();
+      const songTitleLower = (song.nazov ?? "").toLocaleLowerCase();
       const queryMatch = shouldUseCommaFilter
         ? commaSeparatedTerms.some(
             (term) =>
@@ -942,6 +942,11 @@ export default function Home() {
   }
 
   if (!isSuccess) {
+    const errorMessage =
+      error instanceof Error && error.message.trim().length > 0
+        ? error.message
+        : "Neznamy dovod. Skontroluj dostupnost datoveho zdroja.";
+
     return (
       <div
         style={{
@@ -952,7 +957,10 @@ export default function Home() {
           minHeight: "100svh",
         }}
       >
-        Error loading data
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+          Error loading data
+        </div>
+        <div style={{ fontSize: 16, lineHeight: 1.4 }}>{errorMessage}</div>
       </div>
     );
   }

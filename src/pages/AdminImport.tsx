@@ -157,6 +157,15 @@ function getNextVerseLabel(verses: SongVerse[]): string {
   return `V${index}`;
 }
 
+function getOfflineApiBaseUrl(): string {
+  if (typeof window === "undefined") {
+    return "http://localhost:3001";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  return `${protocol}//${window.location.hostname}:3001`;
+}
+
 export default function AdminImport({
   crudOnly = false,
 }: {
@@ -696,11 +705,13 @@ export default function AdminImport({
 
       // 2. Ak treba, vymaž SQLite databázu (voliteľné, podľa replaceLocalOnSync)
       if (replaceLocalOnSync) {
-        await fetch("http://localhost:3001/api/songs", { method: "DELETE" });
+        await fetch(`${getOfflineApiBaseUrl()}/api/songs`, {
+          method: "DELETE",
+        });
       }
 
       // 3. Pošli piesne do backendu cez /api/import
-      const resp = await fetch("http://localhost:3001/api/import", {
+      const resp = await fetch(`${getOfflineApiBaseUrl()}/api/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(songs),
