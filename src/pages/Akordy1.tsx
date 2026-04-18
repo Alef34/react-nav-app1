@@ -385,6 +385,13 @@ export default function Akordy1() {
     const songId = getSongId(activeSong);
     if (songId === undefined) {
       console.error("Ukladanie poradia zlyhalo: skladba nema stabilne id.");
+      setProjectorFeedback({
+        message: "Ukladanie poradia zlyhalo: skladba nema ID.",
+        tone: "warn",
+      });
+      window.setTimeout(() => {
+        setProjectorFeedback(null);
+      }, 2200);
       return;
     }
 
@@ -430,6 +437,13 @@ export default function Akordy1() {
     const songId = getSongId(activeSong);
     if (songId === undefined) {
       console.error("Mazanie poradia zlyhalo: skladba nema stabilne id.");
+      setProjectorFeedback({
+        message: "Mazanie poradia zlyhalo: skladba nema ID.",
+        tone: "warn",
+      });
+      window.setTimeout(() => {
+        setProjectorFeedback(null);
+      }, 2200);
       return;
     }
 

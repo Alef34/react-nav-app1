@@ -57,16 +57,17 @@ function getDefaultLocalDbState(): LocalDbState {
 
 // Príklad fetchu piesní z lokálneho backendu
 export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
-  const response = await fetch('http://localhost:3001/api/songs');
+  const response = await fetch("http://localhost:3001/api/songs");
   const songs: Song[] = await response.json();
   // Prípadne filtrovanie podľa filter
   return songs.filter((song: Song) =>
     Object.values(song).some(
-      value => typeof value === "string" && value.toLowerCase().includes(filter.toLowerCase())
-    )
+      (value) =>
+        typeof value === "string" &&
+        value.toLowerCase().includes(filter.toLowerCase()),
+    ),
   );
 }
-
 
 function readLocalDb(): LocalDbState {
   if (typeof window === "undefined") {
@@ -384,7 +385,6 @@ async function createSongInLocalDb(song: Song): Promise<SongWithId> {
     source: normalized.source ?? "",
   };
 }
-
 
 function normalizeVerse(verse: SongVerse, index: number): SongVerse {
   return {
@@ -867,13 +867,51 @@ export async function updateSongOrderById(
     : [];
 
   if (shouldUseOfflineDb()) {
-    // Ulož do SQLite backendu namiesto localStorage
-    await fetch(`http://localhost:3001/api/songs/${id}/poradie`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ poradie_sloh: normalizedOrder }),
-    });
-    return;
+    let backendError: Error | null = null;
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/songs/${id}/poradie`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ poradie_sloh: normalizedOrder }),
+        },
+      );
+
+      if (response.ok) {
+        return;
+      }
+
+      const rawBody = await response.text();
+      const bodyText = rawBody.trim();
+      backendError = new Error(
+        bodyText.length > 0
+          ? `Offline API vratilo chybu ${response.status}: ${bodyText}`
+          : `Offline API vratilo chybu ${response.status}.`,
+      );
+    } catch (error) {
+      backendError =
+        error instanceof Error
+          ? error
+          : new Error("Offline API nie je dostupne.");
+    }
+
+    // Fallback na localStorage DB, aby ukladanie fungovalo aj bez lokalneho API.
+    try {
+      const localSong = await loadSongForEditFromLocalDb(id);
+      await updateSongInLocalDb(id, {
+        ...localSong,
+        poradieSloh: normalizedOrder.length > 0 ? normalizedOrder : undefined,
+      });
+      return;
+    } catch {
+      if (backendError) {
+        throw backendError;
+      }
+
+      throw new Error("Ukladanie poradia zlyhalo v offline ulozisku.");
+    }
   }
 
   if (!supabase) {
