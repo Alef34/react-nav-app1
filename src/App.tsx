@@ -5,6 +5,7 @@ import Akordy1 from "./pages/Akordy1";
 import ProjectorView from "./pages/ProjectorView";
 import { Modal } from "./pages/Settings";
 import AdminImport from "./pages/AdminImport";
+import AdminCRUD from "./pages/AdminCRUD";
 
 function App() {
   const location = useLocation();
@@ -21,6 +22,7 @@ function App() {
         </Route>
         <Route path={"/projector"} element={<ProjectorView />} />
         <Route path={"/admin-import"} element={<AdminImport />} />
+        <Route path={"/admin-crud"} element={<AdminCRUD />} />
       </Routes>
       {background && (
         <Routes>

@@ -109,7 +109,9 @@ function formatImportError(error: unknown): string {
     };
 
     const parts = [maybe.message, maybe.details, maybe.hint, maybe.code]
-      .filter((value) => typeof value === "string" && (value ?? '').trim().length > 0)
+      .filter(
+        (value) => typeof value === "string" && (value ?? "").trim().length > 0,
+      )
       .map((value) => String(value));
 
     if (parts.length > 0) {
@@ -121,7 +123,7 @@ function formatImportError(error: unknown): string {
 }
 
 function normalizeSongNumber(value: string): string {
-  return (value ?? '').trim().replace(/\.$/, "").toLocaleLowerCase();
+  return (value ?? "").trim().replace(/\.$/, "").toLocaleLowerCase();
 }
 
 function parseCommaSeparatedQuery(query: string): string[] {
@@ -134,13 +136,17 @@ function parseCommaSeparatedQuery(query: string): string[] {
 function parseVerseOrderInput(raw: string): string[] {
   return raw
     .split(/[\n,;]+/)
-    .map((part) => (part ?? '').trim())
+    .map((part) => (part ?? "").trim())
     .filter((part) => part.length > 0);
 }
 
 function getNextVerseLabel(verses: SongVerse[]): string {
   const used = new Set(
-    verses.map((v) => String(v?.cisloS ?? '').trim().toUpperCase()),
+    verses.map((v) =>
+      String(v?.cisloS ?? "")
+        .trim()
+        .toUpperCase(),
+    ),
   );
 
   let index = 1;
@@ -151,7 +157,11 @@ function getNextVerseLabel(verses: SongVerse[]): string {
   return `V${index}`;
 }
 
-export default function AdminImport() {
+export default function AdminImport({
+  crudOnly = false,
+}: {
+  crudOnly?: boolean;
+}) {
   const [dataMode, setDataModeState] = useState<DataMode>(() => getDataMode());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -200,7 +210,8 @@ export default function AdminImport() {
     };
 
     window.addEventListener("data-mode-changed", handleDataModeChanged);
-    return () => window.removeEventListener("data-mode-changed", handleDataModeChanged);
+    return () =>
+      window.removeEventListener("data-mode-changed", handleDataModeChanged);
   }, []);
 
   useEffect(() => {
@@ -228,30 +239,28 @@ export default function AdminImport() {
   );
 
   const filteredAdminSongs = useMemo(() => {
-    if (!(adminFilter ?? '').trim()) return adminSongs;
-    const lower = (adminFilter ?? '').toLowerCase().trim();
+    if (!(adminFilter ?? "").trim()) return adminSongs;
+    const lower = (adminFilter ?? "").toLowerCase().trim();
     const commaSeparatedTerms = parseCommaSeparatedQuery(lower);
     const shouldUseCommaFilter =
       lower.includes(",") && commaSeparatedTerms.length > 0;
 
-    return adminSongs.filter(
-      (s) => {
-        const normalizedSongNumber = normalizeSongNumber(s.cisloP);
-        const songTitleLower = s.nazov.toLowerCase();
-        const songCategoryLower = s.kategoria.toLowerCase();
+    return adminSongs.filter((s) => {
+      const normalizedSongNumber = normalizeSongNumber(s.cisloP);
+      const songTitleLower = s.nazov.toLowerCase();
+      const songCategoryLower = s.kategoria.toLowerCase();
 
-        return shouldUseCommaFilter
-          ? commaSeparatedTerms.some(
-              (term) =>
-                normalizedSongNumber === term ||
-                songTitleLower.includes(term) ||
-                songCategoryLower.includes(term),
-            )
-          : s.cisloP.toLowerCase().includes(lower) ||
-              songTitleLower.includes(lower) ||
-              songCategoryLower.includes(lower);
-      },
-    );
+      return shouldUseCommaFilter
+        ? commaSeparatedTerms.some(
+            (term) =>
+              normalizedSongNumber === term ||
+              songTitleLower.includes(term) ||
+              songCategoryLower.includes(term),
+          )
+        : s.cisloP.toLowerCase().includes(lower) ||
+            songTitleLower.includes(lower) ||
+            songCategoryLower.includes(lower);
+    });
   }, [adminSongs, adminFilter]);
 
   const allVisibleSelected =
@@ -362,8 +371,8 @@ export default function AdminImport() {
       const nl = text.indexOf("\n");
       pos = nl > 0 ? nl : Math.floor(text.length / 2);
     }
-    const before = (text ?? '').slice(0, pos).trimEnd();
-    const after = (text ?? '').slice(pos).trimStart();
+    const before = (text ?? "").slice(0, pos).trimEnd();
+    const after = (text ?? "").slice(pos).trimStart();
     const newSlohy = [...editForm.slohy];
     const nextLabel = getNextVerseLabel(newSlohy);
     newSlohy[index] = { ...newSlohy[index], textik: before };
@@ -427,8 +436,8 @@ export default function AdminImport() {
       pos = nl > 0 ? nl : Math.floor(text.length / 2);
     }
 
-    const before = (text ?? '').slice(0, pos).trimEnd();
-    const after = (text ?? '').slice(pos).trimStart();
+    const before = (text ?? "").slice(0, pos).trimEnd();
+    const after = (text ?? "").slice(pos).trimStart();
     const newSlohy = [...addForm.slohy];
     const nextLabel = getNextVerseLabel(newSlohy);
     newSlohy[index] = { ...newSlohy[index], textik: before };
@@ -446,7 +455,10 @@ export default function AdminImport() {
     if (!addForm) return;
     setAddForm({
       ...addForm,
-      slohy: [...addForm.slohy, { cisloS: getNextVerseLabel(addForm.slohy), textik: "" }],
+      slohy: [
+        ...addForm.slohy,
+        { cisloS: getNextVerseLabel(addForm.slohy), textik: "" },
+      ],
     });
   }
 
@@ -457,10 +469,10 @@ export default function AdminImport() {
     setAddSaveState({ status: "loading", message: "Ukladam novu skladbu..." });
     try {
       const song: Song = {
-        cisloP: (addForm.cisloP ?? '').trim(),
-        nazov: (addForm.nazov ?? '').trim(),
-        kategoria: (addForm.kategoria ?? '').trim(),
-        source: (addForm.source ?? '').trim(),
+        cisloP: (addForm.cisloP ?? "").trim(),
+        nazov: (addForm.nazov ?? "").trim(),
+        kategoria: (addForm.kategoria ?? "").trim(),
+        source: (addForm.source ?? "").trim(),
         poradieSloh: parseVerseOrderInput(addForm.poradieSlohRaw),
         slohy: addForm.slohy,
       };
@@ -483,10 +495,10 @@ export default function AdminImport() {
     setEditSaveState({ status: "loading", message: "Ukladam..." });
     try {
       const song: Song = {
-        cisloP: (editForm.cisloP ?? '').trim(),
-        nazov: (editForm.nazov ?? '').trim(),
-        kategoria: (editForm.kategoria ?? '').trim(),
-        source: (editForm.source ?? '').trim(),
+        cisloP: (editForm.cisloP ?? "").trim(),
+        nazov: (editForm.nazov ?? "").trim(),
+        kategoria: (editForm.kategoria ?? "").trim(),
+        source: (editForm.source ?? "").trim(),
         poradieSloh: parseVerseOrderInput(editForm.poradieSlohRaw),
         slohy: editForm.slohy,
       };
@@ -554,8 +566,8 @@ export default function AdminImport() {
   function removeDuplicatesByKey(songs: any[]) {
     const seen = new Set();
     return songs.filter((song) => {
-      const key = `${String(song?.cisloP ?? '').trim()}|${String(
-        song?.nazov ?? '',
+      const key = `${String(song?.cisloP ?? "").trim()}|${String(
+        song?.nazov ?? "",
       ).trim()}`;
       if (key === "|") {
         return true;
@@ -642,7 +654,10 @@ export default function AdminImport() {
     setSyncState({ status: "idle", message: "" });
   }
 
-  function confirmSyncAction(direction: "supabase-to-local" | "local-to-supabase", replaceAll: boolean): boolean {
+  function confirmSyncAction(
+    direction: "supabase-to-local" | "local-to-supabase",
+    replaceAll: boolean,
+  ): boolean {
     const directionText =
       direction === "supabase-to-local"
         ? "Supabase -> Lokal"
@@ -662,8 +677,7 @@ export default function AdminImport() {
     if (!canSyncWithSupabase) {
       setSyncState({
         status: "error",
-        message:
-          "Pre sync zo Supabase sa prepni na Online rezim a prihlas sa.",
+        message: "Pre sync zo Supabase sa prepni na Online rezim a prihlas sa.",
       });
       return;
     }
@@ -672,7 +686,10 @@ export default function AdminImport() {
       return;
     }
 
-    setSyncState({ status: "loading", message: "Synchronizujem Supabase -> lokal..." });
+    setSyncState({
+      status: "loading",
+      message: "Synchronizujem Supabase -> lokal...",
+    });
     try {
       // 1. Načítaj všetky piesne zo Supabase
       const songs = await loadSongsFromSupabase("");
@@ -691,7 +708,11 @@ export default function AdminImport() {
       const result = await resp.json();
       setSyncState({
         status: "success",
-        message: `Hotovo. Prenesenych ${result.imported ?? songs.length} skladieb do lokalnej DB (${replaceLocalOnSync ? "prepisat ciel" : "pridat nove"}).`,
+        message: `Hotovo. Prenesenych ${
+          result.imported ?? songs.length
+        } skladieb do lokalnej DB (${
+          replaceLocalOnSync ? "prepisat ciel" : "pridat nove"
+        }).`,
       });
 
       if (adminSongsLoaded && isOfflineMode) {
@@ -706,8 +727,7 @@ export default function AdminImport() {
     if (!canSyncWithSupabase) {
       setSyncState({
         status: "error",
-        message:
-          "Pre sync do Supabase sa prepni na Online rezim a prihlas sa.",
+        message: "Pre sync do Supabase sa prepni na Online rezim a prihlas sa.",
       });
       return;
     }
@@ -716,12 +736,17 @@ export default function AdminImport() {
       return;
     }
 
-    setSyncState({ status: "loading", message: "Synchronizujem lokal -> Supabase..." });
+    setSyncState({
+      status: "loading",
+      message: "Synchronizujem lokal -> Supabase...",
+    });
     try {
       const count = await syncLocalToSupabase(replaceSupabaseOnSync);
       setSyncState({
         status: "success",
-        message: `Hotovo. Prenesenych ${count} skladieb do Supabase (${replaceSupabaseOnSync ? "prepisat ciel" : "pridat nove"}).`,
+        message: `Hotovo. Prenesenych ${count} skladieb do Supabase (${
+          replaceSupabaseOnSync ? "prepisat ciel" : "pridat nove"
+        }).`,
       });
 
       if (adminSongsLoaded && !isOfflineMode) {
@@ -734,9 +759,22 @@ export default function AdminImport() {
 
   return (
     <div
-      style={{ padding: 20, maxWidth: 800, margin: "0 auto", color: "#222", background: "#fff", borderRadius: 12, boxShadow: "0 2px 12px #0001" }}
+      style={{
+        padding: 20,
+        maxWidth: 800,
+        margin: "0 auto",
+        color: "#222",
+        background: "#fff",
+        borderRadius: 12,
+        boxShadow: "0 2px 12px #0001",
+      }}
     >
-      <h1>Admin Import <span style={{fontSize:14, fontWeight:400, color:'#888'}}>v{APP_VERSION}</span></h1>
+      <h1>
+        {crudOnly ? "Admin CRUD" : "Admin Import"}{" "}
+        <span style={{ fontSize: 14, fontWeight: 400, color: "#888" }}>
+          v{APP_VERSION}
+        </span>
+      </h1>
       <p>
         {isOfflineMode
           ? "Offline rezim uklada skladby do lokalnej DB v tomto zariadeni (bez internetu)."
@@ -745,6 +783,38 @@ export default function AdminImport() {
       <p>
         <Link to="/">Spat na domov</Link>
       </p>
+
+      {!crudOnly && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 8,
+            border: "1px solid #bbb",
+            backgroundColor: "#f8f8f8",
+          }}
+        >
+          <strong>Sprava skladieb</strong>
+          <p style={{ marginTop: 8, marginBottom: 10 }}>
+            Pridavanie, upravy a mazanie skladieb je presunute do samostatneho
+            okna.
+          </p>
+          <Link
+            to="/admin-crud"
+            style={{
+              display: "inline-block",
+              padding: "10px 16px",
+              background: "#ffa000",
+              color: "#222",
+              borderRadius: 6,
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            Otvorit Admin CRUD
+          </Link>
+        </div>
+      )}
 
       <div
         style={{
@@ -778,97 +848,123 @@ export default function AdminImport() {
         </div>
       </div>
 
-      <div
-        style={{
-          marginBottom: 16,
-          padding: 12,
-          borderRadius: 8,
-          border: "1px solid #bbb",
-          backgroundColor: "#f8f8f8",
-        }}
-      >
-        <strong>Synchronizacia databaz</strong>
-        <p style={{ marginTop: 8, marginBottom: 8 }}>
-          Prenos skladieb medzi Supabase a lokalnou DB.
-        </p>
-        {!canSyncWithSupabase && (
-          <p style={{ marginTop: 0, color: "#b00" }}>
-            Pre sync je potrebny Online rezim + prihlasenie do Supabase.
+      {!crudOnly && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 8,
+            border: "1px solid #bbb",
+            backgroundColor: "#f8f8f8",
+          }}
+        >
+          <strong>Synchronizacia databaz</strong>
+          <p style={{ marginTop: 8, marginBottom: 8 }}>
+            Prenos skladieb medzi Supabase a lokalnou DB.
           </p>
-        )}
-        <div style={{ display: "grid", gap: 10 }}>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 8,
-              alignItems: "center",
-            }}
-          >
-            <button
-              type="button"
-              onClick={handleSyncSupabaseToLocal}
-              disabled={!canSyncWithSupabase || syncState.status === "loading"}
-              style={{ padding: "10px 18px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
+          {!canSyncWithSupabase && (
+            <p style={{ marginTop: 0, color: "#b00" }}>
+              Pre sync je potrebny Online rezim + prihlasenie do Supabase.
+            </p>
+          )}
+          <div style={{ display: "grid", gap: 10 }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                alignItems: "center",
+              }}
             >
-              Supabase {"->"} Lokal
-            </button>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input
-                type="checkbox"
-                checked={replaceLocalOnSync}
-                onChange={(e) => setReplaceLocalOnSync(e.target.checked)}
-              />
-              Prepisat lokalnu DB
-            </label>
+              <button
+                type="button"
+                onClick={handleSyncSupabaseToLocal}
+                disabled={
+                  !canSyncWithSupabase || syncState.status === "loading"
+                }
+                style={{
+                  padding: "10px 18px",
+                  background: "#1976d2",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  fontSize: 16,
+                  cursor: "pointer",
+                  boxShadow: "0 1px 4px #0002",
+                }}
+              >
+                Supabase {"->"} Lokal
+              </button>
+              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={replaceLocalOnSync}
+                  onChange={(e) => setReplaceLocalOnSync(e.target.checked)}
+                />
+                Prepisat lokalnu DB
+              </label>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                alignItems: "center",
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleSyncLocalToSupabase}
+                disabled={
+                  !canSyncWithSupabase || syncState.status === "loading"
+                }
+                style={{
+                  padding: "10px 18px",
+                  background: "#388e3c",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  fontSize: 16,
+                  cursor: "pointer",
+                  boxShadow: "0 1px 4px #0002",
+                }}
+              >
+                Lokal {"->"} Supabase
+              </button>
+              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={replaceSupabaseOnSync}
+                  onChange={(e) => setReplaceSupabaseOnSync(e.target.checked)}
+                />
+                Prepisat Supabase
+              </label>
+            </div>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 8,
-              alignItems: "center",
-            }}
-          >
-            <button
-              type="button"
-              onClick={handleSyncLocalToSupabase}
-              disabled={!canSyncWithSupabase || syncState.status === "loading"}
-              style={{ padding: "10px 18px", background: "#388e3c", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
+          {syncState.message && (
+            <p
+              style={{
+                marginTop: 10,
+                marginBottom: 0,
+                padding: 10,
+                borderRadius: 8,
+                backgroundColor:
+                  syncState.status === "error"
+                    ? "var(--color-danger-bg)"
+                    : syncState.status === "success"
+                    ? "var(--color-success-bg)"
+                    : "var(--color-panel-bg)",
+              }}
             >
-              Lokal {"->"} Supabase
-            </button>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input
-                type="checkbox"
-                checked={replaceSupabaseOnSync}
-                onChange={(e) => setReplaceSupabaseOnSync(e.target.checked)}
-              />
-              Prepisat Supabase
-            </label>
-          </div>
+              {syncState.message}
+            </p>
+          )}
         </div>
-
-        {syncState.message && (
-          <p
-            style={{
-              marginTop: 10,
-              marginBottom: 0,
-              padding: 10,
-              borderRadius: 8,
-              backgroundColor:
-                syncState.status === "error"
-                  ? "var(--color-danger-bg)"
-                  : syncState.status === "success"
-                  ? "var(--color-success-bg)"
-                  : "var(--color-panel-bg)",
-            }}
-          >
-            {syncState.message}
-          </p>
-        )}
-      </div>
+      )}
 
       {!isOfflineMode && !isSupabaseConfigured && (
         <div
@@ -884,47 +980,77 @@ export default function AdminImport() {
         </div>
       )}
 
-      {!isOfflineMode && isSupabaseConfigured && isAuthLoading && <p>Overujem session...</p>}
-
-      {!isOfflineMode && isSupabaseConfigured && !isAuthLoading && !isLoggedIn && (
-        <form
-          onSubmit={handleLogin}
-          style={{ display: "grid", gap: 10, maxWidth: 360 }}
-        >
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ width: "100%", padding: 8 }}
-            />
-          </label>
-          <label>
-            Heslo
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ width: "100%", padding: 8 }}
-            />
-          </label>
-          <button type="submit" style={{ width: 180, padding: "10px 12px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}>
-            Prihlasit sa
-          </button>
-        </form>
+      {!isOfflineMode && isSupabaseConfigured && isAuthLoading && (
+        <p>Overujem session...</p>
       )}
 
-      {canUseImport && (
+      {!isOfflineMode &&
+        isSupabaseConfigured &&
+        !isAuthLoading &&
+        !isLoggedIn && (
+          <form
+            onSubmit={handleLogin}
+            style={{ display: "grid", gap: 10, maxWidth: 360 }}
+          >
+            <label>
+              Email
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                style={{ width: "100%", padding: 8 }}
+              />
+            </label>
+            <label>
+              Heslo
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{ width: "100%", padding: 8 }}
+              />
+            </label>
+            <button
+              type="submit"
+              style={{
+                width: 180,
+                padding: "10px 12px",
+                background: "#1976d2",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                fontWeight: 600,
+                fontSize: 16,
+                cursor: "pointer",
+                boxShadow: "0 1px 4px #0002",
+              }}
+            >
+              Prihlasit sa
+            </button>
+          </form>
+        )}
+
+      {!crudOnly && canUseImport && (
         <div style={{ display: "grid", gap: 12 }}>
           {!isOfflineMode && (
             <div>
               <button
                 type="button"
                 onClick={handleLogout}
-                style={{ width: 180, padding: "10px 12px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
+                style={{
+                  width: 180,
+                  padding: "10px 12px",
+                  background: "#1976d2",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  fontSize: 16,
+                  cursor: "pointer",
+                  boxShadow: "0 1px 4px #0002",
+                }}
               >
                 Odhlasit sa
               </button>
@@ -951,7 +1077,7 @@ export default function AdminImport() {
         </div>
       )}
 
-      {importState.message && (
+      {!crudOnly && importState.message && (
         <p
           style={{
             marginTop: 16,
@@ -969,7 +1095,7 @@ export default function AdminImport() {
         </p>
       )}
 
-      {canUseImport && (
+      {crudOnly && canUseImport && (
         <div
           style={{
             marginTop: 32,
@@ -978,12 +1104,29 @@ export default function AdminImport() {
           }}
         >
           <h2 style={{ marginTop: 0 }}>Mazanie skladieb</h2>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 12,
+            }}
+          >
             <button
               type="button"
               onClick={handleLoadAdminSongs}
               disabled={adminSongsLoading}
-              style={{ padding: "10px 18px", background: "#d32f2f", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
+              style={{
+                padding: "10px 18px",
+                background: "#d32f2f",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                fontWeight: 600,
+                fontSize: 16,
+                cursor: "pointer",
+                boxShadow: "0 1px 4px #0002",
+              }}
             >
               {adminSongsLoading
                 ? "Nacitavam..."
@@ -994,7 +1137,17 @@ export default function AdminImport() {
             <button
               type="button"
               onClick={openAddSongForm}
-              style={{ padding: "10px 18px", background: "#ffa000", color: "#222", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 16, cursor: "pointer", boxShadow: "0 1px 4px #0002" }}
+              style={{
+                padding: "10px 18px",
+                background: "#ffa000",
+                color: "#222",
+                border: "none",
+                borderRadius: 6,
+                fontWeight: 600,
+                fontSize: 16,
+                cursor: "pointer",
+                boxShadow: "0 1px 4px #0002",
+              }}
             >
               Pridat novu skladbu
             </button>
@@ -1105,8 +1258,8 @@ export default function AdminImport() {
                           padding: "2px 8px",
                           border: "1px solid #aaa",
                           borderRadius: 3,
-                          background: "#eee", 
-                          color: "#222", 
+                          background: "#eee",
+                          color: "#222",
                           cursor: "pointer",
                           flexShrink: 0,
                         }}
@@ -1139,7 +1292,7 @@ export default function AdminImport() {
         </div>
       )}
 
-      {editForm && (
+      {crudOnly && editForm && (
         <div
           style={{
             position: "fixed",
@@ -1247,7 +1400,8 @@ export default function AdminImport() {
                   }}
                 />
                 <small style={{ color: "#555" }}>
-                  Prazdne = standardne poradie podla sloh. Mozes pouzit ciarku, bodkociarku alebo novy riadok.
+                  Prazdne = standardne poradie podla sloh. Mozes pouzit ciarku,
+                  bodkociarku alebo novy riadok.
                 </small>
               </label>
             </div>
@@ -1273,7 +1427,11 @@ export default function AdminImport() {
                   <input
                     value={verse.cisloS}
                     onChange={(e) => handleVerseLabelChange(i, e.target.value)}
-                    style={{ width: 72, padding: "2px 6px", boxSizing: "border-box" }}
+                    style={{
+                      width: 72,
+                      padding: "2px 6px",
+                      boxSizing: "border-box",
+                    }}
                     placeholder="V1"
                     title="Nazov slohy (napr. V1, R, B)"
                   />
@@ -1281,7 +1439,17 @@ export default function AdminImport() {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleSplitVerse(i)}
-                    style={{ fontSize: 12, padding: "2px 8px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, marginRight: 4 }}
+                    style={{
+                      fontSize: 12,
+                      padding: "2px 8px",
+                      background: "#1976d2",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      marginRight: 4,
+                    }}
                     title="Umiestni kurzor v texte a klikni pre rozdelenie"
                   >
                     Rozdelit (pri kurzore)
@@ -1325,7 +1493,16 @@ export default function AdminImport() {
             <button
               type="button"
               onClick={handleAddVerse}
-              style={{ marginBottom: 16, background: "#1976d2", color: "#fff", border: "none", borderRadius: 4, fontWeight: 600, padding: "6px 16px", cursor: "pointer" }}
+              style={{
+                marginBottom: 16,
+                background: "#1976d2",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                fontWeight: 600,
+                padding: "6px 16px",
+                cursor: "pointer",
+              }}
             >
               + Pridat slohu
             </button>
@@ -1336,7 +1513,9 @@ export default function AdminImport() {
                   borderRadius: 4,
                   marginTop: 8,
                   backgroundColor:
-                    editSaveState.status === "error" ? "var(--color-danger-bg)" : "var(--color-success-bg)",
+                    editSaveState.status === "error"
+                      ? "var(--color-danger-bg)"
+                      : "var(--color-success-bg)",
                 }}
               >
                 {editSaveState.message}
@@ -1365,13 +1544,15 @@ export default function AdminImport() {
                   setEditForm(null);
                   setEditSaveState({ status: "idle", message: "" });
                 }}
-                style={{ padding: "8px 20px", 
-                  background: "#eee", 
-                  color: "#222", 
-                  border: "none", 
-                  borderRadius: 4, 
-                  fontWeight: 600, 
-                  cursor: "pointer" }}
+                style={{
+                  padding: "8px 20px",
+                  background: "#eee",
+                  color: "#222",
+                  border: "none",
+                  borderRadius: 4,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
               >
                 Zatvoriť
               </button>
@@ -1380,7 +1561,7 @@ export default function AdminImport() {
         </div>
       )}
 
-      {addForm && (
+      {crudOnly && addForm && (
         <div
           style={{
             position: "fixed",
@@ -1488,7 +1669,8 @@ export default function AdminImport() {
                   }}
                 />
                 <small style={{ color: "#555" }}>
-                  Prazdne = standardne poradie podla sloh. Mozes pouzit ciarku, bodkociarku alebo novy riadok.
+                  Prazdne = standardne poradie podla sloh. Mozes pouzit ciarku,
+                  bodkociarku alebo novy riadok.
                 </small>
               </label>
             </div>
@@ -1513,8 +1695,14 @@ export default function AdminImport() {
                 >
                   <input
                     value={verse.cisloS}
-                    onChange={(e) => handleAddVerseLabelChange(i, e.target.value)}
-                    style={{ width: 72, padding: "2px 6px", boxSizing: "border-box" }}
+                    onChange={(e) =>
+                      handleAddVerseLabelChange(i, e.target.value)
+                    }
+                    style={{
+                      width: 72,
+                      padding: "2px 6px",
+                      boxSizing: "border-box",
+                    }}
                     placeholder="V1"
                     title="Nazov slohy (napr. V1, R, B)"
                   />
@@ -1574,7 +1762,9 @@ export default function AdminImport() {
                   borderRadius: 4,
                   marginTop: 8,
                   backgroundColor:
-                    addSaveState.status === "error" ? "var(--color-danger-bg)" : "var(--color-success-bg)",
+                    addSaveState.status === "error"
+                      ? "var(--color-danger-bg)"
+                      : "var(--color-success-bg)",
                 }}
               >
                 {addSaveState.message}

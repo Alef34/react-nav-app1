@@ -3,6 +3,7 @@ import { supabase } from "./supabaseClient";
 import { getDataMode } from "./dataMode";
 
 const LOCAL_DB_STORAGE_KEY = "songs.localDb.v1";
+const OFFLINE_API_BASE_URL = "http://localhost:3001/api/songs";
 
 type DbSongRow = {
   id?: number;
@@ -39,6 +40,16 @@ type LocalDbState = {
   songs: LocalDbSongRow[];
 };
 
+type OfflineApiSongRow = {
+  id?: number;
+  cislo_p?: string;
+  nazov?: string;
+  source?: string;
+  kategoria?: string;
+  poradie_sloh?: string[];
+  slohy?: SongVerse[];
+};
+
 function parseSongId(value: unknown): number | undefined {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -53,6 +64,170 @@ function getDefaultLocalDbState(): LocalDbState {
     nextId: 1,
     songs: [],
   };
+}
+
+function toOfflineApiSongPayload(song: Song): {
+  cislo_p: string;
+  nazov: string;
+  source: string;
+  kategoria: string;
+  poradie_sloh: string[];
+  slohy: SongVerse[];
+} {
+  const normalized = normalizeSong(song);
+  return {
+    cislo_p: normalized.cisloP,
+    nazov: normalized.nazov,
+    source: normalized.source ?? "",
+    kategoria: normalized.kategoria ?? "Nabozenske",
+    poradie_sloh: normalized.poradieSloh ?? [],
+    slohy: normalized.slohy,
+  };
+}
+
+function mapOfflineApiRowToSong(row: OfflineApiSongRow): Song {
+  return normalizeSong({
+    id: parseSongId(row.id),
+    cisloP: String(row.cislo_p ?? ""),
+    nazov: String(row.nazov ?? ""),
+    source: String(row.source ?? ""),
+    kategoria: String(row.kategoria ?? "Nabozenske"),
+    poradieSloh: Array.isArray(row.poradie_sloh) ? row.poradie_sloh : [],
+    slohy: Array.isArray(row.slohy) ? row.slohy : [],
+  });
+}
+
+function parseOfflineApiError(status: number, text: string): Error {
+  const body = text.trim();
+  return new Error(
+    body.length > 0
+      ? `Offline API vratilo chybu ${status}: ${body}`
+      : `Offline API vratilo chybu ${status}.`,
+  );
+}
+
+async function fetchOfflineApiSongs(): Promise<OfflineApiSongRow[]> {
+  const response = await fetch(OFFLINE_API_BASE_URL);
+  if (!response.ok) {
+    throw parseOfflineApiError(response.status, await response.text());
+  }
+
+  const rows = (await response.json()) as unknown;
+  return Array.isArray(rows) ? (rows as OfflineApiSongRow[]) : [];
+}
+
+async function loadAllSongsForAdminFromOfflineApi(): Promise<SongWithId[]> {
+  const rows = await fetchOfflineApiSongs();
+
+  const normalizedRows = rows.map((row) => ({
+    id: parseSongId(row.id) ?? 0,
+    cislo_p: String(row.cislo_p ?? ""),
+    nazov: String(row.nazov ?? ""),
+    kategoria: String(row.kategoria ?? "Nabozenske"),
+    source: String(row.source ?? ""),
+  }));
+
+  return sortSongsByNumberThenTitle(normalizedRows)
+    .map((row) => ({
+      id: row.id,
+      cisloP: row.cislo_p,
+      nazov: row.nazov,
+      kategoria: row.kategoria,
+      source: row.source,
+    }))
+    .filter((row) => row.id > 0);
+}
+
+async function loadSongForEditFromOfflineApi(
+  id: number,
+): Promise<Song & { id: number }> {
+  const rows = await fetchOfflineApiSongs();
+  const row = rows.find((item) => parseSongId(item.id) === id);
+  if (!row) {
+    throw new Error(
+      "Nacitanie skladby zlyhalo: skladba neexistuje v offline DB.",
+    );
+  }
+
+  const song = mapOfflineApiRowToSong(row);
+  const parsedId = parseSongId(row.id);
+  if (parsedId === undefined) {
+    throw new Error("Nacitanie skladby zlyhalo: neplatne id.");
+  }
+
+  return {
+    ...song,
+    id: parsedId,
+  };
+}
+
+async function createSongInOfflineApi(song: Song): Promise<SongWithId> {
+  const payload = toOfflineApiSongPayload(song);
+
+  const response = await fetch(OFFLINE_API_BASE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw parseOfflineApiError(response.status, await response.text());
+  }
+
+  const data = (await response.json()) as { id?: unknown };
+  const id = parseSongId(data?.id);
+  if (id === undefined) {
+    throw new Error("Pridanie skladby zlyhalo: backend nevratil platne id.");
+  }
+
+  return {
+    id,
+    cisloP: payload.cislo_p,
+    nazov: payload.nazov,
+    kategoria: payload.kategoria,
+    source: payload.source,
+  };
+}
+
+async function updateSongInOfflineApi(id: number, song: Song): Promise<void> {
+  const payload = toOfflineApiSongPayload(song);
+
+  const response = await fetch(`${OFFLINE_API_BASE_URL}/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const rawBody = await response.text();
+    const body = rawBody.trim();
+
+    if (response.status === 404) {
+      throw new Error(
+        "Offline API nema endpoint pre ulozenie editacie (PUT /api/songs/:id). Restartni offline backend (npm run dev:offline), aby sa nacitala nova verzia songs-api.cjs.",
+      );
+    }
+
+    throw parseOfflineApiError(response.status, body);
+  }
+}
+
+async function deleteSongsFromOfflineApi(ids: number[]): Promise<number> {
+  let deletedCount = 0;
+
+  for (const id of ids) {
+    const response = await fetch(`${OFFLINE_API_BASE_URL}/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw parseOfflineApiError(response.status, await response.text());
+    }
+
+    deletedCount += 1;
+  }
+
+  return deletedCount;
 }
 
 // Príklad fetchu piesní z lokálneho backendu
@@ -666,7 +841,11 @@ export async function syncLocalToSupabase(
 
 export async function loadAllSongsForAdmin(): Promise<SongWithId[]> {
   if (shouldUseOfflineDb()) {
-    return loadAllSongsForAdminFromLocalDb();
+    try {
+      return await loadAllSongsForAdminFromOfflineApi();
+    } catch {
+      return loadAllSongsForAdminFromLocalDb();
+    }
   }
 
   if (!supabase) {
@@ -693,7 +872,11 @@ export async function loadAllSongsForAdmin(): Promise<SongWithId[]> {
 
 export async function deleteSongsFromSupabase(ids: number[]): Promise<number> {
   if (shouldUseOfflineDb()) {
-    return deleteSongsFromLocalDb(ids);
+    try {
+      return await deleteSongsFromOfflineApi(ids);
+    } catch {
+      return deleteSongsFromLocalDb(ids);
+    }
   }
 
   if (!supabase) {
@@ -725,7 +908,23 @@ export async function loadSongForEdit(
   id: number,
 ): Promise<Song & { id: number }> {
   if (shouldUseOfflineDb()) {
-    return loadSongForEditFromLocalDb(id);
+    let offlineApiError: Error | null = null;
+
+    try {
+      return await loadSongForEditFromOfflineApi(id);
+    } catch (error) {
+      offlineApiError = error instanceof Error ? error : null;
+    }
+
+    try {
+      return await loadSongForEditFromLocalDb(id);
+    } catch {
+      if (offlineApiError) {
+        throw offlineApiError;
+      }
+
+      throw new Error("Nacitanie skladby zlyhalo: nenajdena");
+    }
   }
 
   if (!supabase) {
@@ -762,7 +961,23 @@ export async function updateSongInSupabase(
   song: Song,
 ): Promise<void> {
   if (shouldUseOfflineDb()) {
-    return updateSongInLocalDb(id, song);
+    let offlineApiError: Error | null = null;
+
+    try {
+      return await updateSongInOfflineApi(id, song);
+    } catch (error) {
+      offlineApiError = error instanceof Error ? error : null;
+    }
+
+    try {
+      return await updateSongInLocalDb(id, song);
+    } catch {
+      if (offlineApiError) {
+        throw offlineApiError;
+      }
+
+      throw new Error("Ukladanie zlyhalo: skladba neexistuje.");
+    }
   }
 
   if (!supabase) {
@@ -810,7 +1025,11 @@ export async function createSongInSupabase(song: Song): Promise<SongWithId> {
   }
 
   if (shouldUseOfflineDb()) {
-    return createSongInLocalDb(normalized);
+    try {
+      return await createSongInOfflineApi(normalized);
+    } catch {
+      return createSongInLocalDb(normalized);
+    }
   }
 
   if (!supabase) {
