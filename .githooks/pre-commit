@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+set -e
+
+npm run gen:version >/dev/null
+
+git add src/version.ts
