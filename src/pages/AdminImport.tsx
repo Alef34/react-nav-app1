@@ -820,9 +820,24 @@ export default function AdminImport({
               borderRadius: 6,
               fontWeight: 700,
               textDecoration: "none",
+              marginRight: 8,
             }}
           >
             Otvorit Admin CRUD
+          </Link>
+          <Link
+            to="/admin-export"
+            style={{
+              display: "inline-block",
+              padding: "10px 16px",
+              background: "#2e7d32",
+              color: "#fff",
+              borderRadius: 6,
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            Otvorit Admin Export
           </Link>
         </div>
       )}

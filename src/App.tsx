@@ -6,6 +6,7 @@ import ProjectorView from "./pages/ProjectorView";
 import { Modal } from "./pages/Settings";
 import AdminImport from "./pages/AdminImport";
 import AdminCRUD from "./pages/AdminCRUD";
+import AdminExport from "./pages/AdminExport";
 
 function App() {
   const location = useLocation();
@@ -23,6 +24,7 @@ function App() {
         <Route path={"/projector"} element={<ProjectorView />} />
         <Route path={"/admin-import"} element={<AdminImport />} />
         <Route path={"/admin-crud"} element={<AdminCRUD />} />
+        <Route path={"/admin-export"} element={<AdminExport />} />
       </Routes>
       {background && (
         <Routes>

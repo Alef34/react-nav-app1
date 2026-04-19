@@ -240,6 +240,87 @@ async function deleteSongsFromOfflineApi(ids: number[]): Promise<number> {
   return deletedCount;
 }
 
+function buildSongKey(song: Song): string {
+  return `${song.cisloP}|${song.nazov}|${song.kategoria ?? "Nabozenske"}|${
+    song.source ?? ""
+  }`
+    .toLocaleLowerCase()
+    .trim();
+}
+
+async function upsertSongsToOfflineApi(payload: Udaje): Promise<number> {
+  const normalizedSongs = (payload.piesne ?? [])
+    .map((song) => normalizeSong(song))
+    .filter(
+      (song) =>
+        song.cisloP.length > 0 &&
+        song.nazov.length > 0 &&
+        Array.isArray(song.slohy) &&
+        song.slohy.length > 0,
+    );
+
+  if (normalizedSongs.length === 0) {
+    throw new Error("Import neobsahuje ziadne validne skladby.");
+  }
+
+  const existingRows = await fetchOfflineApiSongs();
+  const existingIds = new Set<number>();
+  const existingKeys = new Set<string>();
+
+  existingRows.forEach((row) => {
+    const mapped = mapOfflineApiRowToSong(row);
+    const mappedId = parseSongId(mapped.id);
+    if (mappedId !== undefined) {
+      existingIds.add(mappedId);
+    }
+
+    existingKeys.add(buildSongKey(mapped));
+  });
+
+  const rowsToImport = normalizedSongs.filter((song) => {
+    const id = parseSongId(song.id);
+    if (id !== undefined && existingIds.has(id)) {
+      return false;
+    }
+
+    return !existingKeys.has(buildSongKey(song));
+  });
+
+  if (rowsToImport.length === 0) {
+    return 0;
+  }
+
+  const response = await fetch(`${getOfflineApiOrigin()}/api/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rowsToImport),
+  });
+
+  if (!response.ok) {
+    throw parseOfflineApiError(response.status, await response.text());
+  }
+
+  const result = (await response.json()) as { imported?: number };
+  return Number.isFinite(result.imported)
+    ? Number(result.imported)
+    : rowsToImport.length;
+}
+
+async function replaceSongsInOfflineApi(payload: Udaje): Promise<number> {
+  const deleteResponse = await fetch(OFFLINE_API_BASE_URL, {
+    method: "DELETE",
+  });
+
+  if (!deleteResponse.ok) {
+    throw parseOfflineApiError(
+      deleteResponse.status,
+      await deleteResponse.text(),
+    );
+  }
+
+  return upsertSongsToOfflineApi(payload);
+}
+
 // Príklad fetchu piesní z lokálneho backendu
 export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
   const response = await fetch(OFFLINE_API_BASE_URL);
@@ -652,6 +733,36 @@ export async function loadSongsFromSupabase(filter: string): Promise<Song[]> {
   return loadSongsFromSupabaseDirect(filter);
 }
 
+function sortSongsForExport(items: Song[]): Song[] {
+  return [...items].sort((a, b) => {
+    const byNumber = a.cisloP.localeCompare(b.cisloP, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+
+    if (byNumber !== 0) {
+      return byNumber;
+    }
+
+    return a.nazov.localeCompare(b.nazov, undefined, {
+      sensitivity: "base",
+    });
+  });
+}
+
+export async function loadSongsForExport(): Promise<Song[]> {
+  if (shouldUseOfflineDb()) {
+    try {
+      const rows = await fetchOfflineApiSongs();
+      return sortSongsForExport(rows.map((row) => mapOfflineApiRowToSong(row)));
+    } catch {
+      return loadSongsFromLocalDb("");
+    }
+  }
+
+  return loadSongsFromSupabaseDirect("");
+}
+
 export async function testSupabaseConnection() {
   if (!supabase) {
     console.error("Supabase is not configured.");
@@ -770,7 +881,11 @@ async function upsertSongsToSupabaseDirect(payload: Udaje): Promise<number> {
 
 export async function upsertSongsToSupabase(payload: Udaje): Promise<number> {
   if (shouldUseOfflineDb()) {
-    return upsertSongsToLocalDb(payload);
+    try {
+      return await upsertSongsToOfflineApi(payload);
+    } catch {
+      return upsertSongsToLocalDb(payload);
+    }
   }
 
   return upsertSongsToSupabaseDirect(payload);
@@ -799,7 +914,11 @@ async function replaceSongsInSupabaseDirect(payload: Udaje): Promise<number> {
 
 export async function replaceSongsInSupabase(payload: Udaje): Promise<number> {
   if (shouldUseOfflineDb()) {
-    return replaceSongsInLocalDb(payload);
+    try {
+      return await replaceSongsInOfflineApi(payload);
+    } catch {
+      return replaceSongsInLocalDb(payload);
+    }
   }
 
   return replaceSongsInSupabaseDirect(payload);

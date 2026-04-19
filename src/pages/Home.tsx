@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Song, SongsData } from "../types/myTypes";
 import SongView from "../components/Song";
 import { getSongs } from "../api/dataSources";
+import { DataMode, getDataMode } from "../api/dataMode";
 import {
   SettingsContext,
   SettingsContextType,
@@ -24,6 +25,8 @@ import { updateSongOrderById } from "../api/supabaseSongs";
 const ALL_CATEGORIES = "Vsetky";
 const SEARCH_QUERY_STORAGE_KEY = "home.searchQuery";
 const SELECTED_CATEGORY_STORAGE_KEY = "home.selectedCategory";
+const SELECTED_PLAYLIST_FILTER_STORAGE_KEY = "home.selectedPlaylistFilter";
+const PLAYLISTS_STORAGE_KEY = "home.playlists.v1";
 const SPLIT_BREAKPOINT = 820;
 const SPLIT_MIN_HEIGHT = 600;
 const COMPACT_SPLIT_BREAKPOINT = 1180;
@@ -31,6 +34,94 @@ const SPLIT_LEFT_WIDTH_STORAGE_KEY = "home.splitLeftWidthPercent";
 const DEFAULT_SPLIT_LEFT_WIDTH_PERCENT = 34;
 const MIN_SPLIT_LEFT_WIDTH_PERCENT = 10;
 const MAX_SPLIT_LEFT_WIDTH_PERCENT = 90;
+const ALL_PLAYLISTS_FILTER = "Vsetky playlisty";
+const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"] as const;
+
+type PlaylistKey = (typeof PLAYLIST_KEYS)[number];
+type PlaylistsState = Record<PlaylistKey, string[]>;
+
+function createEmptyPlaylists(): PlaylistsState {
+  return {
+    "Playlist 1": [],
+    "Playlist 2": [],
+    "Playlist 3": [],
+  };
+}
+
+function normalizePlaylistValue(raw: unknown): string[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      raw
+        .map((item) => String(item ?? "").trim())
+        .filter((item) => item.length > 0),
+    ),
+  );
+}
+
+function loadPlaylistsFromStorage(): PlaylistsState {
+  if (typeof window === "undefined") {
+    return createEmptyPlaylists();
+  }
+
+  const raw = window.localStorage.getItem(PLAYLISTS_STORAGE_KEY);
+  if (!raw) {
+    return createEmptyPlaylists();
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<Record<PlaylistKey, unknown>>;
+    return {
+      "Playlist 1": normalizePlaylistValue(parsed?.["Playlist 1"]),
+      "Playlist 2": normalizePlaylistValue(parsed?.["Playlist 2"]),
+      "Playlist 3": normalizePlaylistValue(parsed?.["Playlist 3"]),
+    };
+  } catch {
+    return createEmptyPlaylists();
+  }
+}
+
+function getOfflineApiOrigin(): string {
+  if (typeof window === "undefined") {
+    return "http://localhost:3001";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  return `${protocol}//${window.location.hostname}:3001`;
+}
+
+async function loadPlaylistsFromOfflineApi(): Promise<PlaylistsState> {
+  const response = await fetch(`${getOfflineApiOrigin()}/api/playlists`);
+  if (!response.ok) {
+    throw new Error(`Offline playlist API chyba ${response.status}`);
+  }
+
+  const raw = (await response.json()) as Partial<Record<PlaylistKey, unknown>>;
+  return {
+    "Playlist 1": normalizePlaylistValue(raw?.["Playlist 1"]),
+    "Playlist 2": normalizePlaylistValue(raw?.["Playlist 2"]),
+    "Playlist 3": normalizePlaylistValue(raw?.["Playlist 3"]),
+  };
+}
+
+async function savePlaylistsToOfflineApi(
+  playlists: PlaylistsState,
+): Promise<void> {
+  const response = await fetch(`${getOfflineApiOrigin()}/api/playlists`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(playlists),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Offline playlist API chyba ${response.status}`);
+  }
+}
 
 function shouldUseSplitView(): boolean {
   if (typeof window === "undefined") {
@@ -70,6 +161,12 @@ function getSongCategory(song: Song): string {
   return "Nabozenske";
 }
 
+function getCategoryBadge(song: Song): string {
+  const category = getSongCategory(song);
+  const compact = category.replace(/\s+/g, "").slice(0, 3).toLocaleUpperCase();
+  return compact.length > 0 ? compact : "?";
+}
+
 function normalizeSongNumber(value: string | undefined | null): string {
   return (value ?? "").trim().replace(/\.$/, "").toLocaleLowerCase();
 }
@@ -87,15 +184,83 @@ function getSongId(song: Song | null | undefined): number | undefined {
   return Math.trunc(parsed);
 }
 
+function getLegacySongIdentity(song: Song): string {
+  return `legacy:${song.cisloP}|${song.nazov}|${song.kategoria ?? ""}|${
+    song.source ?? ""
+  }`;
+}
+
+function getSongIdentityAliases(song: Song): string[] {
+  const id = getSongId(song);
+  const legacy = getLegacySongIdentity(song);
+
+  if (id !== undefined) {
+    return [`id:${id}`, legacy];
+  }
+
+  return [legacy];
+}
+
+function getSongCoreIdentity(song: Song): string {
+  return `${normalizeSongNumber(song.cisloP)}|${song.nazov
+    .trim()
+    .toLocaleLowerCase()}`;
+}
+
+function getSongCoreIdentityFromLegacy(
+  playlistIdentity: string,
+): string | null {
+  if (!playlistIdentity.startsWith("legacy:")) {
+    return null;
+  }
+
+  const body = playlistIdentity.slice("legacy:".length);
+  const parts = body.split("|");
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const number = normalizeSongNumber(parts[0] ?? "");
+  const title = String(parts[1] ?? "")
+    .trim()
+    .toLocaleLowerCase();
+
+  if (number.length === 0 || title.length === 0) {
+    return null;
+  }
+
+  return `${number}|${title}`;
+}
+
+function songMatchesPlaylistIdentity(
+  song: Song,
+  playlistIdentity: string,
+): boolean {
+  const aliases = getSongIdentityAliases(song);
+  if (aliases.includes(playlistIdentity)) {
+    return true;
+  }
+
+  const numericId = Number(playlistIdentity);
+  if (Number.isFinite(numericId) && numericId > 0) {
+    return getSongId(song) === Math.trunc(numericId);
+  }
+
+  const legacyCore = getSongCoreIdentityFromLegacy(playlistIdentity);
+  if (!legacyCore) {
+    return false;
+  }
+
+  return getSongCoreIdentity(song) === legacyCore;
+}
+
 function getSongIdentity(song: Song): string {
   const id = getSongId(song);
   if (id !== undefined) {
     return `id:${id}`;
   }
 
-  return `legacy:${song.cisloP}|${song.nazov}|${song.kategoria ?? ""}|${
-    song.source ?? ""
-  }`;
+  return getLegacySongIdentity(song);
 }
 
 function isSameSong(left: Song, right: Song): boolean {
@@ -331,6 +496,19 @@ export default function Home() {
       localStorage.getItem(SELECTED_CATEGORY_STORAGE_KEY) ?? ALL_CATEGORIES
     );
   });
+  const [selectedPlaylistFilter, setSelectedPlaylistFilter] = useState(() => {
+    return (
+      localStorage.getItem(SELECTED_PLAYLIST_FILTER_STORAGE_KEY) ??
+      ALL_PLAYLISTS_FILTER
+    );
+  });
+  const [selectedPlaylistEditor, setSelectedPlaylistEditor] =
+    useState<PlaylistKey>("Playlist 1");
+  const [dataMode, setDataMode] = useState<DataMode>(() => getDataMode());
+  const [playlists, setPlaylists] = useState<PlaylistsState>(() =>
+    loadPlaylistsFromStorage(),
+  );
+  const [playlistsReady, setPlaylistsReady] = useState(false);
   const [selectedSongIdentity, setSelectedSongIdentity] = useState("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedVerse, setSelectedVerse] = useState(0);
@@ -383,6 +561,77 @@ export default function Home() {
 
   useEffect(() => {
     localStorage.setItem(
+      SELECTED_PLAYLIST_FILTER_STORAGE_KEY,
+      selectedPlaylistFilter,
+    );
+  }, [selectedPlaylistFilter]);
+
+  useEffect(() => {
+    const handleDataModeChanged = (event: Event) => {
+      const nextMode = (event as CustomEvent<DataMode>).detail;
+      if (nextMode === "online" || nextMode === "offline") {
+        setDataMode(nextMode);
+      }
+    };
+
+    window.addEventListener("data-mode-changed", handleDataModeChanged);
+    return () =>
+      window.removeEventListener("data-mode-changed", handleDataModeChanged);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydratePlaylists() {
+      setPlaylistsReady(false);
+
+      if (dataMode === "online") {
+        if (!cancelled) {
+          setPlaylists(loadPlaylistsFromStorage());
+          setPlaylistsReady(true);
+        }
+        return;
+      }
+
+      try {
+        const fromApi = await loadPlaylistsFromOfflineApi();
+        if (!cancelled) {
+          setPlaylists(fromApi);
+          setPlaylistsReady(true);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn("Offline playlists fallback to localStorage", error);
+          setPlaylists(loadPlaylistsFromStorage());
+          setPlaylistsReady(true);
+        }
+      }
+    }
+
+    hydratePlaylists();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dataMode]);
+
+  useEffect(() => {
+    if (!playlistsReady) {
+      return;
+    }
+
+    if (dataMode === "online") {
+      localStorage.setItem(PLAYLISTS_STORAGE_KEY, JSON.stringify(playlists));
+      return;
+    }
+
+    savePlaylistsToOfflineApi(playlists).catch((error) => {
+      console.warn("Offline playlists save failed", error);
+    });
+  }, [dataMode, playlists, playlistsReady]);
+
+  useEffect(() => {
+    localStorage.setItem(
       SPLIT_LEFT_WIDTH_STORAGE_KEY,
       String(splitLeftWidthPercent),
     );
@@ -427,12 +676,67 @@ export default function Home() {
     );
   }
 
+  const activePlaylistSet = useMemo(() => {
+    if (selectedPlaylistFilter === ALL_PLAYLISTS_FILTER) {
+      return null;
+    }
+
+    if (!PLAYLIST_KEYS.includes(selectedPlaylistFilter as PlaylistKey)) {
+      return null;
+    }
+
+    return new Set(playlists[selectedPlaylistFilter as PlaylistKey] ?? []);
+  }, [playlists, selectedPlaylistFilter]);
+
+  const activePlaylistOrder = useMemo(() => {
+    if (!PLAYLIST_KEYS.includes(selectedPlaylistFilter as PlaylistKey)) {
+      return [];
+    }
+
+    return playlists[selectedPlaylistFilter as PlaylistKey] ?? [];
+  }, [playlists, selectedPlaylistFilter]);
+
+  const playlistResolvedCounts = useMemo(() => {
+    const counts = {
+      "Playlist 1": 0,
+      "Playlist 2": 0,
+      "Playlist 3": 0,
+    } as Record<PlaylistKey, number>;
+
+    PLAYLIST_KEYS.forEach((playlistKey) => {
+      const entries = playlists[playlistKey] ?? [];
+      const seen = new Set<string>();
+
+      entries.forEach((entry) => {
+        const matched = songsData.find((song) =>
+          songMatchesPlaylistIdentity(song, entry),
+        );
+
+        if (!matched) {
+          return;
+        }
+
+        const canonical = getSongIdentity(matched);
+        if (seen.has(canonical)) {
+          return;
+        }
+
+        seen.add(canonical);
+      });
+
+      counts[playlistKey] = seen.size;
+    });
+
+    return counts;
+  }, [playlists, songsData]);
+
   const filteredData: SongsData = useMemo(() => {
     const formattedQuery = searchQuery.toLocaleLowerCase().trim();
     const commaSeparatedTerms = parseCommaSeparatedQuery(formattedQuery);
     const shouldUseCommaFilter =
       formattedQuery.includes(",") && commaSeparatedTerms.length > 0;
     const normalizedSelectedCategory = normalizeCategory(selectedCategory);
+    const isSpecificPlaylistActive = activePlaylistSet !== null;
 
     const matchingSongs = songsData.filter((song) => {
       // Ignoruj piesne bez čísla alebo názvu
@@ -441,7 +745,9 @@ export default function Home() {
       }
       const normalizedSongNumber = normalizeSongNumber(song.cisloP);
       const songTitleLower = (song.nazov ?? "").toLocaleLowerCase();
-      const queryMatch = shouldUseCommaFilter
+      const queryMatch = isSpecificPlaylistActive
+        ? true
+        : shouldUseCommaFilter
         ? commaSeparatedTerms.some(
             (term) =>
               normalizedSongNumber === term || songTitleLower.includes(term),
@@ -449,14 +755,129 @@ export default function Home() {
         : contains(song, formattedQuery);
       const normalizedSongCategory = normalizeCategory(getSongCategory(song));
       const categoryMatch =
+        isSpecificPlaylistActive ||
         selectedCategory === ALL_CATEGORIES ||
         normalizedSongCategory === normalizedSelectedCategory;
+      const playlistMatch =
+        activePlaylistSet === null ||
+        Array.from(activePlaylistSet).some((playlistIdentity) =>
+          songMatchesPlaylistIdentity(song, playlistIdentity),
+        );
 
-      return queryMatch && categoryMatch;
+      return queryMatch && categoryMatch && playlistMatch;
     });
 
+    if (isSpecificPlaylistActive) {
+      const seen = new Set<string>();
+
+      return activePlaylistOrder
+        .map((songIdentity) =>
+          matchingSongs.find((song) =>
+            songMatchesPlaylistIdentity(song, songIdentity),
+          ),
+        )
+        .filter((song): song is Song => {
+          if (song === undefined) {
+            return false;
+          }
+
+          const canonical = getSongIdentity(song);
+          if (seen.has(canonical)) {
+            return false;
+          }
+
+          seen.add(canonical);
+          return true;
+        });
+    }
+
     return sortSongsByFilter(matchingSongs, formattedQuery);
-  }, [songsData, searchQuery, selectedCategory]);
+  }, [
+    songsData,
+    searchQuery,
+    selectedCategory,
+    activePlaylistSet,
+    activePlaylistOrder,
+  ]);
+
+  const selectedSongIdentityValue = selectedSong
+    ? getSongIdentity(selectedSong)
+    : "";
+  const playlistMembershipByIdentity = useMemo(() => {
+    const membership = new Map<string, Set<string>>();
+
+    PLAYLIST_KEYS.forEach((playlistKey, playlistIndex) => {
+      const label = `P${playlistIndex + 1}`;
+      const playlistEntries = playlists[playlistKey] ?? [];
+
+      songsData.forEach((song) => {
+        const matches = playlistEntries.some((entry) =>
+          songMatchesPlaylistIdentity(song, entry),
+        );
+        if (!matches) {
+          return;
+        }
+
+        const canonical = getSongIdentity(song);
+        const current = membership.get(canonical) ?? new Set<string>();
+        current.add(label);
+        membership.set(canonical, current);
+      });
+    });
+
+    const output = new Map<string, string[]>();
+    membership.forEach((labels, songIdentity) => {
+      output.set(songIdentity, Array.from(labels));
+    });
+
+    return output;
+  }, [playlists, songsData]);
+  const selectedEditorPlaylistSongs = playlists[selectedPlaylistEditor] ?? [];
+  const selectedSongInEditorPlaylist =
+    selectedSongIdentityValue.length > 0 &&
+    selectedEditorPlaylistSongs.some((playlistIdentity) =>
+      selectedSong
+        ? songMatchesPlaylistIdentity(selectedSong, playlistIdentity)
+        : false,
+    );
+
+  function addSelectedSongToPlaylist() {
+    if (!selectedSongIdentityValue) {
+      return;
+    }
+
+    setPlaylists((previous) => {
+      const current = previous[selectedPlaylistEditor] ?? [];
+      const nextSet = new Set(
+        current.filter((item) =>
+          selectedSong
+            ? !songMatchesPlaylistIdentity(selectedSong, item)
+            : true,
+        ),
+      );
+      nextSet.add(selectedSongIdentityValue);
+      return {
+        ...previous,
+        [selectedPlaylistEditor]: Array.from(nextSet),
+      };
+    });
+  }
+
+  function removeSelectedSongFromPlaylist() {
+    if (!selectedSongIdentityValue) {
+      return;
+    }
+
+    setPlaylists((previous) => ({
+      ...previous,
+      [selectedPlaylistEditor]: (previous[selectedPlaylistEditor] ?? []).filter(
+        (item) =>
+          selectedSong
+            ? !songMatchesPlaylistIdentity(selectedSong, item)
+            : true,
+      ),
+    }));
+  }
 
   useEffect(() => {
     if (filteredData.length === 0) {
@@ -544,6 +965,7 @@ export default function Home() {
   const handleClickSkokNaPiesen = (item: Song) => {
     setSelectedSongIdentity(getSongIdentity(item));
     const piesen: Song = {
+      id: item.id,
       cisloP: item.cisloP,
       nazov: item.nazov,
       slohy: item.slohy,
@@ -1103,6 +1525,85 @@ export default function Home() {
           ))}
         </select>
 
+        <select
+          value={selectedPlaylistFilter}
+          onChange={(e) => setSelectedPlaylistFilter(e.target.value)}
+          style={{
+            fontSize: 20,
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: mutedBorder,
+            backgroundColor: panelBackground,
+            color: textColor,
+          }}
+          title="Filter podla playlistu"
+        >
+          <option value={ALL_PLAYLISTS_FILTER}>{ALL_PLAYLISTS_FILTER}</option>
+          {PLAYLIST_KEYS.map((key) => (
+            <option key={key} value={key}>
+              {key} ({playlistResolvedCounts[key]})
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedPlaylistEditor}
+          onChange={(e) =>
+            setSelectedPlaylistEditor(e.target.value as PlaylistKey)
+          }
+          style={{
+            fontSize: 16,
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: mutedBorder,
+            backgroundColor: panelBackground,
+            color: textColor,
+          }}
+          title="Playlist pre pridanie alebo odobratie skladby"
+        >
+          {PLAYLIST_KEYS.map((key) => (
+            <option key={key} value={key}>
+              {key}
+            </option>
+          ))}
+        </select>
+
+        <button
+          onClick={addSelectedSongToPlaylist}
+          disabled={!selectedSong || selectedSongInEditorPlaylist}
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: mutedBorder,
+            backgroundColor: "var(--color-input-bg)",
+            color: textColor,
+            cursor: "pointer",
+          }}
+          title="Pridat aktualne vybratu skladbu do playlistu"
+        >
+          + Do playlistu
+        </button>
+
+        <button
+          onClick={removeSelectedSongFromPlaylist}
+          disabled={!selectedSong || !selectedSongInEditorPlaylist}
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: mutedBorder,
+            backgroundColor: "var(--color-input-bg)",
+            color: textColor,
+            cursor: "pointer",
+          }}
+          title="Odobrat aktualne vybratu skladbu z playlistu"
+        >
+          - Z playlistu
+        </button>
+
         <span style={{ fontSize: 20, fontWeight: 700 }}>
           {filteredData.length} / {songsData.length}
         </span>
@@ -1161,101 +1662,140 @@ export default function Home() {
           }}
         >
           <ul style={{ listStyleType: "none", padding: 0, margin: 8 }}>
-            {filteredData?.map((item, index) => (
-              <li
-                key={`${getSongIdentity(item)}-${index}`}
-                onClick={() => handleClickSkokNaPiesen(item)}
-                style={{
-                  padding: 0,
-                  marginTop: "6px",
-                  cursor: "pointer",
-                  color: textColor,
-                  borderRadius: 14,
-                  backgroundColor:
-                    selectedSongIdentity === getSongIdentity(item)
+            {filteredData?.map((item, index) => {
+              const itemIdentity = getSongIdentity(item);
+              const isSelected = selectedSongIdentity === itemIdentity;
+              const playlistBadges =
+                playlistMembershipByIdentity.get(itemIdentity) ?? [];
+              const categoryBadge = getCategoryBadge(item);
+
+              return (
+                <li
+                  key={`${itemIdentity}-${index}`}
+                  onClick={() => handleClickSkokNaPiesen(item)}
+                  style={{
+                    padding: 0,
+                    marginTop: "6px",
+                    cursor: "pointer",
+                    color: textColor,
+                    borderRadius: 14,
+                    backgroundColor: isSelected
                       ? activeTabBackground
                       : itemBackground,
-                  listStylePosition: "inside",
-                  border: itemBorder,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    gap: 4,
-                    padding: "9px 12px 10px",
+                    listStylePosition: "inside",
+                    border: itemBorder,
+                    overflow: "hidden",
                   }}
                 >
-                  <span
+                  <div
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 44,
-                      padding: "4px 10px",
-                      borderRadius: 10,
-                      fontSize: 12,
-                      fontWeight: 800,
-                      letterSpacing: "0.04em",
-                      lineHeight: 1,
-                      backgroundColor:
-                        selectedSongIdentity === getSongIdentity(item)
-                          ? "rgba(255,255,255,0.22)"
-                          : panelBackground,
-                      color:
-                        selectedSongIdentity === getSongIdentity(item)
-                          ? "white"
-                          : textColor,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: 4,
+                      padding: "9px 12px 10px",
                     }}
                   >
-                    {item.cisloP}
-                  </span>
-                  <span
-                    style={{
-                      display: "-webkit-box",
-                      WebkitBoxOrient: "vertical",
-                      WebkitLineClamp: 2,
-                      overflow: "hidden",
-                      textAlign: "start",
-                      fontSize: 16,
-                      fontWeight: 700,
-                      lineHeight: 1.15,
-                      width: "100%",
-                      color:
-                        selectedSongIdentity === getSongIdentity(item)
-                          ? "white"
-                          : textColor,
-                    }}
-                    title={`${item.cisloP}. ${item.nazov}`}
-                  >
-                    {item.nazov}
-                  </span>
-                  {hasCustomVerseOrder(item) && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          minWidth: 44,
+                          padding: "4px 10px",
+                          borderRadius: 10,
+                          fontSize: 12,
+                          fontWeight: 800,
+                          letterSpacing: "0.04em",
+                          lineHeight: 1,
+                          backgroundColor: isSelected
+                            ? "rgba(255,255,255,0.22)"
+                            : panelBackground,
+                          color: isSelected ? "white" : textColor,
+                        }}
+                      >
+                        {item.cisloP}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 800,
+                          borderRadius: 999,
+                          padding: "2px 7px",
+                          border: "1px solid rgba(0,0,0,0.25)",
+                          backgroundColor: isSelected ? "#ede9fe" : "#f1f5f9",
+                          color: "#334155",
+                          letterSpacing: "0.03em",
+                        }}
+                        title={`Kategoria: ${getSongCategory(item)}`}
+                      >
+                        {categoryBadge}
+                      </span>
+                      {playlistBadges.map((badge) => (
+                        <span
+                          key={`${itemIdentity}-${badge}`}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            borderRadius: 999,
+                            padding: "2px 7px",
+                            border: "1px solid rgba(0,0,0,0.25)",
+                            backgroundColor: isSelected ? "#dbeafe" : "#dcfce7",
+                            color: "#166534",
+                            letterSpacing: "0.03em",
+                          }}
+                          title={`Skladba je v ${badge}`}
+                        >
+                          {badge}
+                        </span>
+                      ))}
+                    </div>
                     <span
                       style={{
-                        fontSize: 11,
+                        display: "-webkit-box",
+                        WebkitBoxOrient: "vertical",
+                        WebkitLineClamp: 2,
+                        overflow: "hidden",
+                        textAlign: "start",
+                        fontSize: 16,
                         fontWeight: 700,
-                        borderRadius: 999,
-                        padding: "2px 8px",
-                        border: "1px solid rgba(0,0,0,0.25)",
-                        backgroundColor:
-                          selectedSongIdentity === getSongIdentity(item)
-                            ? "#dbeafe"
-                            : "#fef3c7",
-                        color: "#7c2d12",
-                        marginRight: 8,
+                        lineHeight: 1.15,
+                        width: "100%",
+                        color: isSelected ? "white" : textColor,
                       }}
-                      title="Skladba ma vlastne poradie sloh"
+                      title={`${item.cisloP}. ${item.nazov}`}
                     >
-                      PORADIE
+                      {item.nazov}
                     </span>
-                  )}
-                </div>
-              </li>
-            ))}
+                    {hasCustomVerseOrder(item) && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          borderRadius: 999,
+                          padding: "2px 8px",
+                          border: "1px solid rgba(0,0,0,0.25)",
+                          backgroundColor: isSelected ? "#dbeafe" : "#fef3c7",
+                          color: "#7c2d12",
+                          marginRight: 8,
+                        }}
+                        title="Skladba ma vlastne poradie sloh"
+                      >
+                        PORADIE
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
 

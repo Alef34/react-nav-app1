@@ -26,6 +26,7 @@
     "projector:mac": "node scripts/projector-mac-start.mjs",
     "projector:kiosk": "node scripts/open-projector.mjs kiosk",
     "projector:fullscreen": "node scripts/open-projector.mjs fullscreen",
+    "convert:supmus": "node scripts/convert-sup-mus-json.mjs",
     "projektor:ws": "npm run projector:ws",
     "projektor:start": "npm run projector:start",
     "projektor:mac": "npm run projector:mac",

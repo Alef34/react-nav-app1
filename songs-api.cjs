@@ -4,6 +4,7 @@ const cors = require("cors");
 
 const db = new Database("songs.db");
 const app = express();
+const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"];
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 console.log("Spúšťam backend...");
@@ -20,6 +21,80 @@ db.exec(`
     updated_at TEXT
   )
 `);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS playlists (
+    name TEXT PRIMARY KEY,
+    song_ids TEXT NOT NULL,
+    updated_at TEXT
+  )
+`);
+
+const ensurePlaylistStmt = db.prepare(
+  "INSERT OR IGNORE INTO playlists (name, song_ids, updated_at) VALUES (?, '[]', datetime('now'))",
+);
+PLAYLIST_KEYS.forEach((name) => {
+  ensurePlaylistStmt.run(name);
+});
+
+function parsePlaylistSongIds(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map((item) => String(item ?? "").trim())
+        .filter((item) => item.length > 0),
+    ),
+  );
+}
+
+app.get("/api/playlists", (_req, res) => {
+  const rows = db
+    .prepare("SELECT name, song_ids FROM playlists WHERE name IN (?, ?, ?)")
+    .all(...PLAYLIST_KEYS);
+
+  const payload = {
+    "Playlist 1": [],
+    "Playlist 2": [],
+    "Playlist 3": [],
+  };
+
+  rows.forEach((row) => {
+    try {
+      payload[row.name] = parsePlaylistSongIds(JSON.parse(row.song_ids));
+    } catch {
+      payload[row.name] = [];
+    }
+  });
+
+  res.json(payload);
+});
+
+app.put("/api/playlists", (req, res) => {
+  const body = req.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return res
+      .status(400)
+      .json({ error: "Neplatny format playlist payloadu." });
+  }
+
+  const upsertStmt = db.prepare(
+    "INSERT INTO playlists (name, song_ids, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(name) DO UPDATE SET song_ids = excluded.song_ids, updated_at = datetime('now')",
+  );
+
+  const transaction = db.transaction(() => {
+    PLAYLIST_KEYS.forEach((playlistKey) => {
+      const songIds = parsePlaylistSongIds(body[playlistKey]);
+      upsertStmt.run(playlistKey, JSON.stringify(songIds));
+    });
+  });
+
+  transaction();
+  res.json({ updated: true });
+});
 
 // PATCH: aktualizuj poradie_sloh podľa id
 app.patch("/api/songs/:id/poradie", (req, res) => {
