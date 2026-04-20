@@ -43,26 +43,24 @@ function parseSong(text: string): SongPart[][] {
 
 const SongLine: React.FC<SongLineProps> = ({ parts, showChords, velkost }) => (
   <div style={getStyles(velkost).line}>
-    {showChords
-      ? parts.map((part, index) =>
-          "chord" in part ? (
-            <span
-              key={index}
-              style={getStyles(velkost).chord}
-            >{`${part.chord}`}</span>
-          ) : (
-            <span key={index} style={getStyles(velkost).lyrics}>
-              {part.text}
-            </span>
-          )
-        )
-      : (
-        <span style={getStyles(velkost).lyricsNoChords}>
-          {parts
-            .map((part) => ("text" in part ? part.text : ""))
-            .join("")}
-        </span>
-      )}
+    {showChords ? (
+      parts.map((part, index) =>
+        "chord" in part ? (
+          <span
+            key={index}
+            style={getStyles(velkost).chord}
+          >{`${part.chord}`}</span>
+        ) : (
+          <span key={index} style={getStyles(velkost).lyrics}>
+            {part.text}
+          </span>
+        ),
+      )
+    ) : (
+      <span style={getStyles(velkost).lyricsNoChords}>
+        {parts.map((part) => ("text" in part ? part.text : "")).join("")}
+      </span>
+    )}
   </div>
 );
 
@@ -116,12 +114,14 @@ const getStyles = (velkost: number) => ({
   lyrics: {
     fontSize: 20 + velkost,
     //border: "solid 2px black",
-    color: "gray",
+    color: "#fff",
+    fontWeight: 700,
     whiteSpace: "pre-wrap",
   },
   lyricsNoChords: {
     fontSize: 20 + velkost,
-    color: "gray",
+    color: "#fff",
+    fontWeight: 700,
     whiteSpace: "pre-wrap" as const,
     textAlign: "center" as const,
     width: "100%",

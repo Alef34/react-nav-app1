@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import Song from "../components/Song";
 import { localData } from "../localData";
 import {
@@ -7,6 +7,7 @@ import {
   startProjectorChannel,
   subscribeProjectorPayload,
 } from "../realtime/projectorChannel";
+import { SettingsContext } from "../context/SettingsContext";
 
 function useWindowSize() {
   const [size, setSize] = useState({
@@ -25,6 +26,12 @@ function useWindowSize() {
 }
 
 export default function ProjectorView() {
+  const settingsContext = useContext(SettingsContext);
+  const projectorFontSizeMultiplier =
+    settingsContext?.projectorFontSizeMultiplier ?? 1;
+  const projectorBgColor = settingsContext?.projectorBgColor ?? "black";
+  const projectorTextColor = settingsContext?.projectorTextColor ?? "white";
+
   const [payload, setPayload] = useState<ProjectorPayload>(() =>
     readProjectorPayload(),
   );
@@ -33,12 +40,12 @@ export default function ProjectorView() {
   );
 
   const { width, height } = useWindowSize();
-  // veľkosť fontu = 5.5% výšky okna, ale aj 4% šírky — berie sa menšia hodnota
-  const autoFontSize = Math.min(
-    120,
+  // veľkosť fontu = 9% výšky okna, ale aj 6.5% šírky — berie sa menšia hodnota
+  const baseAutoFontSize = Math.min(
+    160,
     Math.max(
-      24,
-      Math.min(Math.round(height * 0.055), Math.round(width * 0.04)),
+      32,
+      Math.min(Math.round(height * 0.09), Math.round(width * 0.065)),
     ),
   );
 
@@ -88,6 +95,33 @@ export default function ProjectorView() {
     return song.slohy[safeIndex]?.textik ?? "";
   }, [song, verseIndex]);
 
+  // Výpočet redukcie veľkosti písma na základe počtu riadkov a dĺžky textu
+  const autoFontSize = useMemo(() => {
+    if (!text)
+      return Math.round(baseAutoFontSize * (projectorFontSizeMultiplier || 1));
+
+    const lines = text.split("\n");
+    const lineCount = lines.length;
+    // Zohľad akordov v zátworkách
+    const maxLineLength = Math.max(
+      ...lines.map((l) => l.replace(/\[.*?\]/g, "").length),
+      0,
+    );
+
+    // Redukcia na základe počtu riadkov (od ~5 riadkov začína redukcia)
+    const lineReduction = Math.max(0.6, 1 - Math.max(0, lineCount - 5) * 0.04);
+    // Redukcia na základe dĺžky riadkov
+    const lengthReduction =
+      maxLineLength > 80 ? 0.85 : maxLineLength > 60 ? 0.93 : 1;
+
+    return Math.round(
+      baseAutoFontSize *
+        lineReduction *
+        lengthReduction *
+        (projectorFontSizeMultiplier || 1),
+    );
+  }, [text, baseAutoFontSize, projectorFontSizeMultiplier]);
+
   if (isBlackout) {
     return (
       <div
@@ -104,11 +138,11 @@ export default function ProjectorView() {
     <div
       style={{
         minHeight: "100vh",
-        background: "black",
-        color: "white",
+        background: projectorBgColor,
+        color: projectorTextColor,
         display: "flex",
         flexDirection: "column",
-        padding: 24,
+        padding: 12,
         boxSizing: "border-box",
       }}
     >
@@ -118,7 +152,7 @@ export default function ProjectorView() {
             style={{
               fontSize: Math.round(height * 0.065),
               marginBottom: 16,
-              color: "#fff",
+              color: projectorTextColor,
             }}
           >
             Projektor je pripraveny
@@ -127,7 +161,7 @@ export default function ProjectorView() {
             style={{
               fontSize: Math.round(height * 0.035),
               opacity: 0.9,
-              color: "#fff",
+              color: projectorTextColor,
             }}
           >
             V hlavnom okne otvor skladbu a klikni na tlacidlo PROJ.
@@ -140,13 +174,13 @@ export default function ProjectorView() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: Math.round(height * 0.02),
+              marginBottom: Math.round(height * 0.01),
             }}
           >
-            <h1 style={{ margin: 0, fontSize: Math.round(height * 0.05) }}>
+            <h1 style={{ margin: 0, fontSize: Math.round(height * 0.04) }}>
               {song.cisloP}. {song.nazov}
             </h1>
-            <div style={{ fontSize: Math.round(height * 0.038), opacity: 0.9 }}>
+            <div style={{ fontSize: Math.round(height * 0.028), opacity: 0.9 }}>
               Piesen: {song.cisloP}
             </div>
           </div>
@@ -157,9 +191,9 @@ export default function ProjectorView() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              border: "1px solid #333",
-              borderRadius: 12,
-              padding: 16,
+              border: "none",
+              borderRadius: 0,
+              padding: 0,
             }}
           >
             <Song

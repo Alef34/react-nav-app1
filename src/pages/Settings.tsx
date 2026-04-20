@@ -27,10 +27,9 @@ export const Modal: React.FC = () => {
     */
     navigate(-1);
   }
- 
 
   const background = location.state?.background;
-  const label = { inputProps: { 'aria-label': 'Zobraz akordy' } };
+  const label = { inputProps: { "aria-label": "Zobraz akordy" } };
   //console.log("sss", background);
   if (background) {
     return (
@@ -43,7 +42,7 @@ export const Modal: React.FC = () => {
             <div className="settWA">
               <div className="itemA item-1A" style={{ padding: "1em 0 0 0" }}>
                 <label htmlFor="font-size" style={{ fontSize: "x-large" }}>
-                  Font Size:
+                  Font Size (Home):
                 </label>
                 <input
                   type="range"
@@ -54,17 +53,72 @@ export const Modal: React.FC = () => {
                   onChange={(e) => myProps.setFontSize(Number(e.target.value))}
                 />
               </div>
+              <div className="itemA item-1A">
+                <label
+                  htmlFor="projector-font-size"
+                  style={{ fontSize: "x-large" }}
+                >
+                  Font Size (Projektor):{" "}
+                  {(myProps.projectorFontSizeMultiplier * 100).toFixed(0)}%
+                </label>
+                <input
+                  type="range"
+                  id="projector-font-size"
+                  min="0.7"
+                  max="1.5"
+                  step="0.05"
+                  value={myProps.projectorFontSizeMultiplier}
+                  onChange={(e) =>
+                    myProps.setProjectorFontSizeMultiplier(
+                      Number(e.target.value),
+                    )
+                  }
+                />
+              </div>
+              <div className="itemA item-1A">
+                <label
+                  htmlFor="projector-bg-color"
+                  style={{ fontSize: "x-large", marginRight: 10 }}
+                >
+                  Farba pozadia (Projektor):
+                </label>
+                <input
+                  type="color"
+                  id="projector-bg-color"
+                  value={myProps.projectorBgColor}
+                  onChange={(e) => myProps.setProjectorBgColor(e.target.value)}
+                  style={{ width: 50, height: 40, cursor: "pointer" }}
+                />
+              </div>
+              <div className="itemA item-1A">
+                <label
+                  htmlFor="projector-text-color"
+                  style={{ fontSize: "x-large", marginRight: 10 }}
+                >
+                  Farba písma (Projektor):
+                </label>
+                <input
+                  type="color"
+                  id="projector-text-color"
+                  value={myProps.projectorTextColor}
+                  onChange={(e) =>
+                    myProps.setProjectorTextColor(e.target.value)
+                  }
+                  style={{ width: 50, height: 40, cursor: "pointer" }}
+                />
+              </div>
               <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
                 <label htmlFor="notifications" style={{ flex: 2 }}>
                   Zobraz akordy:
                 </label>
-                <Checkbox {...label} 
+                <Checkbox
+                  {...label}
                   checked={myProps.showAkordy}
                   onChange={(e) => {
                     myProps.setShowAkordy(e.target.checked);
-                 }}
-                sx={{ '& .MuiSvgIcon-root': { fontSize: 50 } }}/>
-                
+                  }}
+                  sx={{ "& .MuiSvgIcon-root": { fontSize: 50 } }}
+                />
               </div>
               <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
                 <label htmlFor="color-scheme" style={{ marginRight: 10 }}>
@@ -83,7 +137,8 @@ export const Modal: React.FC = () => {
                 </select>
               </div>
               <div className="itemA item-1A" style={{ fontSize: "large" }}>
-                Aktivna tema: {myProps.colorScheme === "dark" ? "Dark" : "Light"}
+                Aktivna tema:{" "}
+                {myProps.colorScheme === "dark" ? "Dark" : "Light"}
               </div>
             </div>
           </div>
