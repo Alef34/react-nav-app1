@@ -254,6 +254,33 @@ function songMatchesPlaylistIdentity(
   return getSongCoreIdentity(song) === legacyCore;
 }
 
+function resolveSongsForPlaylist(
+  songs: Song[],
+  playlistEntries: string[],
+): Song[] {
+  if (playlistEntries.length === 0 || songs.length === 0) {
+    return [];
+  }
+
+  const matched = songs
+    .map((song) => ({
+      song,
+      position: playlistEntries.findIndex((entry) =>
+        songMatchesPlaylistIdentity(song, entry),
+      ),
+    }))
+    .filter((item) => item.position >= 0)
+    .sort((left, right) => {
+      if (left.position !== right.position) {
+        return left.position - right.position;
+      }
+
+      return compareSongsByNumberAndTitle(left.song, right.song);
+    });
+
+  return matched.map((item) => item.song);
+}
+
 function getSongIdentity(song: Song): string {
   const id = getSongId(song);
   if (id !== undefined) {
@@ -509,6 +536,11 @@ export default function Home() {
     loadPlaylistsFromStorage(),
   );
   const [playlistsReady, setPlaylistsReady] = useState(false);
+  const [rightDragSongIdentity, setRightDragSongIdentity] = useState<
+    string | null
+  >(null);
+  const [rightDragPlaylistKey, setRightDragPlaylistKey] =
+    useState<PlaylistKey | null>(null);
   const [selectedSongIdentity, setSelectedSongIdentity] = useState("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedVerse, setSelectedVerse] = useState(0);
@@ -676,7 +708,7 @@ export default function Home() {
     );
   }
 
-  const activePlaylistSet = useMemo(() => {
+  const activePlaylistSet = useMemo<Set<string> | null>(() => {
     if (selectedPlaylistFilter === ALL_PLAYLISTS_FILTER) {
       return null;
     }
@@ -696,6 +728,14 @@ export default function Home() {
     return playlists[selectedPlaylistFilter as PlaylistKey] ?? [];
   }, [playlists, selectedPlaylistFilter]);
 
+  const activePlaylistKey = useMemo<PlaylistKey | null>(() => {
+    if (!PLAYLIST_KEYS.includes(selectedPlaylistFilter as PlaylistKey)) {
+      return null;
+    }
+
+    return selectedPlaylistFilter as PlaylistKey;
+  }, [selectedPlaylistFilter]);
+
   const playlistResolvedCounts = useMemo(() => {
     const counts = {
       "Playlist 1": 0,
@@ -705,26 +745,7 @@ export default function Home() {
 
     PLAYLIST_KEYS.forEach((playlistKey) => {
       const entries = playlists[playlistKey] ?? [];
-      const seen = new Set<string>();
-
-      entries.forEach((entry) => {
-        const matched = songsData.find((song) =>
-          songMatchesPlaylistIdentity(song, entry),
-        );
-
-        if (!matched) {
-          return;
-        }
-
-        const canonical = getSongIdentity(matched);
-        if (seen.has(canonical)) {
-          return;
-        }
-
-        seen.add(canonical);
-      });
-
-      counts[playlistKey] = seen.size;
+      counts[playlistKey] = resolveSongsForPlaylist(songsData, entries).length;
     });
 
     return counts;
@@ -737,6 +758,10 @@ export default function Home() {
       formattedQuery.includes(",") && commaSeparatedTerms.length > 0;
     const normalizedSelectedCategory = normalizeCategory(selectedCategory);
     const isSpecificPlaylistActive = activePlaylistSet !== null;
+
+    if (isSpecificPlaylistActive) {
+      return resolveSongsForPlaylist(songsData, activePlaylistOrder);
+    }
 
     const matchingSongs = songsData.filter((song) => {
       // Ignoruj piesne bez čísla alebo názvu
@@ -755,41 +780,17 @@ export default function Home() {
         : contains(song, formattedQuery);
       const normalizedSongCategory = normalizeCategory(getSongCategory(song));
       const categoryMatch =
-        isSpecificPlaylistActive ||
         selectedCategory === ALL_CATEGORIES ||
         normalizedSongCategory === normalizedSelectedCategory;
       const playlistMatch =
-        activePlaylistSet === null ||
-        Array.from(activePlaylistSet).some((playlistIdentity) =>
-          songMatchesPlaylistIdentity(song, playlistIdentity),
-        );
+        activePlaylistSet === null
+          ? true
+          : [...activePlaylistSet].some((playlistIdentity) =>
+              songMatchesPlaylistIdentity(song, playlistIdentity),
+            );
 
       return queryMatch && categoryMatch && playlistMatch;
     });
-
-    if (isSpecificPlaylistActive) {
-      const seen = new Set<string>();
-
-      return activePlaylistOrder
-        .map((songIdentity) =>
-          matchingSongs.find((song) =>
-            songMatchesPlaylistIdentity(song, songIdentity),
-          ),
-        )
-        .filter((song): song is Song => {
-          if (song === undefined) {
-            return false;
-          }
-
-          const canonical = getSongIdentity(song);
-          if (seen.has(canonical)) {
-            return false;
-          }
-
-          seen.add(canonical);
-          return true;
-        });
-    }
 
     return sortSongsByFilter(matchingSongs, formattedQuery);
   }, [
@@ -878,6 +879,82 @@ export default function Home() {
       ),
     }));
   }
+
+  function reorderPlaylistBySongIdentity(
+    playlistKey: PlaylistKey,
+    draggedIdentity: string,
+    targetIdentity: string,
+  ) {
+    setPlaylists((previous) => {
+      const resolved = resolveSongsForPlaylist(
+        songsData,
+        previous[playlistKey] ?? [],
+      );
+      const fromIndex = resolved.findIndex(
+        (song) => getSongIdentity(song) === draggedIdentity,
+      );
+      const toIndex = resolved.findIndex(
+        (song) => getSongIdentity(song) === targetIdentity,
+      );
+
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+        return previous;
+      }
+
+      const reordered = [...resolved];
+      const [moved] = reordered.splice(fromIndex, 1);
+      reordered.splice(toIndex, 0, moved);
+
+      return {
+        ...previous,
+        [playlistKey]: reordered.map((song) => getSongIdentity(song)),
+      };
+    });
+  }
+
+  function handlePlaylistRightMouseDown(
+    event: React.MouseEvent,
+    songIdentity: string,
+  ) {
+    if (event.button !== 2 || activePlaylistKey === null) {
+      return;
+    }
+
+    event.preventDefault();
+    setRightDragSongIdentity(songIdentity);
+    setRightDragPlaylistKey(activePlaylistKey);
+  }
+
+  function handlePlaylistRightDragEnter(songIdentity: string) {
+    if (!rightDragSongIdentity || !rightDragPlaylistKey) {
+      return;
+    }
+
+    if (rightDragSongIdentity === songIdentity) {
+      return;
+    }
+
+    reorderPlaylistBySongIdentity(
+      rightDragPlaylistKey,
+      rightDragSongIdentity,
+      songIdentity,
+    );
+    setRightDragSongIdentity(songIdentity);
+  }
+
+  useEffect(() => {
+    if (!rightDragSongIdentity) {
+      return;
+    }
+
+    const finishDrag = () => {
+      setRightDragSongIdentity(null);
+      setRightDragPlaylistKey(null);
+    };
+
+    window.addEventListener("mouseup", finishDrag);
+    return () => window.removeEventListener("mouseup", finishDrag);
+  }, [rightDragSongIdentity]);
 
   useEffect(() => {
     if (filteredData.length === 0) {
@@ -1318,6 +1395,11 @@ export default function Home() {
           setVerseOrderInput(formatVerseOrderInput(nextSong));
         }
       }
+
+      if (event.code === "Space" || event.key === " ") {
+        event.preventDefault();
+        handleProjectorBlackoutToggle(!isProjectorBlackout);
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -1328,6 +1410,7 @@ export default function Home() {
     selectedVerse,
     selectedVerseCursor,
     filteredData,
+    isProjectorBlackout,
   ]);
 
   const pageBackground = "var(--color-page-bg)";
@@ -1661,10 +1744,20 @@ export default function Home() {
             border: mutedBorder,
           }}
         >
-          <ul style={{ listStyleType: "none", padding: 0, margin: 8 }}>
+          <ul
+            style={{ listStyleType: "none", padding: 0, margin: 8 }}
+            onContextMenu={(event) => {
+              if (activePlaylistKey !== null) {
+                event.preventDefault();
+              }
+            }}
+          >
             {filteredData?.map((item, index) => {
               const itemIdentity = getSongIdentity(item);
               const isSelected = selectedSongIdentity === itemIdentity;
+              const isDraggingItem =
+                rightDragSongIdentity !== null &&
+                rightDragSongIdentity === itemIdentity;
               const playlistBadges =
                 playlistMembershipByIdentity.get(itemIdentity) ?? [];
               const categoryBadge = getCategoryBadge(item);
@@ -1673,10 +1766,21 @@ export default function Home() {
                 <li
                   key={`${itemIdentity}-${index}`}
                   onClick={() => handleClickSkokNaPiesen(item)}
+                  onMouseDown={(event) =>
+                    handlePlaylistRightMouseDown(event, itemIdentity)
+                  }
+                  onMouseEnter={() =>
+                    handlePlaylistRightDragEnter(itemIdentity)
+                  }
                   style={{
                     padding: 0,
                     marginTop: "6px",
-                    cursor: "pointer",
+                    cursor:
+                      activePlaylistKey !== null
+                        ? isDraggingItem
+                          ? "grabbing"
+                          : "grab"
+                        : "pointer",
                     color: textColor,
                     borderRadius: 14,
                     backgroundColor: isSelected
