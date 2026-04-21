@@ -120,12 +120,6 @@ export const Modal: React.FC = () => {
                   sx={{ "& .MuiSvgIcon-root": { fontSize: 50 } }}
                 />
               </div>
-              <div
-                className="itemA item-1A"
-                style={{ fontSize: "large", opacity: 0.8, marginTop: -8 }}
-              >
-                Toto nastavenie ovplyvni text v hlavnom okne aplikacie.
-              </div>
               <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
                 <label htmlFor="projector-chords" style={{ flex: 2 }}>
                   Zobraz akordy (Projektor):
@@ -139,12 +133,6 @@ export const Modal: React.FC = () => {
                   }}
                   sx={{ "& .MuiSvgIcon-root": { fontSize: 50 } }}
                 />
-              </div>
-              <div
-                className="itemA item-1A"
-                style={{ fontSize: "large", opacity: 0.8, marginTop: -8 }}
-              >
-                Toto nastavenie ovplyvni iba zobrazenie v ProjectorView.
               </div>
               <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
                 <label htmlFor="color-scheme" style={{ marginRight: 10 }}>
@@ -161,10 +149,6 @@ export const Modal: React.FC = () => {
                   <option value="light">Light</option>
                   <option value="dark">Dark</option>
                 </select>
-              </div>
-              <div className="itemA item-1A" style={{ fontSize: "large" }}>
-                Aktivna tema:{" "}
-                {myProps.colorScheme === "dark" ? "Dark" : "Light"}
               </div>
             </div>
           </div>
