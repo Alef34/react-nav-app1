@@ -5,6 +5,16 @@ const cors = require("cors");
 const db = new Database("songs.db");
 const app = express();
 const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"];
+const DEFAULT_SETTINGS = {
+  fontSize: 30,
+  projectorFontSizeMultiplier: 1,
+  projectorBgColor: "#000000",
+  projectorTextColor: "#ffffff",
+  colorScheme: "dark",
+  showAkordy: false,
+  showAkordyProjector: false,
+  verzia: "",
+};
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 console.log("Spúšťam backend...");
@@ -30,11 +40,124 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key TEXT PRIMARY KEY,
+    setting_value TEXT NOT NULL,
+    updated_at TEXT
+  )
+`);
+
 const ensurePlaylistStmt = db.prepare(
   "INSERT OR IGNORE INTO playlists (name, song_ids, updated_at) VALUES (?, '[]', datetime('now'))",
 );
 PLAYLIST_KEYS.forEach((name) => {
   ensurePlaylistStmt.run(name);
+});
+
+const ensureSettingStmt = db.prepare(
+  "INSERT OR IGNORE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, datetime('now'))",
+);
+
+Object.entries(DEFAULT_SETTINGS).forEach(([key, value]) => {
+  ensureSettingStmt.run(key, JSON.stringify(value));
+});
+
+function normalizeNumber(value, min, max, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, numeric));
+}
+
+function normalizeColor(value, fallback) {
+  const color = String(value ?? "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+    return color;
+  }
+  return fallback;
+}
+
+function normalizeSettings(raw) {
+  const safe = raw && typeof raw === "object" ? raw : {};
+  return {
+    fontSize: Math.round(
+      normalizeNumber(safe.fontSize, 20, 80, DEFAULT_SETTINGS.fontSize),
+    ),
+    projectorFontSizeMultiplier: Number(
+      normalizeNumber(
+        safe.projectorFontSizeMultiplier,
+        0.7,
+        1.5,
+        DEFAULT_SETTINGS.projectorFontSizeMultiplier,
+      ).toFixed(2),
+    ),
+    projectorBgColor: normalizeColor(
+      safe.projectorBgColor,
+      DEFAULT_SETTINGS.projectorBgColor,
+    ),
+    projectorTextColor: normalizeColor(
+      safe.projectorTextColor,
+      DEFAULT_SETTINGS.projectorTextColor,
+    ),
+    colorScheme:
+      safe.colorScheme === "light" || safe.colorScheme === "dark"
+        ? safe.colorScheme
+        : DEFAULT_SETTINGS.colorScheme,
+    showAkordy: Boolean(safe.showAkordy),
+    showAkordyProjector: Boolean(safe.showAkordyProjector),
+    verzia: String(safe.verzia ?? DEFAULT_SETTINGS.verzia),
+  };
+}
+
+function loadSettingsFromDb() {
+  const rows = db
+    .prepare("SELECT setting_key, setting_value FROM app_settings")
+    .all();
+  const merged = { ...DEFAULT_SETTINGS };
+
+  rows.forEach((row) => {
+    if (!(row.setting_key in merged)) {
+      return;
+    }
+    try {
+      merged[row.setting_key] = JSON.parse(row.setting_value);
+    } catch {
+      // Keep default value when stored JSON is invalid.
+    }
+  });
+
+  return normalizeSettings(merged);
+}
+
+app.get("/api/settings", (_req, res) => {
+  const settings = loadSettingsFromDb();
+  res.json(settings);
+});
+
+app.put("/api/settings", (req, res) => {
+  const incoming = req.body;
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
+    return res
+      .status(400)
+      .json({ error: "Neplatny format settings payloadu." });
+  }
+
+  const current = loadSettingsFromDb();
+  const merged = normalizeSettings({ ...current, ...incoming });
+  const upsertStmt = db.prepare(
+    "INSERT INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = datetime('now')",
+  );
+
+  const transaction = db.transaction(() => {
+    Object.entries(merged).forEach(([key, value]) => {
+      upsertStmt.run(key, JSON.stringify(value));
+    });
+  });
+
+  transaction();
+  res.json(merged);
 });
 
 function parsePlaylistSongIds(value) {

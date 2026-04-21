@@ -109,7 +109,7 @@ export const Modal: React.FC = () => {
               </div>
               <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
                 <label htmlFor="notifications" style={{ flex: 2 }}>
-                  Zobraz akordy:
+                  Zobraz akordy (Home):
                 </label>
                 <Checkbox
                   {...label}
@@ -119,6 +119,32 @@ export const Modal: React.FC = () => {
                   }}
                   sx={{ "& .MuiSvgIcon-root": { fontSize: 50 } }}
                 />
+              </div>
+              <div
+                className="itemA item-1A"
+                style={{ fontSize: "large", opacity: 0.8, marginTop: -8 }}
+              >
+                Toto nastavenie ovplyvni text v hlavnom okne aplikacie.
+              </div>
+              <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
+                <label htmlFor="projector-chords" style={{ flex: 2 }}>
+                  Zobraz akordy (Projektor):
+                </label>
+                <Checkbox
+                  inputProps={{ "aria-label": "Zobraz akordy projektor" }}
+                  id="projector-chords"
+                  checked={myProps.showAkordyProjector}
+                  onChange={(e) => {
+                    myProps.setShowAkordyProjector(e.target.checked);
+                  }}
+                  sx={{ "& .MuiSvgIcon-root": { fontSize: 50 } }}
+                />
+              </div>
+              <div
+                className="itemA item-1A"
+                style={{ fontSize: "large", opacity: 0.8, marginTop: -8 }}
+              >
+                Toto nastavenie ovplyvni iba zobrazenie v ProjectorView.
               </div>
               <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
                 <label htmlFor="color-scheme" style={{ marginRight: 10 }}>

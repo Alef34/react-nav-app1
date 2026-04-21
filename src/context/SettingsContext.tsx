@@ -1,5 +1,10 @@
-import React, { createContext, useState, ReactNode } from "react";
-import { localData } from "../localData";
+import React, {
+  createContext,
+  useMemo,
+  useRef,
+  useState,
+  ReactNode,
+} from "react";
 
 type ColorScheme = "light" | "dark";
 
@@ -16,6 +21,8 @@ export type SettingsContextType = {
   setColorScheme: React.Dispatch<React.SetStateAction<ColorScheme>>;
   showAkordy: boolean;
   setShowAkordy: React.Dispatch<React.SetStateAction<boolean>>;
+  showAkordyProjector: boolean;
+  setShowAkordyProjector: React.Dispatch<React.SetStateAction<boolean>>;
   verzia: string;
   setVerzia: React.Dispatch<React.SetStateAction<string>>;
 };
@@ -23,6 +30,37 @@ export type SettingsContextType = {
 export const SettingsContext = createContext<SettingsContextType | undefined>(
   undefined,
 );
+
+type StoredSettings = {
+  fontSize: number;
+  projectorFontSizeMultiplier: number;
+  projectorBgColor: string;
+  projectorTextColor: string;
+  colorScheme: ColorScheme;
+  showAkordy: boolean;
+  showAkordyProjector: boolean;
+  verzia: string;
+};
+
+const DEFAULT_SETTINGS: StoredSettings = {
+  fontSize: 30,
+  projectorFontSizeMultiplier: 1,
+  projectorBgColor: "#000000",
+  projectorTextColor: "#ffffff",
+  colorScheme: "dark",
+  showAkordy: false,
+  showAkordyProjector: false,
+  verzia: "",
+};
+
+function getOfflineApiSettingsUrl(): string {
+  if (typeof window === "undefined") {
+    return "http://localhost:3001/api/settings";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  return `${protocol}//${window.location.hostname}:3001/api/settings`;
+}
 
 function normalizeFontSize(value: unknown): number {
   const numeric = Number(value);
@@ -42,58 +80,198 @@ function normalizeProjectorFontSizeMultiplier(value: unknown): number {
   return Math.min(1.5, Math.max(0.7, numeric));
 }
 
+function normalizeHexColor(value: unknown, fallback: string): string {
+  const color = String(value ?? "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+    return color;
+  }
+  return fallback;
+}
+
+function normalizeStoredSettings(
+  raw: Partial<StoredSettings> | unknown,
+): StoredSettings {
+  const safe =
+    raw && typeof raw === "object" ? (raw as Partial<StoredSettings>) : {};
+  return {
+    fontSize: normalizeFontSize(safe.fontSize),
+    projectorFontSizeMultiplier: normalizeProjectorFontSizeMultiplier(
+      safe.projectorFontSizeMultiplier,
+    ),
+    projectorBgColor: normalizeHexColor(
+      safe.projectorBgColor,
+      DEFAULT_SETTINGS.projectorBgColor,
+    ),
+    projectorTextColor: normalizeHexColor(
+      safe.projectorTextColor,
+      DEFAULT_SETTINGS.projectorTextColor,
+    ),
+    colorScheme: safe.colorScheme === "light" ? "light" : "dark",
+    showAkordy: Boolean(safe.showAkordy),
+    showAkordyProjector: Boolean(safe.showAkordyProjector),
+    verzia: String(safe.verzia ?? ""),
+  };
+}
+
+async function fetchSettingsFromApi(): Promise<StoredSettings> {
+  const response = await fetch(getOfflineApiSettingsUrl());
+  if (!response.ok) {
+    throw new Error(`Nacitavanie settings zlyhalo (${response.status}).`);
+  }
+  const raw = (await response.json()) as Partial<StoredSettings>;
+  return normalizeStoredSettings(raw);
+}
+
+async function saveSettingsToApi(settings: StoredSettings): Promise<void> {
+  const response = await fetch(getOfflineApiSettingsUrl(), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ulozenie settings zlyhalo (${response.status}).`);
+  }
+}
+
 export function SettingsContextProvider({ children }: { children: ReactNode }) {
-  const [fontSize, setFontSize] = useState<number>(() =>
-    normalizeFontSize(localData.get("fontSize")),
-  );
+  const [fontSize, setFontSize] = useState<number>(DEFAULT_SETTINGS.fontSize);
   const [projectorFontSizeMultiplier, setProjectorFontSizeMultiplier] =
-    useState<number>(() =>
-      normalizeProjectorFontSizeMultiplier(
-        localData.get("projectorFontSizeMultiplier"),
-      ),
-    );
+    useState<number>(DEFAULT_SETTINGS.projectorFontSizeMultiplier);
   const [projectorBgColor, setProjectorBgColor] = useState<string>(
-    () => (localData.get("projectorBgColor") as string) || "black",
+    DEFAULT_SETTINGS.projectorBgColor,
   );
   const [projectorTextColor, setProjectorTextColor] = useState<string>(
-    () => (localData.get("projectorTextColor") as string) || "white",
+    DEFAULT_SETTINGS.projectorTextColor,
   );
   const [colorScheme, setColorScheme] = useState<ColorScheme>(
-    () => (localData.get("colorScheme") as ColorScheme) || "dark",
+    DEFAULT_SETTINGS.colorScheme,
   );
-  const [showAkordy, setShowAkordy] = useState<boolean>(() =>
-    Boolean(localData.get("showAkordy")),
+  const [showAkordy, setShowAkordy] = useState<boolean>(
+    DEFAULT_SETTINGS.showAkordy,
   );
-  const [verzia, setVerzia] = useState<string>(
-    () => localData.get("verzia") || "",
+  const [showAkordyProjector, setShowAkordyProjector] = useState<boolean>(
+    DEFAULT_SETTINGS.showAkordyProjector,
+  );
+  const [verzia, setVerzia] = useState<string>(DEFAULT_SETTINGS.verzia);
+  const [hasHydratedFromApi, setHasHydratedFromApi] = useState(false);
+  const lastSavedPayloadRef = useRef<string>("");
+
+  const normalizedSettings = useMemo(
+    () =>
+      normalizeStoredSettings({
+        fontSize,
+        projectorFontSizeMultiplier,
+        projectorBgColor,
+        projectorTextColor,
+        colorScheme,
+        showAkordy,
+        showAkordyProjector,
+        verzia,
+      }),
+    [
+      fontSize,
+      projectorFontSizeMultiplier,
+      projectorBgColor,
+      projectorTextColor,
+      colorScheme,
+      showAkordy,
+      showAkordyProjector,
+      verzia,
+    ],
   );
 
   React.useEffect(() => {
-    localData.set("fontSize", normalizeFontSize(fontSize));
-  }, [fontSize]);
+    let isMounted = true;
+
+    const hydrateFromApi = async () => {
+      try {
+        const apiSettings = await fetchSettingsFromApi();
+        if (!isMounted) {
+          return;
+        }
+
+        setFontSize(apiSettings.fontSize);
+        setProjectorFontSizeMultiplier(apiSettings.projectorFontSizeMultiplier);
+        setProjectorBgColor(apiSettings.projectorBgColor);
+        setProjectorTextColor(apiSettings.projectorTextColor);
+        setColorScheme(apiSettings.colorScheme);
+        setShowAkordy(apiSettings.showAkordy);
+        setShowAkordyProjector(apiSettings.showAkordyProjector);
+        setVerzia(apiSettings.verzia);
+        lastSavedPayloadRef.current = JSON.stringify(apiSettings);
+      } catch {
+        // Keep defaults when API is temporarily unavailable.
+      } finally {
+        if (isMounted) {
+          setHasHydratedFromApi(true);
+        }
+      }
+    };
+
+    hydrateFromApi();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   React.useEffect(() => {
-    localData.set(
-      "projectorFontSizeMultiplier",
-      normalizeProjectorFontSizeMultiplier(projectorFontSizeMultiplier),
-    );
-  }, [projectorFontSizeMultiplier]);
+    if (!hasHydratedFromApi) {
+      return;
+    }
+
+    const payload = JSON.stringify(normalizedSettings);
+    if (payload === lastSavedPayloadRef.current) {
+      return;
+    }
+
+    lastSavedPayloadRef.current = payload;
+    saveSettingsToApi(normalizedSettings).catch(() => {
+      // Ignore transient network failures; periodic sync will retry.
+    });
+  }, [hasHydratedFromApi, normalizedSettings]);
 
   React.useEffect(() => {
-    localData.set("projectorBgColor", projectorBgColor);
-  }, [projectorBgColor]);
+    if (!hasHydratedFromApi) {
+      return;
+    }
+
+    let isMounted = true;
+    const intervalId = window.setInterval(async () => {
+      try {
+        const apiSettings = await fetchSettingsFromApi();
+        if (!isMounted) {
+          return;
+        }
+
+        const apiPayload = JSON.stringify(apiSettings);
+        const localPayload = JSON.stringify(normalizedSettings);
+        if (apiPayload === localPayload) {
+          return;
+        }
+
+        lastSavedPayloadRef.current = apiPayload;
+        setFontSize(apiSettings.fontSize);
+        setProjectorFontSizeMultiplier(apiSettings.projectorFontSizeMultiplier);
+        setProjectorBgColor(apiSettings.projectorBgColor);
+        setProjectorTextColor(apiSettings.projectorTextColor);
+        setColorScheme(apiSettings.colorScheme);
+        setShowAkordy(apiSettings.showAkordy);
+        setShowAkordyProjector(apiSettings.showAkordyProjector);
+        setVerzia(apiSettings.verzia);
+      } catch {
+        // Keep current values when polling request fails.
+      }
+    }, 2000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [hasHydratedFromApi, normalizedSettings]);
 
   React.useEffect(() => {
-    localData.set("projectorTextColor", projectorTextColor);
-  }, [projectorTextColor]);
-
-  React.useEffect(() => {
-    localData.set("verzia", verzia);
-  }, [verzia]);
-
-  React.useEffect(() => {
-    localData.set("colorScheme", colorScheme);
-
     if (typeof document !== "undefined") {
       document.documentElement.setAttribute("data-theme", colorScheme);
     }
@@ -104,10 +282,6 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
       document.documentElement.setAttribute("data-theme", colorScheme);
     }
   }, []);
-
-  React.useEffect(() => {
-    localData.set("showAkordy", showAkordy);
-  }, [showAkordy]);
 
   return (
     <SettingsContext.Provider
@@ -124,6 +298,8 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
         setColorScheme,
         showAkordy,
         setShowAkordy,
+        showAkordyProjector,
+        setShowAkordyProjector,
         verzia,
         setVerzia,
       }}

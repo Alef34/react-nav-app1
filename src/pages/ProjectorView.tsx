@@ -1,6 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import Song from "../components/Song";
-import { localData } from "../localData";
 import {
   ProjectorPayload,
   readProjectorPayload,
@@ -31,12 +30,10 @@ export default function ProjectorView() {
     settingsContext?.projectorFontSizeMultiplier ?? 1;
   const projectorBgColor = settingsContext?.projectorBgColor ?? "black";
   const projectorTextColor = settingsContext?.projectorTextColor ?? "white";
+  const showAkordy = settingsContext?.showAkordyProjector ?? false;
 
   const [payload, setPayload] = useState<ProjectorPayload>(() =>
     readProjectorPayload(),
-  );
-  const [showAkordy, setShowAkordy] = useState<boolean>(
-    () => localData.get("showAkordy") ?? false,
   );
 
   const { width, height } = useWindowSize();
@@ -55,24 +52,11 @@ export default function ProjectorView() {
     const syncFromStorage = () => {
       const latestPayload = readProjectorPayload();
       setPayload(latestPayload);
-
-      const settingsShowAkordy = localData.get("showAkordy");
-      if (typeof settingsShowAkordy === "boolean") {
-        setShowAkordy(settingsShowAkordy);
-      } else {
-        setShowAkordy(latestPayload.showAkordy ?? false);
-      }
     };
 
     window.addEventListener("storage", syncFromStorage);
     const unsubscribe = subscribeProjectorPayload((latestPayload) => {
       setPayload(latestPayload);
-      const settingsShowAkordy = localData.get("showAkordy");
-      if (typeof settingsShowAkordy === "boolean") {
-        setShowAkordy(settingsShowAkordy);
-      } else {
-        setShowAkordy(latestPayload.showAkordy ?? false);
-      }
     });
     syncFromStorage();
 
