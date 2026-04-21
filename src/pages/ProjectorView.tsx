@@ -162,7 +162,7 @@ export default function ProjectorView() {
             }}
           >
             <h1 style={{ margin: 0, fontSize: Math.round(height * 0.04) }}>
-              {song.cisloP}. {song.nazov}
+              {song.cisloP}: {song.nazov}
             </h1>
             <div style={{ fontSize: Math.round(height * 0.028), opacity: 0.9 }}>
               Piesen: {song.cisloP}
