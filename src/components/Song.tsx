@@ -114,13 +114,13 @@ const getStyles = (velkost: number) => ({
   lyrics: {
     fontSize: 20 + velkost,
     //border: "solid 2px black",
-    color: "#fff",
+    color: "inherit",
     fontWeight: 700,
     whiteSpace: "pre-wrap",
   },
   lyricsNoChords: {
     fontSize: 20 + velkost,
-    color: "#fff",
+    color: "inherit",
     fontWeight: 700,
     whiteSpace: "pre-wrap" as const,
     textAlign: "center" as const,
