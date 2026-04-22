@@ -31,6 +31,7 @@ export default function ProjectorView() {
   const projectorBgColor = settingsContext?.projectorBgColor ?? "black";
   const projectorTextColor = settingsContext?.projectorTextColor ?? "white";
   const showAkordy = settingsContext?.showAkordyProjector ?? false;
+  const [isCursorVisible, setIsCursorVisible] = useState(true);
 
   const [payload, setPayload] = useState<ProjectorPayload>(() =>
     readProjectorPayload(),
@@ -63,6 +64,33 @@ export default function ProjectorView() {
     return () => {
       window.removeEventListener("storage", syncFromStorage);
       unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    let hideCursorTimeout = window.setTimeout(() => {
+      setIsCursorVisible(false);
+    }, 2000);
+
+    const showCursorTemporarily = () => {
+      setIsCursorVisible(true);
+      window.clearTimeout(hideCursorTimeout);
+      hideCursorTimeout = window.setTimeout(() => {
+        setIsCursorVisible(false);
+      }, 2000);
+    };
+
+    window.addEventListener("mousemove", showCursorTemporarily);
+    window.addEventListener("mousedown", showCursorTemporarily);
+    window.addEventListener("keydown", showCursorTemporarily);
+    window.addEventListener("touchstart", showCursorTemporarily);
+
+    return () => {
+      window.clearTimeout(hideCursorTimeout);
+      window.removeEventListener("mousemove", showCursorTemporarily);
+      window.removeEventListener("mousedown", showCursorTemporarily);
+      window.removeEventListener("keydown", showCursorTemporarily);
+      window.removeEventListener("touchstart", showCursorTemporarily);
     };
   }, []);
 
@@ -113,6 +141,7 @@ export default function ProjectorView() {
           minHeight: "100vh",
           background: "black",
           width: "100%",
+          cursor: isCursorVisible ? "default" : "none",
         }}
       />
     );
@@ -128,6 +157,7 @@ export default function ProjectorView() {
         flexDirection: "column",
         padding: 12,
         boxSizing: "border-box",
+        cursor: isCursorVisible ? "default" : "none",
       }}
     >
       {!song ? (
