@@ -51,6 +51,14 @@ type AddForm = {
   slohy: SongVerse[];
 };
 
+type DailyPsalmPayload = {
+  title?: string;
+  citation?: string;
+  refrain?: string;
+  text?: string;
+  sourceUrl?: string;
+};
+
 function sortSongsForAdmin(items: SongWithId[]): SongWithId[] {
   return [...items].sort((a, b) => {
     const byNumber = a.cisloP.localeCompare(b.cisloP, undefined, {
@@ -166,6 +174,75 @@ function getOfflineApiBaseUrl(): string {
   return `${protocol}//${window.location.hostname}:3001`;
 }
 
+function normalizeCategory(value: string): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function isPsalmCategory(value: string): boolean {
+  return normalizeCategory(value) === "zalm";
+}
+
+function getTodayDateInputValue(): string {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function buildPsalmVerseText(payload: DailyPsalmPayload): string {
+  return String(payload.refrain ?? "").trim();
+}
+
+async function fetchTodayPsalm(date: string): Promise<DailyPsalmPayload> {
+  const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? date
+    : getTodayDateInputValue();
+  const query = new URLSearchParams({ den: safeDate });
+  const response = await fetch(
+    `${getOfflineApiBaseUrl()}/api/liturgy/zalm-today?${query.toString()}`,
+  );
+  let payload: unknown = null;
+
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error("Neplatna odpoved z endpointu pre dnesny zalm.");
+  }
+
+  const data = (payload ?? {}) as {
+    error?: unknown;
+    citation?: unknown;
+    title?: unknown;
+    refrain?: unknown;
+    sourceUrl?: unknown;
+  };
+
+  if (!response.ok) {
+    const message =
+      typeof data.error === "string" && data.error.trim().length > 0
+        ? data.error
+        : `Nacitanie zalmu zlyhalo (HTTP ${response.status}).`;
+    throw new Error(message);
+  }
+
+  if (typeof data.refrain !== "string" || data.refrain.trim().length === 0) {
+    throw new Error("Refren zalmu sa nepodarilo nacitat.");
+  }
+
+  return {
+    title: typeof data.title === "string" ? data.title : "",
+    citation: typeof data.citation === "string" ? data.citation : "",
+    refrain: typeof data.refrain === "string" ? data.refrain : "",
+    text: "",
+    sourceUrl: typeof data.sourceUrl === "string" ? data.sourceUrl : "",
+  };
+}
+
 export default function AdminImport({
   crudOnly = false,
 }: {
@@ -198,6 +275,13 @@ export default function AdminImport({
     status: "idle" | "loading" | "success" | "error";
     message: string;
   }>({ status: "idle", message: "" });
+  const [fillPsalmLoading, setFillPsalmLoading] = useState(false);
+  const [zalmLoadingTarget, setZalmLoadingTarget] = useState<
+    "add" | "edit" | null
+  >(null);
+  const [zalmDate, setZalmDate] = useState<string>(() =>
+    getTodayDateInputValue(),
+  );
   const [importState, setImportState] = useState<ImportState>({
     status: "idle",
     message: "",
@@ -419,6 +503,120 @@ export default function AdminImport({
     addVerseRefs.current = [];
   }
 
+  async function handleQuickFillPsalmSong() {
+    const todayDate = getTodayDateInputValue();
+    setZalmDate(todayDate);
+    setFillPsalmLoading(true);
+    setDeleteState({
+      status: "loading",
+      message: "Pripravujem skladbu Žalm...",
+    });
+
+    const shouldLoadSongs = !adminSongsLoaded;
+    try {
+      let songsPool = adminSongs;
+
+      if (shouldLoadSongs) {
+        setAdminSongsLoading(true);
+        songsPool = await loadAllSongsForAdmin();
+        setAdminSongs(songsPool);
+        setAdminSongsLoaded(true);
+        setSelectedIds(new Set());
+      }
+
+      const psalm = await fetchTodayPsalm(todayDate);
+      const verseText = buildPsalmVerseText(psalm);
+      const existingPsalmSong = songsPool.find((song) =>
+        isPsalmCategory(song.kategoria ?? ""),
+      );
+
+      if (existingPsalmSong) {
+        const songData = await loadSongForEdit(existingPsalmSong.id);
+        const updatedSong: Song = {
+          cisloP: "1",
+          nazov:
+            (songData.nazov ?? "").trim().length > 0
+              ? songData.nazov
+              : [
+                  String(psalm.title ?? "").trim(),
+                  String(psalm.citation ?? "").trim(),
+                ]
+                  .filter((part) => part.length > 0)
+                  .join(" "),
+          kategoria: "Žalm",
+          source:
+            String(psalm.sourceUrl ?? "").trim().length > 0
+              ? String(psalm.sourceUrl)
+              : String(songData.source ?? ""),
+          poradieSloh: ["R"],
+          slohy: [{ cisloS: "R", textik: verseText }],
+        };
+
+        await updateSongInSupabase(existingPsalmSong.id, updatedSong);
+        setAdminSongs((prev) =>
+          sortSongsForAdmin(
+            prev.map((song) =>
+              song.id === existingPsalmSong.id
+                ? {
+                    ...song,
+                    cisloP: updatedSong.cisloP,
+                    nazov: updatedSong.nazov,
+                    kategoria: updatedSong.kategoria ?? "",
+                    source: updatedSong.source ?? "",
+                  }
+                : song,
+            ),
+          ),
+        );
+        setAddForm(null);
+        setEditForm(null);
+        setEditSaveState({ status: "idle", message: "" });
+        setAddSaveState({ status: "idle", message: "" });
+        setDeleteState({
+          status: "success",
+          message: `Naplnena a ulozena existujuca skladba Žalm pre dnesok${
+            psalm.citation ? ` (${psalm.citation})` : ""
+          }.`,
+        });
+      } else {
+        const newSong: Song = {
+          cisloP: "1",
+          nazov: [
+            String(psalm.title ?? "").trim(),
+            String(psalm.citation ?? "").trim(),
+          ]
+            .filter((part) => part.length > 0)
+            .join(" "),
+          kategoria: "Žalm",
+          source: String(psalm.sourceUrl ?? ""),
+          poradieSloh: ["R"],
+          slohy: [{ cisloS: "R", textik: verseText }],
+        };
+
+        const created = await createSongInSupabase(newSong);
+        setAdminSongs((prev) => sortSongsForAdmin([...prev, created]));
+        setEditForm(null);
+        setAddForm(null);
+        setEditSaveState({ status: "idle", message: "" });
+        addVerseRefs.current = [];
+        setAddSaveState({ status: "idle", message: "" });
+        setDeleteState({
+          status: "success",
+          message: `Vytvorena, naplnena a ulozena nova skladba Žalm pre dnesok${
+            psalm.citation ? ` (${psalm.citation})` : ""
+          }.`,
+        });
+      }
+    } catch (err) {
+      setDeleteState({ status: "error", message: formatImportError(err) });
+    } finally {
+      if (shouldLoadSongs) {
+        setAdminSongsLoading(false);
+      }
+      setFillPsalmLoading(false);
+    }
+  }
+
   function handleAddVerseTextChange(index: number, text: string) {
     if (!addForm) return;
     const newSlohy = addForm.slohy.map((v, i) =>
@@ -469,6 +667,96 @@ export default function AdminImport({
         { cisloS: getNextVerseLabel(addForm.slohy), textik: "" },
       ],
     });
+  }
+
+  async function handleLoadTodayPsalmForAdd() {
+    if (!addForm) return;
+
+    setZalmLoadingTarget("add");
+    setAddSaveState({
+      status: "loading",
+      message: "Nacitavam refren zalmu...",
+    });
+    try {
+      const psalm = await fetchTodayPsalm(zalmDate);
+      const verseText = buildPsalmVerseText(psalm);
+      setAddForm({
+        ...addForm,
+        nazov:
+          (addForm.nazov ?? "").trim().length > 0
+            ? addForm.nazov
+            : [
+                String(psalm.title ?? "").trim(),
+                String(psalm.citation ?? "").trim(),
+              ]
+                .filter((part) => part.length > 0)
+                .join(" "),
+        source:
+          String(psalm.sourceUrl ?? "").trim().length > 0
+            ? String(psalm.sourceUrl)
+            : addForm.source,
+        poradieSlohRaw:
+          (addForm.poradieSlohRaw ?? "").trim().length > 0
+            ? addForm.poradieSlohRaw
+            : "R",
+        slohy: [{ cisloS: "R", textik: verseText }],
+      });
+      setAddSaveState({
+        status: "success",
+        message: `Refren bol nacitany pre datum ${zalmDate}${
+          psalm.citation ? ` (${psalm.citation})` : ""
+        }.`,
+      });
+    } catch (err) {
+      setAddSaveState({ status: "error", message: formatImportError(err) });
+    } finally {
+      setZalmLoadingTarget(null);
+    }
+  }
+
+  async function handleLoadTodayPsalmForEdit() {
+    if (!editForm) return;
+
+    setZalmLoadingTarget("edit");
+    setEditSaveState({
+      status: "loading",
+      message: "Nacitavam refren zalmu...",
+    });
+    try {
+      const psalm = await fetchTodayPsalm(zalmDate);
+      const verseText = buildPsalmVerseText(psalm);
+      setEditForm({
+        ...editForm,
+        nazov:
+          (editForm.nazov ?? "").trim().length > 0
+            ? editForm.nazov
+            : [
+                String(psalm.title ?? "").trim(),
+                String(psalm.citation ?? "").trim(),
+              ]
+                .filter((part) => part.length > 0)
+                .join(" "),
+        source:
+          String(psalm.sourceUrl ?? "").trim().length > 0
+            ? String(psalm.sourceUrl)
+            : editForm.source,
+        poradieSlohRaw:
+          (editForm.poradieSlohRaw ?? "").trim().length > 0
+            ? editForm.poradieSlohRaw
+            : "R",
+        slohy: [{ cisloS: "R", textik: verseText }],
+      });
+      setEditSaveState({
+        status: "success",
+        message: `Refren bol nacitany pre datum ${zalmDate}${
+          psalm.citation ? ` (${psalm.citation})` : ""
+        }.`,
+      });
+    } catch (err) {
+      setEditSaveState({ status: "error", message: formatImportError(err) });
+    } finally {
+      setZalmLoadingTarget(null);
+    }
   }
 
   async function handleSaveAddSong() {
@@ -1177,6 +1465,24 @@ export default function AdminImport({
             >
               Pridat novu skladbu
             </button>
+            <button
+              type="button"
+              onClick={handleQuickFillPsalmSong}
+              disabled={fillPsalmLoading || adminSongsLoading}
+              style={{
+                padding: "10px 18px",
+                background: "#2e7d32",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                fontWeight: 600,
+                fontSize: 16,
+                cursor: "pointer",
+                boxShadow: "0 1px 4px #0002",
+              }}
+            >
+              {fillPsalmLoading ? "Naplnam ZALM..." : "Napln zalm"}
+            </button>
           </div>
           {adminSongsLoaded && (
             <>
@@ -1395,6 +1701,43 @@ export default function AdminImport({
                   }}
                 />
               </label>
+              {isPsalmCategory(editForm.kategoria) && (
+                <>
+                  <label>
+                    Datum zalmu:
+                    <input
+                      type="date"
+                      value={zalmDate}
+                      onChange={(e) => setZalmDate(e.target.value)}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 6,
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleLoadTodayPsalmForEdit}
+                    disabled={zalmLoadingTarget === "edit"}
+                    style={{
+                      justifySelf: "start",
+                      padding: "6px 12px",
+                      background: "#14532d",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {zalmLoadingTarget === "edit"
+                      ? "Nacitavam refren..."
+                      : "Nacitat refren z lc.kbs.sk"}
+                  </button>
+                </>
+              )}
               <label>
                 Source:
                 <input
@@ -1664,6 +2007,43 @@ export default function AdminImport({
                   }}
                 />
               </label>
+              {isPsalmCategory(addForm.kategoria) && (
+                <>
+                  <label>
+                    Datum zalmu:
+                    <input
+                      type="date"
+                      value={zalmDate}
+                      onChange={(e) => setZalmDate(e.target.value)}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 6,
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleLoadTodayPsalmForAdd}
+                    disabled={zalmLoadingTarget === "add"}
+                    style={{
+                      justifySelf: "start",
+                      padding: "6px 12px",
+                      background: "#14532d",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {zalmLoadingTarget === "add"
+                      ? "Nacitavam refren..."
+                      : "Nacitat refren z lc.kbs.sk"}
+                  </button>
+                </>
+              )}
               <label>
                 Source:
                 <input

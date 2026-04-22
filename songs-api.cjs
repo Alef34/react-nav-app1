@@ -174,6 +174,134 @@ function parsePlaylistSongIds(value) {
   );
 }
 
+function decodeHtmlEntities(value) {
+  const source = String(value ?? "");
+  const named = {
+    nbsp: " ",
+    amp: "&",
+    quot: '"',
+    apos: "'",
+    lt: "<",
+    gt: ">",
+    hellip: "...",
+    bdquo: '"',
+    ldquo: '"',
+    rdquo: '"',
+    lsquo: "'",
+    rsquo: "'",
+    ndash: "-",
+    mdash: "-",
+  };
+
+  return source.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (_, token) => {
+    if (token.startsWith("#x") || token.startsWith("#X")) {
+      const code = Number.parseInt(token.slice(2), 16);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    }
+
+    if (token.startsWith("#")) {
+      const code = Number.parseInt(token.slice(1), 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    }
+
+    const mapped = named[token.toLowerCase()];
+    return mapped !== undefined ? mapped : _;
+  });
+}
+
+function htmlToPlainText(value) {
+  return decodeHtmlEntities(
+    String(value ?? "")
+      .replace(/<br\s*\/?\s*>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<\/h[1-6]>/gi, "\n\n")
+      .replace(/<var[^>]*>/gi, "")
+      .replace(/<\/var>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim(),
+  );
+}
+
+function extractPrimaryRefrain(value) {
+  const normalized = String(value ?? "")
+    .replace(/^R\.:?\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  const withoutAlternative = normalized.split(/\s+alebo\s+/i)[0]?.trim() ?? "";
+  return withoutAlternative.replace(/[;,]\s*$/, "").trim();
+}
+
+function parsePsalmFromLcKbsHtml(html) {
+  const source = String(html ?? "");
+  const startTagMatch = source.match(
+    /<div[^>]*id=['"]c_[^'"]+['"][^>]*class=['"][^'"]*lcZALM[^'"]*['"][^>]*>/i,
+  );
+
+  if (!startTagMatch || typeof startTagMatch.index !== "number") {
+    throw new Error(
+      "V odpovedi lc.kbs.sk sa nenasiel blok pre responzoriovy zalm.",
+    );
+  }
+
+  const start = startTagMatch.index;
+  const nextReading = source.indexOf(
+    "<div id='c_",
+    start + startTagMatch[0].length,
+  );
+  const articleEnd = source.indexOf(
+    "</article>",
+    start + startTagMatch[0].length,
+  );
+  const endCandidates = [nextReading, articleEnd].filter((v) => v >= 0);
+  const end =
+    endCandidates.length > 0 ? Math.min(...endCandidates) : source.length;
+  const section = source.slice(start, end);
+
+  const refrainMatch = section.match(
+    /<p[^>]*class=['"][^'"]*lcRESPblock[^'"]*['"][^>]*>([\s\S]*?)<\/p>/i,
+  );
+  const citationMatch = section.match(
+    /<h4[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>\s*([^<]*)<\/span>[\s\S]*?<\/h4>/i,
+  );
+
+  const contentHtml = section
+    .replace(
+      /<p[^>]*class=['"][^'"]*lcRESPblock[^'"]*['"][^>]*>[\s\S]*?<\/p>/i,
+      "",
+    )
+    .replace(/<h4[^>]*>[\s\S]*?<\/h4>/i, "");
+
+  const refrain = refrainMatch
+    ? extractPrimaryRefrain(htmlToPlainText(refrainMatch[1]))
+    : "";
+  const citation = citationMatch
+    ? htmlToPlainText(`${citationMatch[1]} ${citationMatch[2]}`)
+        .replace(/\s+/g, " ")
+        .trim()
+    : "";
+  const text = htmlToPlainText(contentHtml).replace(/\r/g, "");
+
+  if (!refrain) {
+    throw new Error("Nepodarilo sa vyparsovat refren zalmu z lc.kbs.sk.");
+  }
+
+  return {
+    title: "Responzoriovy zalm",
+    citation,
+    refrain,
+    text,
+  };
+}
+
 app.get("/api/playlists", (_req, res) => {
   const rows = db
     .prepare("SELECT name, song_ids FROM playlists WHERE name IN (?, ?, ?)")
@@ -194,6 +322,41 @@ app.get("/api/playlists", (_req, res) => {
   });
 
   res.json(payload);
+});
+
+app.get("/api/liturgy/zalm-today", async (req, res) => {
+  const denRaw = String(req.query.den ?? "dnes").trim();
+  const den =
+    /^\d{4}-\d{2}-\d{2}$/.test(denRaw) || denRaw === "dnes" ? denRaw : "dnes";
+  const sourceUrl = `https://lc.kbs.sk/?den=${encodeURIComponent(den)}`;
+
+  try {
+    const response = await fetch(sourceUrl, {
+      headers: {
+        "user-agent": "Mozilla/5.0",
+      },
+    });
+
+    if (!response.ok) {
+      return res.status(502).json({
+        error: `lc.kbs.sk vratilo chybu ${response.status}.`,
+      });
+    }
+
+    const html = await response.text();
+    const psalm = parsePsalmFromLcKbsHtml(html);
+    return res.json({
+      ...psalm,
+      sourceUrl,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Nepodarilo sa nacitat dnesny zalm.";
+    return res.status(500).json({ error: message });
+  }
 });
 
 app.put("/api/playlists", (req, res) => {
