@@ -1,4 +1,12 @@
 import { spawn, spawnSync } from "node:child_process";
+// Spusti unclutter na Linuxe pre automatické skrytie kurzora
+if (process.platform === "linux") {
+  spawn("unclutter", ["-idle", "1"], {
+    env: { ...process.env, DISPLAY: ":0" },
+    detached: true,
+    stdio: "ignore",
+  }).unref();
+}
 import { existsSync, mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
