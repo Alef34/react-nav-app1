@@ -13,6 +13,7 @@ export interface ProjectorPayload {
 
 const STORAGE_KEY = "projector-song";
 const CLIENT_ID_KEY = "projector-client-id";
+const DISABLE_WS_PAYLOAD_KEY = "projector-disable-ws-payload";
 
 let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
@@ -23,6 +24,43 @@ const connectionListeners = new Set<(connected: boolean) => void>();
 let isConnected = false;
 
 let latestPayloadTs = 0;
+
+function isTruthy(value: string | null | undefined): boolean {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  return (
+    normalized === "1" ||
+    normalized === "true" ||
+    normalized === "yes" ||
+    normalized === "on"
+  );
+}
+
+function isWsPayloadSyncDisabled(): boolean {
+  try {
+    const params = new URLSearchParams(window.location.search);
+
+    // Diagnostic toggle persisted in localStorage:
+    // ?disableWsPayload=1 to disable, ?disableWsPayload=0 to re-enable.
+    if (params.has("disableWsPayload")) {
+      const value = params.get("disableWsPayload");
+      localStorage.setItem(DISABLE_WS_PAYLOAD_KEY, isTruthy(value) ? "1" : "0");
+    }
+
+    const persisted = localStorage.getItem(DISABLE_WS_PAYLOAD_KEY);
+    if (persisted != null) {
+      return persisted === "1";
+    }
+  } catch {
+    // Ignore URL/localStorage errors.
+  }
+
+  const envValue = import.meta.env.VITE_DISABLE_WS_PAYLOAD as
+    | string
+    | undefined;
+  return isTruthy(envValue);
+}
 
 function notifyConnection(connected: boolean) {
   isConnected = connected;
@@ -91,6 +129,11 @@ function scheduleReconnect() {
 
 export function startProjectorChannel(role: ProjectorRole) {
   roleForSocket = role;
+
+  if (isWsPayloadSyncDisabled()) {
+    notifyConnection(false);
+    return;
+  }
 
   if (
     ws &&
@@ -187,6 +230,10 @@ export function sendProjectorPayload(
   };
 
   persistAndNotify(fullPayload);
+
+  if (isWsPayloadSyncDisabled()) {
+    return;
+  }
 
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(
