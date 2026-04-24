@@ -179,8 +179,10 @@ function watchChild(label, child) {
 
 console.log("Starting projector stack...");
 const webScript = process.env.PROJECTOR_WEB_SCRIPT || "projector:web";
+const backendScript = process.env.PROJECTOR_BACKEND_SCRIPT || "backend";
 console.log(`1) Web server: npm run ${webScript}`);
-console.log("2) Projector WS server: npm run projector:ws");
+console.log(`2) Backend API: npm run ${backendScript}`);
+console.log("3) Projector WS server: npm run projector:ws");
 console.log(
   "Open fullscreen projector in another terminal: npm run projektor:fullscreen",
 );
@@ -192,9 +194,11 @@ if (!existsSync(distIndexPath) && webScript === "projector:web") {
   runScriptSync("build", "web");
 }
 
+await ensurePortAvailable(3001, "backend");
 await ensurePortAvailable(5179, "web");
 await ensurePortAvailable(8787, "projector:ws");
 
+const backend = startProcess("backend", backendScript);
 const webServer = startProcess("web", webScript);
 const hasExistingWs = await isPortInUse(8787);
 const projectorWs = hasExistingWs
@@ -207,10 +211,12 @@ if (hasExistingWs) {
   );
 }
 
+children.push(backend);
 children.push(webServer);
 if (projectorWs) {
   children.push(projectorWs);
 }
+watchChild("backend", backend);
 watchChild("web", webServer);
 if (projectorWs) {
   watchChild("projector:ws", projectorWs);
