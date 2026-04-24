@@ -648,6 +648,8 @@ const server = app.listen(API_PORT, API_HOST, () => {
 server.on("error", (error) => {
   const message =
     error instanceof Error ? error.message : "Unknown backend server error";
-  console.error(`[backend] failed to start on ${API_HOST}:${API_PORT} - ${message}`);
+  console.error(
+    `[backend] failed to start on ${API_HOST}:${API_PORT} - ${message}`,
+  );
   process.exit(1);
 });
