@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import net from "node:net";
 
 function startProcess(label, scriptName) {
@@ -27,6 +29,29 @@ function startProcess(label, scriptName) {
   });
 
   return child;
+}
+
+function runScriptSync(scriptName, label) {
+  const isWin = process.platform === "win32";
+  const command = isWin ? "cmd.exe" : "npm";
+  const args = isWin
+    ? ["/d", "/s", "/c", `npm run ${scriptName}`]
+    : ["run", scriptName];
+
+  const result = spawnSync(command, args, {
+    shell: false,
+    stdio: "inherit",
+  });
+
+  if (typeof result.status === "number" && result.status !== 0) {
+    throw new Error(
+      `[${label}] script '${scriptName}' exited with code ${result.status}`,
+    );
+  }
+
+  if (result.error) {
+    throw new Error(`[${label}] failed: ${result.error.message}`);
+  }
 }
 
 function isPortInUse(port, host = "127.0.0.1") {
@@ -153,17 +178,24 @@ function watchChild(label, child) {
 }
 
 console.log("Starting projector stack...");
-console.log("1) Vite LAN server: npm run dev:lan");
+const webScript = process.env.PROJECTOR_WEB_SCRIPT || "projector:web";
+console.log(`1) Web server: npm run ${webScript}`);
 console.log("2) Projector WS server: npm run projector:ws");
 console.log(
   "Open fullscreen projector in another terminal: npm run projektor:fullscreen",
 );
 console.log("Press Ctrl+C to stop all processes.");
 
-await ensurePortAvailable(5179, "dev:lan");
+const distIndexPath = path.resolve(process.cwd(), "dist", "index.html");
+if (!existsSync(distIndexPath) && webScript === "projector:web") {
+  console.log("[web] dist/index.html missing, running npm run build...");
+  runScriptSync("build", "web");
+}
+
+await ensurePortAvailable(5179, "web");
 await ensurePortAvailable(8787, "projector:ws");
 
-const devLan = startProcess("dev:lan", "dev:lan");
+const webServer = startProcess("web", webScript);
 const hasExistingWs = await isPortInUse(8787);
 const projectorWs = hasExistingWs
   ? null
@@ -175,11 +207,11 @@ if (hasExistingWs) {
   );
 }
 
-children.push(devLan);
+children.push(webServer);
 if (projectorWs) {
   children.push(projectorWs);
 }
-watchChild("dev:lan", devLan);
+watchChild("web", webServer);
 if (projectorWs) {
   watchChild("projector:ws", projectorWs);
 }

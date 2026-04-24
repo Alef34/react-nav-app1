@@ -68,8 +68,23 @@ async function isUrlReachable(targetUrl) {
   }
 }
 
+async function waitForUrl(targetUrl, timeoutMs = 30000) {
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    if (await isUrlReachable(targetUrl)) {
+      return true;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  }
+
+  return false;
+}
+
 async function resolveLaunchUrl() {
   if (explicitUrl) {
+    await waitForUrl(explicitUrl);
     return explicitUrl;
   }
 
