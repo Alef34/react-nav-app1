@@ -5,6 +5,7 @@ const wss = new WebSocketServer({ port, host: "0.0.0.0" });
 
 /** @type {Map<import('ws').WebSocket, { role: string; clientId: string }>} */
 const clientMeta = new Map();
+let latestPayload = null;
 
 function safeSend(ws, data) {
   if (ws.readyState === ws.OPEN) {
@@ -12,13 +13,12 @@ function safeSend(ws, data) {
   }
 }
 
-function broadcastToProjectors(payload, sender) {
+function broadcastState(payload, sender) {
+  latestPayload = payload;
+
   for (const client of wss.clients) {
     if (client === sender || client.readyState !== client.OPEN) continue;
-    const meta = clientMeta.get(client);
-    if (!meta || meta.role === "projector") {
-      safeSend(client, { type: "projector-state", payload });
-    }
+    safeSend(client, { type: "projector-state", payload });
   }
 }
 
@@ -36,11 +36,16 @@ wss.on("connection", (ws) => {
           clientId: typeof data.clientId === "string" ? data.clientId : "",
         });
         safeSend(ws, { type: "hello-ack", ok: true });
+
+        if (latestPayload) {
+          safeSend(ws, { type: "projector-state", payload: latestPayload });
+        }
+
         return;
       }
 
       if (data?.type === "projector-state") {
-        broadcastToProjectors(data.payload, ws);
+        broadcastState(data.payload, ws);
       }
     } catch (err) {
       safeSend(ws, {
