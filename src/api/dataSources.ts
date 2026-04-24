@@ -99,6 +99,31 @@ export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
           }
         })()
       : [],
+    verseFontMultipliers:
+      row.verse_font_multipliers &&
+      typeof row.verse_font_multipliers === "object" &&
+      !Array.isArray(row.verse_font_multipliers)
+        ? Object.fromEntries(
+            Object.entries(row.verse_font_multipliers)
+              .map(([key, value]) => {
+                const safeKey = String(key ?? "")
+                  .trim()
+                  .toLocaleLowerCase();
+                const numeric = Number(value);
+                if (!safeKey || !Number.isFinite(numeric)) {
+                  return ["", NaN] as const;
+                }
+
+                return [
+                  safeKey,
+                  Number(Math.min(2, Math.max(0.5, numeric)).toFixed(2)),
+                ] as const;
+              })
+              .filter(
+                ([key, value]) => key.length > 0 && Number.isFinite(value),
+              ),
+          )
+        : {},
     slohy: Array.isArray(row.slohy) ? row.slohy : [],
   }));
   if (!filter || filter.trim() === "") {
