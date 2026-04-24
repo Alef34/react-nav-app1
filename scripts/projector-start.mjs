@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import net from "node:net";
 
 function startProcess(label, scriptName) {
@@ -28,6 +31,29 @@ function startProcess(label, scriptName) {
   return child;
 }
 
+function runScriptSync(scriptName, label) {
+  const isWin = process.platform === "win32";
+  const command = isWin ? "cmd.exe" : "npm";
+  const args = isWin
+    ? ["/d", "/s", "/c", `npm run ${scriptName}`]
+    : ["run", scriptName];
+
+  const result = spawnSync(command, args, {
+    shell: false,
+    stdio: "inherit",
+  });
+
+  if (typeof result.status === "number" && result.status !== 0) {
+    throw new Error(
+      `[${label}] script '${scriptName}' exited with code ${result.status}`,
+    );
+  }
+
+  if (result.error) {
+    throw new Error(`[${label}] failed: ${result.error.message}`);
+  }
+}
+
 function isPortInUse(port, host = "127.0.0.1") {
   return new Promise((resolve) => {
     const socket = new net.Socket();
@@ -50,6 +76,75 @@ function isPortInUse(port, host = "127.0.0.1") {
 
     socket.connect(port, host);
   });
+}
+
+function listPidsOnPort(port) {
+  if (process.platform === "win32") {
+    return [];
+  }
+
+  const result = spawnSync("lsof", ["-t", `-iTCP:${port}`, "-sTCP:LISTEN"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    shell: false,
+  });
+
+  if (result.status !== 0 || !result.stdout) {
+    return [];
+  }
+
+  return result.stdout
+    .split(/\s+/)
+    .map((part) => Number(part.trim()))
+    .filter((pid) => Number.isInteger(pid) && pid > 0);
+}
+
+function killPid(pid, signal) {
+  if (!Number.isInteger(pid) || pid <= 0) {
+    return false;
+  }
+
+  try {
+    process.kill(pid, signal);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensurePortAvailable(port, label) {
+  const inUse = await isPortInUse(port);
+  if (!inUse) {
+    return;
+  }
+
+  const pids = listPidsOnPort(port);
+  if (pids.length === 0) {
+    console.log(`[${label}] port ${port} busy, but owner PID not resolved.`);
+    return;
+  }
+
+  console.log(
+    `[${label}] freeing port ${port} from PID(s): ${pids.join(", ")}`,
+  );
+  for (const pid of pids) {
+    killPid(pid, "SIGTERM");
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 350));
+
+  const stillInUse = await isPortInUse(port);
+  if (!stillInUse) {
+    console.log(`[${label}] port ${port} released.`);
+    return;
+  }
+
+  console.log(`[${label}] force killing PID(s) on port ${port}.`);
+  for (const pid of pids) {
+    killPid(pid, "SIGKILL");
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 250));
 }
 
 const children = [];
@@ -83,26 +178,40 @@ function watchChild(label, child) {
 }
 
 console.log("Starting projector stack...");
-console.log("1) Vite LAN server: npm run dev:lan");
+const webScript = process.env.PROJECTOR_WEB_SCRIPT || "projector:web";
+console.log(`1) Web server: npm run ${webScript}`);
 console.log("2) Projector WS server: npm run projector:ws");
-console.log("Open fullscreen projector in another terminal: npm run projektor:fullscreen");
+console.log(
+  "Open fullscreen projector in another terminal: npm run projektor:fullscreen",
+);
 console.log("Press Ctrl+C to stop all processes.");
 
-const devLan = startProcess("dev:lan", "dev:lan");
+const distIndexPath = path.resolve(process.cwd(), "dist", "index.html");
+if (!existsSync(distIndexPath) && webScript === "projector:web") {
+  console.log("[web] dist/index.html missing, running npm run build...");
+  runScriptSync("build", "web");
+}
+
+await ensurePortAvailable(5179, "web");
+await ensurePortAvailable(8787, "projector:ws");
+
+const webServer = startProcess("web", webScript);
 const hasExistingWs = await isPortInUse(8787);
 const projectorWs = hasExistingWs
   ? null
   : startProcess("projector:ws", "projector:ws");
 
 if (hasExistingWs) {
-  console.log("[projector:ws] existing server detected on 8787, skipping new instance.");
+  console.log(
+    "[projector:ws] existing server detected on 8787, skipping new instance.",
+  );
 }
 
-children.push(devLan);
+children.push(webServer);
 if (projectorWs) {
   children.push(projectorWs);
 }
-watchChild("dev:lan", devLan);
+watchChild("web", webServer);
 if (projectorWs) {
   watchChild("projector:ws", projectorWs);
 }

@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import SongRenderer from "../components/Song";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import {
   SettingsContext,
   SettingsContextType,
@@ -8,6 +8,7 @@ import {
 import { Song as SongType, SongVerse } from "../types/myTypes";
 import { GiSettingsKnobs } from "react-icons/gi";
 import {
+  getProjectorClientId,
   getProjectorChannelConnectionState,
   sendProjectorPayload,
   subscribeProjectorConnectionState,
@@ -134,6 +135,7 @@ export default function Akordy1() {
   });
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
   const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
+  const applyingRemotePayloadRef = useRef(false);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
@@ -185,6 +187,7 @@ export default function Akordy1() {
 
   useEffect(() => {
     startProjectorChannel("controller");
+    const ownClientId = getProjectorClientId();
 
     setIsProjectorConnected(getProjectorChannelConnectionState());
     const unsubscribeConnection = subscribeProjectorConnectionState(
@@ -194,12 +197,18 @@ export default function Akordy1() {
     );
 
     const unsubscribePayload = subscribeProjectorPayload((payload) => {
+      if (payload.source && payload.source === ownClientId) {
+        return;
+      }
+
       setIsProjectorBlackout(payload.blackout === true);
 
       const incomingSong = payload.song;
       if (!incomingSong) {
         return;
       }
+
+      applyingRemotePayloadRef.current = true;
 
       setActiveSong(incomingSong);
       setVerseOrderInput(formatVerseOrderInput(incomingSong));
@@ -213,13 +222,9 @@ export default function Akordy1() {
             Math.max(0, incomingSong.slohy.length - 1),
           ),
         );
-        const nextCursor = resolveVerseCursor(
-          playbackOrder,
-          safeIndex,
-          selectedViewCursor,
+        setSelectedViewCursor((previousCursor) =>
+          resolveVerseCursor(playbackOrder, safeIndex, previousCursor),
         );
-
-        setSelectedViewCursor(nextCursor);
         setSelectedView(safeIndex);
       }
     });
@@ -228,7 +233,7 @@ export default function Akordy1() {
       unsubscribeConnection();
       unsubscribePayload();
     };
-  }, [selectedViewCursor]);
+  }, []);
 
   const { width, height } = windowSize;
 
@@ -509,6 +514,11 @@ export default function Akordy1() {
 
   useEffect(() => {
     if (!activeSong) return;
+
+    if (applyingRemotePayloadRef.current) {
+      applyingRemotePayloadRef.current = false;
+      return;
+    }
 
     if (!isProjectorBlackout) {
       sendProjectorPayload({

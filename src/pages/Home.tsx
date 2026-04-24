@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 //import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GiSettingsKnobs } from "react-icons/gi";
@@ -14,6 +14,7 @@ import {
   SettingsContextType,
 } from "../context/SettingsContext";
 import {
+  getProjectorClientId,
   getProjectorChannelConnectionState,
   sendProjectorPayload,
   startProjectorChannel,
@@ -612,6 +613,7 @@ export default function Home() {
   });
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
   const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
+  const applyingRemotePayloadRef = useRef(false);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
@@ -748,6 +750,7 @@ export default function Home() {
 
   useEffect(() => {
     startProjectorChannel("controller");
+    const ownClientId = getProjectorClientId();
     setIsProjectorConnected(getProjectorChannelConnectionState());
     const unsubscribeConnection = subscribeProjectorConnectionState(
       (connected) => {
@@ -756,12 +759,18 @@ export default function Home() {
     );
 
     const unsubscribePayload = subscribeProjectorPayload((payload) => {
+      if (payload.source && payload.source === ownClientId) {
+        return;
+      }
+
       setIsProjectorBlackout(payload.blackout === true);
 
       const incomingSong = payload.song;
       if (!incomingSong) {
         return;
       }
+
+      applyingRemotePayloadRef.current = true;
 
       const incomingSongId = getSongId(incomingSong);
       const resolvedSong =
@@ -786,13 +795,9 @@ export default function Home() {
             Math.max(0, resolvedSong.slohy.length - 1),
           ),
         );
-        const nextCursor = resolveVerseCursor(
-          playbackOrder,
-          safeIndex,
-          selectedVerseCursor,
+        setSelectedVerseCursor((previousCursor) =>
+          resolveVerseCursor(playbackOrder, safeIndex, previousCursor),
         );
-
-        setSelectedVerseCursor(nextCursor);
         setSelectedVerse(safeIndex);
       }
     });
@@ -801,7 +806,7 @@ export default function Home() {
       unsubscribeConnection();
       unsubscribePayload();
     };
-  }, [songsData, selectedVerseCursor]);
+  }, [songsData]);
 
   function contains(song: Song, formatedQuery: string): boolean {
     return (
@@ -1088,6 +1093,11 @@ export default function Home() {
 
   useEffect(() => {
     if (!selectedSong || selectedSong.slohy.length === 0) {
+      return;
+    }
+
+    if (applyingRemotePayloadRef.current) {
+      applyingRemotePayloadRef.current = false;
       return;
     }
 

@@ -19,6 +19,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "prepreview": "npm run gen:version",
     "preview": "vite preview",
+    "projector:web": "vite preview --host 0.0.0.0 --port 5179 --strictPort",
     "backend": "node songs-api.cjs",
     "dev:offline": "npm run free:backend-port && npm run free:frontend-port && concurrently \"npm run backend\" \"npm run dev:lan\"",
     "projector:ws": "node scripts/projector-ws-server.mjs",
