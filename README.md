@@ -120,3 +120,9 @@ Alternativne mozes zadat iba port:
 ```env
 VITE_PROJECTOR_WS_PORT=8787
 ```
+
+Edit suboru kde su nastavene wifi siete
+sudo nano /etc/wpa_supplicant/wpa_supplicant-wlan1.conf
+
+Edit suboru, kde je popisana ProjectorAP
+sudo nano /etc/hostapd/hostapd.conf

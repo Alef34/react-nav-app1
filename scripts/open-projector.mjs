@@ -30,6 +30,7 @@ function getBrowserFlags() {
     "--no-first-run",
     "--no-default-browser-check",
     "--disable-session-crashed-bubble",
+    "--restore-last-session=false",
   ];
 
   if (isKiosk) {
