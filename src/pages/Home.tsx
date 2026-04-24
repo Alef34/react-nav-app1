@@ -18,6 +18,7 @@ import {
   sendProjectorPayload,
   startProjectorChannel,
   subscribeProjectorConnectionState,
+  subscribeProjectorPayload,
 } from "../realtime/projectorChannel";
 import { useVersionStore } from "../state/versionStore";
 import {
@@ -748,12 +749,59 @@ export default function Home() {
   useEffect(() => {
     startProjectorChannel("controller");
     setIsProjectorConnected(getProjectorChannelConnectionState());
-    const unsubscribe = subscribeProjectorConnectionState((connected) => {
-      setIsProjectorConnected(connected);
+    const unsubscribeConnection = subscribeProjectorConnectionState(
+      (connected) => {
+        setIsProjectorConnected(connected);
+      },
+    );
+
+    const unsubscribePayload = subscribeProjectorPayload((payload) => {
+      setIsProjectorBlackout(payload.blackout === true);
+
+      const incomingSong = payload.song;
+      if (!incomingSong) {
+        return;
+      }
+
+      const incomingSongId = getSongId(incomingSong);
+      const resolvedSong =
+        songsData.find((song) => {
+          if (incomingSongId !== undefined) {
+            return getSongId(song) === incomingSongId;
+          }
+
+          return isSameSong(song, incomingSong);
+        }) ?? incomingSong;
+
+      setSelectedSongIdentity(getSongIdentity(resolvedSong));
+      setSelectedSong(resolvedSong);
+      setVerseOrderInput(formatVerseOrderInput(resolvedSong));
+
+      if (typeof payload.selectedView === "number") {
+        const playbackOrder = buildVersePlaybackOrder(resolvedSong);
+        const safeIndex = Math.max(
+          0,
+          Math.min(
+            payload.selectedView,
+            Math.max(0, resolvedSong.slohy.length - 1),
+          ),
+        );
+        const nextCursor = resolveVerseCursor(
+          playbackOrder,
+          safeIndex,
+          selectedVerseCursor,
+        );
+
+        setSelectedVerseCursor(nextCursor);
+        setSelectedVerse(safeIndex);
+      }
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      unsubscribeConnection();
+      unsubscribePayload();
+    };
+  }, [songsData, selectedVerseCursor]);
 
   function contains(song: Song, formatedQuery: string): boolean {
     return (

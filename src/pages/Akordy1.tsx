@@ -11,6 +11,7 @@ import {
   getProjectorChannelConnectionState,
   sendProjectorPayload,
   subscribeProjectorConnectionState,
+  subscribeProjectorPayload,
   startProjectorChannel,
 } from "../realtime/projectorChannel";
 import { updateSongOrderById } from "../api/supabaseSongs";
@@ -186,12 +187,48 @@ export default function Akordy1() {
     startProjectorChannel("controller");
 
     setIsProjectorConnected(getProjectorChannelConnectionState());
-    const unsubscribe = subscribeProjectorConnectionState((connected) => {
-      setIsProjectorConnected(connected);
+    const unsubscribeConnection = subscribeProjectorConnectionState(
+      (connected) => {
+        setIsProjectorConnected(connected);
+      },
+    );
+
+    const unsubscribePayload = subscribeProjectorPayload((payload) => {
+      setIsProjectorBlackout(payload.blackout === true);
+
+      const incomingSong = payload.song;
+      if (!incomingSong) {
+        return;
+      }
+
+      setActiveSong(incomingSong);
+      setVerseOrderInput(formatVerseOrderInput(incomingSong));
+
+      if (typeof payload.selectedView === "number") {
+        const playbackOrder = buildVersePlaybackOrder(incomingSong);
+        const safeIndex = Math.max(
+          0,
+          Math.min(
+            payload.selectedView,
+            Math.max(0, incomingSong.slohy.length - 1),
+          ),
+        );
+        const nextCursor = resolveVerseCursor(
+          playbackOrder,
+          safeIndex,
+          selectedViewCursor,
+        );
+
+        setSelectedViewCursor(nextCursor);
+        setSelectedView(safeIndex);
+      }
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      unsubscribeConnection();
+      unsubscribePayload();
+    };
+  }, [selectedViewCursor]);
 
   const { width, height } = windowSize;
 
