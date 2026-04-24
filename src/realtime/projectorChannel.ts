@@ -22,6 +22,8 @@ const listeners = new Set<(payload: ProjectorPayload) => void>();
 const connectionListeners = new Set<(connected: boolean) => void>();
 let isConnected = false;
 
+let latestPayloadTs = 0;
+
 function notifyConnection(connected: boolean) {
   isConnected = connected;
   connectionListeners.forEach((cb) => cb(connected));
@@ -33,6 +35,10 @@ function getClientId(): string {
   const created = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   localStorage.setItem(CLIENT_ID_KEY, created);
   return created;
+}
+
+export function getProjectorClientId(): string {
+  return getClientId();
 }
 
 export function readProjectorPayload(): ProjectorPayload {
@@ -47,6 +53,11 @@ export function readProjectorPayload(): ProjectorPayload {
 }
 
 function persistAndNotify(payload: ProjectorPayload) {
+  const payloadTs = Number(payload.ts);
+  if (Number.isFinite(payloadTs) && payloadTs > 0) {
+    latestPayloadTs = Math.max(latestPayloadTs, payloadTs);
+  }
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
@@ -109,7 +120,23 @@ export function startProjectorChannel(role: ProjectorRole) {
       };
 
       if (msg.type === "projector-state" && msg.payload) {
-        persistAndNotify(msg.payload);
+        const payload = msg.payload;
+
+        // Local sender already applied this payload via sendProjectorPayload().
+        if (payload.source && payload.source === getClientId()) {
+          return;
+        }
+
+        const payloadTs = Number(payload.ts);
+        if (
+          Number.isFinite(payloadTs) &&
+          payloadTs > 0 &&
+          payloadTs <= latestPayloadTs
+        ) {
+          return;
+        }
+
+        persistAndNotify(payload);
       }
     } catch {
       // ignore invalid packets
