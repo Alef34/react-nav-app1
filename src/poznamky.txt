@@ -1,0 +1,44 @@
+journalctl -u react-nav-projector.service -b --no-pager | tail -n 120
+Apr 24 14:40:10 rpi-proj systemd[1]: Started react-nav-projector.service - React nav projector stack.
+Apr 24 14:40:13 rpi-proj npm[832]: > react-nav-app1@1.0.13 predev:offline
+Apr 24 14:40:13 rpi-proj npm[832]: > npm run gen:version
+Apr 24 14:40:14 rpi-proj npm[995]: > react-nav-app1@1.0.13 gen:version
+Apr 24 14:40:14 rpi-proj npm[995]: > node scripts/gen-version.cjs
+Apr 24 14:40:14 rpi-proj npm[1007]: Generated src/version.ts: // This file is auto-generated during build
+Apr 24 14:40:14 rpi-proj npm[1007]: export const APP_VERSION = "1.0.13 (2026-04-24 12:40:14)";
+Apr 24 14:40:14 rpi-proj npm[832]: > react-nav-app1@1.0.13 dev:offline
+Apr 24 14:40:14 rpi-proj npm[832]: > npm run free:backend-port && npm run free:frontend-port && concurrently "npm run backend" "npm run dev:lan"
+Apr 24 14:40:14 rpi-proj npm[1015]: > react-nav-app1@1.0.13 free:backend-port
+Apr 24 14:40:14 rpi-proj npm[1015]: > sh -c 'lsof -ti:3001 | xargs kill -15 2>/dev/null || true'
+Apr 24 14:40:14 rpi-proj npm[1034]: > react-nav-app1@1.0.13 free:frontend-port
+Apr 24 14:40:14 rpi-proj npm[1034]: > sh -c 'lsof -ti:5179 | xargs kill -15 2>/dev/null || true'
+Apr 24 14:40:15 rpi-proj npm[1052]: [0]
+Apr 24 14:40:15 rpi-proj npm[1052]: [0] > react-nav-app1@1.0.13 backend
+Apr 24 14:40:15 rpi-proj npm[1052]: [0] > node songs-api.cjs
+Apr 24 14:40:15 rpi-proj npm[1052]: [0]
+Apr 24 14:40:15 rpi-proj npm[1052]: [1]
+Apr 24 14:40:15 rpi-proj npm[1052]: [1] > react-nav-app1@1.0.13 predev:lan
+Apr 24 14:40:15 rpi-proj npm[1052]: [1] > npm run gen:version
+Apr 24 14:40:15 rpi-proj npm[1052]: [1]
+Apr 24 14:40:15 rpi-proj npm[1052]: [1]
+Apr 24 14:40:15 rpi-proj npm[1052]: [1] > react-nav-app1@1.0.13 gen:version
+Apr 24 14:40:15 rpi-proj npm[1052]: [1] > node scripts/gen-version.cjs
+Apr 24 14:40:15 rpi-proj npm[1052]: [1]
+Apr 24 14:40:15 rpi-proj npm[1052]: [1] Generated src/version.ts: // This file is auto-generated during build
+Apr 24 14:40:15 rpi-proj npm[1052]: [1] export const APP_VERSION = "1.0.13 (2026-04-24 12:40:15)";
+Apr 24 14:40:15 rpi-proj npm[1052]: [1]
+Apr 24 14:40:16 rpi-proj npm[1052]: [1]
+Apr 24 14:40:16 rpi-proj npm[1052]: [1] > react-nav-app1@1.0.13 dev:lan
+Apr 24 14:40:16 rpi-proj npm[1052]: [1] > vite --host 0.0.0.0 --port 5179
+Apr 24 14:40:16 rpi-proj npm[1052]: [1]
+Apr 24 14:40:16 rpi-proj npm[1052]: [0] Spúšťam backend...
+Apr 24 14:40:17 rpi-proj npm[1052]: [0] SQLite API beží na http://localhost:3001
+Apr 24 14:40:17 rpi-proj npm[1052]: [1]
+Apr 24 14:40:17 rpi-proj npm[1052]: [1]   VITE v5.2.11  ready in 1031 ms
+Apr 24 14:40:17 rpi-proj npm[1052]: [1]
+Apr 24 14:40:17 rpi-proj npm[1052]: [1]   ➜  Local:   http://localhost:5179/
+Apr 24 14:40:17 rpi-proj npm[1052]: [1]   ➜  Network: http://192.168.4.1:5179/
+Apr 24 14:40:17 rpi-proj npm[1052]: [1]   ➜  Network: http://10.10.65.107:5179/
+adminik@rpi-proj:~ $ ss -ltnp | grep -E "5179|8787"
+LISTEN 0      511          0.0.0.0:5179      0.0.0.0:*    users:(("MainThread",pid=1277,fd=22))
+LISTEN 0      511          0.0.0.0:8787      0.0.0.0:*    users:(("MainThread",pid=839,fd=21)) 
