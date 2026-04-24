@@ -27,10 +27,17 @@ db.exec(`
     source TEXT,
     kategoria TEXT,
     poradie_sloh TEXT,
+    verse_font_multipliers TEXT,
     slohy TEXT,
     updated_at TEXT
   )
 `);
+
+try {
+  db.exec("ALTER TABLE songs ADD COLUMN verse_font_multipliers TEXT");
+} catch (error) {
+  // Ignore if column already exists.
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS playlists (
@@ -399,6 +406,62 @@ app.patch("/api/songs/:id/poradie", (req, res) => {
   res.json({ updated: true });
 });
 
+app.patch("/api/songs/:id/verse-font", (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    return res.status(400).json({ error: "Neplatne id." });
+  }
+
+  const verseKey = String(req.body?.verse_key ?? "")
+    .trim()
+    .toLowerCase();
+  if (!verseKey) {
+    return res.status(400).json({ error: "verse_key musi byt text." });
+  }
+
+  const rawMultiplier = req.body?.multiplier;
+  let multiplier = null;
+  if (rawMultiplier !== null && rawMultiplier !== undefined) {
+    const parsed = Number(rawMultiplier);
+    if (!Number.isFinite(parsed)) {
+      return res
+        .status(400)
+        .json({ error: "multiplier musi byt cislo alebo null." });
+    }
+
+    multiplier = Number(Math.min(2, Math.max(0.5, parsed)).toFixed(2));
+  }
+
+  const row = db
+    .prepare("SELECT verse_font_multipliers FROM songs WHERE id = ?")
+    .get(id);
+  if (!row) {
+    return res.status(404).json({ error: "Skladba neexistuje." });
+  }
+
+  let current = {};
+  try {
+    const parsed = JSON.parse(row.verse_font_multipliers || "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      current = parsed;
+    }
+  } catch {
+    current = {};
+  }
+
+  if (multiplier === null) {
+    delete current[verseKey];
+  } else {
+    current[verseKey] = multiplier;
+  }
+
+  const stmt = db.prepare(
+    "UPDATE songs SET verse_font_multipliers = ?, updated_at = datetime('now') WHERE id = ?",
+  );
+  stmt.run(JSON.stringify(current), id);
+  res.json({ updated: true, verse_font_multipliers: current });
+});
+
 // Hromadný import piesní (pole piesní v tele požiadavky)
 app.post("/api/import", (req, res) => {
   const songs = req.body; // očakáva pole piesní
@@ -406,8 +469,8 @@ app.post("/api/import", (req, res) => {
     return res.status(400).json({ error: "Očakáva sa pole piesní." });
   }
   const stmt = db.prepare(`
-    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, slohy, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, verse_font_multipliers, slohy, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
   `);
   let count = 0;
   for (const song of songs) {
@@ -417,6 +480,9 @@ app.post("/api/import", (req, res) => {
       song.source,
       song.kategoria,
       JSON.stringify(song.poradieSloh ?? []),
+      JSON.stringify(
+        song.verseFontMultipliers ?? song.verse_font_multipliers ?? {},
+      ),
       JSON.stringify(song.slohy ?? []),
     );
     count++;
@@ -437,6 +503,7 @@ app.get("/api/songs", (req, res) => {
       ...row,
       slohy: JSON.parse(row.slohy),
       poradie_sloh: JSON.parse(row.poradie_sloh),
+      verse_font_multipliers: JSON.parse(row.verse_font_multipliers || "{}"),
     })),
   );
 });
@@ -457,12 +524,21 @@ app.get("/api/songs/:id", (req, res) => {
     ...row,
     slohy: JSON.parse(row.slohy),
     poradie_sloh: JSON.parse(row.poradie_sloh),
+    verse_font_multipliers: JSON.parse(row.verse_font_multipliers || "{}"),
   });
 });
 
 // Pridaj novú pieseň
 app.post("/api/songs", (req, res) => {
-  const { cislo_p, nazov, source, kategoria, poradie_sloh, slohy } = req.body;
+  const {
+    cislo_p,
+    nazov,
+    source,
+    kategoria,
+    poradie_sloh,
+    verse_font_multipliers,
+    slohy,
+  } = req.body;
 
   if (!String(cislo_p ?? "").trim() || !String(nazov ?? "").trim()) {
     return res.status(400).json({ error: "cislo_p a nazov su povinne." });
@@ -473,8 +549,8 @@ app.post("/api/songs", (req, res) => {
   }
 
   const stmt = db.prepare(`
-    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, slohy, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, verse_font_multipliers, slohy, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
   `);
   const info = stmt.run(
     String(cislo_p).trim(),
@@ -482,6 +558,13 @@ app.post("/api/songs", (req, res) => {
     String(source ?? ""),
     String(kategoria ?? "Nabozenske"),
     JSON.stringify(Array.isArray(poradie_sloh) ? poradie_sloh : []),
+    JSON.stringify(
+      verse_font_multipliers &&
+        typeof verse_font_multipliers === "object" &&
+        !Array.isArray(verse_font_multipliers)
+        ? verse_font_multipliers
+        : {},
+    ),
     JSON.stringify(slohy),
   );
   res.json({ id: info.lastInsertRowid });
@@ -494,7 +577,15 @@ app.put("/api/songs/:id", (req, res) => {
     return res.status(400).json({ error: "Neplatne id." });
   }
 
-  const { cislo_p, nazov, source, kategoria, poradie_sloh, slohy } = req.body;
+  const {
+    cislo_p,
+    nazov,
+    source,
+    kategoria,
+    poradie_sloh,
+    verse_font_multipliers,
+    slohy,
+  } = req.body;
   if (!String(cislo_p ?? "").trim() || !String(nazov ?? "").trim()) {
     return res.status(400).json({ error: "cislo_p a nazov su povinne." });
   }
@@ -504,7 +595,7 @@ app.put("/api/songs/:id", (req, res) => {
   }
 
   const stmt = db.prepare(
-    "UPDATE songs SET cislo_p = ?, nazov = ?, source = ?, kategoria = ?, poradie_sloh = ?, slohy = ?, updated_at = datetime('now') WHERE id = ?",
+    "UPDATE songs SET cislo_p = ?, nazov = ?, source = ?, kategoria = ?, poradie_sloh = ?, verse_font_multipliers = ?, slohy = ?, updated_at = datetime('now') WHERE id = ?",
   );
   const result = stmt.run(
     String(cislo_p).trim(),
@@ -512,6 +603,13 @@ app.put("/api/songs/:id", (req, res) => {
     String(source ?? ""),
     String(kategoria ?? "Nabozenske"),
     JSON.stringify(Array.isArray(poradie_sloh) ? poradie_sloh : []),
+    JSON.stringify(
+      verse_font_multipliers &&
+        typeof verse_font_multipliers === "object" &&
+        !Array.isArray(verse_font_multipliers)
+        ? verse_font_multipliers
+        : {},
+    ),
     JSON.stringify(slohy),
     id,
   );

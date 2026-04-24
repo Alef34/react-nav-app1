@@ -22,6 +22,7 @@ type DbSongRow = {
   source: string | null;
   kategoria: string | null;
   poradie_sloh: string[] | null;
+  verse_font_multipliers: Record<string, number> | null;
   slohy: SongVerse[];
   updated_at?: string;
 };
@@ -41,6 +42,7 @@ type LocalDbSongRow = {
   source: string;
   kategoria: string;
   poradie_sloh: string[];
+  verse_font_multipliers: Record<string, number>;
   slohy: SongVerse[];
   updated_at: string;
 };
@@ -57,6 +59,7 @@ type OfflineApiSongRow = {
   source?: string;
   kategoria?: string;
   poradie_sloh?: string[];
+  verse_font_multipliers?: Record<string, number>;
   slohy?: SongVerse[];
 };
 
@@ -69,6 +72,44 @@ function parseSongId(value: unknown): number | undefined {
   return Math.trunc(parsed);
 }
 
+function normalizeVerseKey(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase();
+}
+
+function normalizeVerseFontMultiplierValue(value: unknown): number | undefined {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return undefined;
+  }
+
+  return Number(Math.min(2, Math.max(0.5, numeric)).toFixed(2));
+}
+
+function normalizeVerseFontMultipliersMap(
+  raw: unknown,
+): Record<string, number> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+
+  const normalized: Record<string, number> = {};
+
+  Object.entries(raw).forEach(([rawKey, rawValue]) => {
+    const key = normalizeVerseKey(rawKey);
+    const multiplier = normalizeVerseFontMultiplierValue(rawValue);
+
+    if (!key || multiplier === undefined) {
+      return;
+    }
+
+    normalized[key] = multiplier;
+  });
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
 function getDefaultLocalDbState(): LocalDbState {
   return {
     nextId: 1,
@@ -76,21 +117,33 @@ function getDefaultLocalDbState(): LocalDbState {
   };
 }
 
-function toOfflineApiSongPayload(song: Song): {
+function toOfflineApiSongPayload(
+  song: Song,
+  options?: { includeVerseFontMultipliers?: boolean },
+): {
   cislo_p: string;
   nazov: string;
   source: string;
   kategoria: string;
   poradie_sloh: string[];
+  verse_font_multipliers?: Record<string, number>;
   slohy: SongVerse[];
 } {
   const normalized = normalizeSong(song);
+  const includeVerseFontMultipliers =
+    options?.includeVerseFontMultipliers ?? true;
+
   return {
     cislo_p: normalized.cisloP,
     nazov: normalized.nazov,
     source: normalized.source ?? "",
     kategoria: normalized.kategoria ?? "Nabozenske",
     poradie_sloh: normalized.poradieSloh ?? [],
+    ...(includeVerseFontMultipliers
+      ? {
+          verse_font_multipliers: normalized.verseFontMultipliers ?? {},
+        }
+      : {}),
     slohy: normalized.slohy,
   };
 }
@@ -103,6 +156,9 @@ function mapOfflineApiRowToSong(row: OfflineApiSongRow): Song {
     source: String(row.source ?? ""),
     kategoria: String(row.kategoria ?? "Nabozenske"),
     poradieSloh: Array.isArray(row.poradie_sloh) ? row.poradie_sloh : [],
+    verseFontMultipliers: normalizeVerseFontMultipliersMap(
+      row.verse_font_multipliers,
+    ),
     slohy: Array.isArray(row.slohy) ? row.slohy : [],
   });
 }
@@ -200,7 +256,12 @@ async function createSongInOfflineApi(song: Song): Promise<SongWithId> {
 }
 
 async function updateSongInOfflineApi(id: number, song: Song): Promise<void> {
-  const payload = toOfflineApiSongPayload(song);
+  const payload = toOfflineApiSongPayload(song, {
+    includeVerseFontMultipliers: Object.prototype.hasOwnProperty.call(
+      song,
+      "verseFontMultipliers",
+    ),
+  });
 
   const response = await fetch(`${OFFLINE_API_BASE_URL}/${id}`, {
     method: "PUT",
@@ -359,6 +420,8 @@ function readLocalDb(): LocalDbState {
                 .map((item) => String(item ?? "").trim())
                 .filter((item) => item.length > 0)
             : [],
+          verse_font_multipliers:
+            normalizeVerseFontMultipliersMap(row?.verse_font_multipliers) ?? {},
           slohy: Array.isArray(row?.slohy) ? row.slohy : [],
           updated_at: String(row?.updated_at ?? ""),
         }))
@@ -435,6 +498,7 @@ function mapLocalRowToSong(row: LocalDbSongRow): Song {
     source: row.source,
     kategoria: row.kategoria,
     poradieSloh: row.poradie_sloh,
+    verseFontMultipliers: row.verse_font_multipliers,
     slohy: row.slohy,
   });
 }
@@ -501,6 +565,7 @@ async function upsertSongsToLocalDb(payload: Udaje): Promise<number> {
         source: song.source ?? "",
         kategoria: song.kategoria ?? "Nabozenske",
         poradie_sloh: song.poradieSloh ?? [],
+        verse_font_multipliers: song.verseFontMultipliers ?? {},
         slohy: song.slohy,
         updated_at: now,
       };
@@ -529,6 +594,7 @@ async function upsertSongsToLocalDb(payload: Udaje): Promise<number> {
       source: song.source ?? "",
       kategoria: song.kategoria ?? "Nabozenske",
       poradie_sloh: song.poradieSloh ?? [],
+      verse_font_multipliers: song.verseFontMultipliers ?? {},
       slohy: song.slohy,
       updated_at: now,
     });
@@ -588,6 +654,7 @@ async function loadSongForEditFromLocalDb(
     kategoria: row.kategoria,
     source: row.source,
     poradieSloh: row.poradie_sloh,
+    verseFontMultipliers: row.verse_font_multipliers,
     slohy: Array.isArray(row.slohy) ? row.slohy : [],
   };
 }
@@ -608,6 +675,7 @@ async function updateSongInLocalDb(id: number, song: Song): Promise<void> {
     source: normalized.source ?? "",
     kategoria: normalized.kategoria ?? "Nabozenske",
     poradie_sloh: normalized.poradieSloh ?? [],
+    verse_font_multipliers: normalized.verseFontMultipliers ?? {},
     slohy: normalized.slohy,
     updated_at: new Date().toISOString(),
   };
@@ -636,6 +704,7 @@ async function createSongInLocalDb(song: Song): Promise<SongWithId> {
     source: normalized.source ?? "",
     kategoria: normalized.kategoria ?? "Nabozenske",
     poradie_sloh: normalized.poradieSloh ?? [],
+    verse_font_multipliers: normalized.verseFontMultipliers ?? {},
     slohy: normalized.slohy,
     updated_at: new Date().toISOString(),
   });
@@ -673,6 +742,9 @@ function normalizeSong(song: Song): Song {
     source: song?.source ? String(song.source) : "",
     kategoria: song?.kategoria ? String(song.kategoria) : "Nabozenske",
     poradieSloh: normalizedOrder.length > 0 ? normalizedOrder : undefined,
+    verseFontMultipliers: normalizeVerseFontMultipliersMap(
+      song?.verseFontMultipliers,
+    ),
     slohy: Array.isArray(song?.slohy)
       ? song.slohy
           .map((verse, verseIndex) => normalizeVerse(verse, verseIndex))
@@ -693,7 +765,9 @@ async function loadSongsFromSupabaseDirect(filter: string): Promise<Song[]> {
 
   const { data, error } = await supabase
     .from("songs")
-    .select("id, cislo_p, nazov, source, kategoria, poradie_sloh, slohy")
+    .select(
+      "id, cislo_p, nazov, source, kategoria, poradie_sloh, verse_font_multipliers, slohy",
+    )
     .order("cislo_p", { ascending: true });
 
   if (error) {
@@ -708,6 +782,9 @@ async function loadSongsFromSupabaseDirect(filter: string): Promise<Song[]> {
       source: row.source ?? "",
       kategoria: row.kategoria ?? "Nabozenske",
       poradieSloh: Array.isArray(row.poradie_sloh) ? row.poradie_sloh : [],
+      verseFontMultipliers: normalizeVerseFontMultipliersMap(
+        row.verse_font_multipliers,
+      ),
       slohy: Array.isArray(row.slohy) ? row.slohy : [],
     }),
   );
@@ -803,6 +880,7 @@ async function upsertSongsToSupabaseDirect(payload: Udaje): Promise<number> {
         source: song.source ?? "",
         kategoria: song.kategoria ?? "Nabozenske",
         poradie_sloh: song.poradieSloh ?? null,
+        verse_font_multipliers: song.verseFontMultipliers ?? null,
         slohy: song.slohy,
         updated_at: new Date().toISOString(),
       };
@@ -1062,7 +1140,9 @@ export async function loadSongForEdit(
 
   const { data, error } = await supabase
     .from("songs")
-    .select("id, cislo_p, nazov, kategoria, source, poradie_sloh, slohy")
+    .select(
+      "id, cislo_p, nazov, kategoria, source, poradie_sloh, verse_font_multipliers, slohy",
+    )
     .eq("id", id)
     .single();
 
@@ -1081,6 +1161,9 @@ export async function loadSongForEdit(
     poradieSloh: Array.isArray(data.poradie_sloh)
       ? (data.poradie_sloh as string[])
       : [],
+    verseFontMultipliers: normalizeVerseFontMultipliersMap(
+      data.verse_font_multipliers,
+    ),
     slohy: Array.isArray(data.slohy) ? (data.slohy as SongVerse[]) : [],
   };
 }
@@ -1113,20 +1196,42 @@ export async function updateSongInSupabase(
     throw new Error("Supabase nie je nakonfigurovany.");
   }
 
+  const normalized = normalizeSong(song);
+  const shouldUpdateVerseMultipliers = Object.prototype.hasOwnProperty.call(
+    song,
+    "verseFontMultipliers",
+  );
+
+  const updatePayload: {
+    cislo_p: string;
+    nazov: string;
+    source: string;
+    kategoria: string;
+    poradie_sloh: string[] | null;
+    slohy: SongVerse[];
+    updated_at: string;
+    verse_font_multipliers?: Record<string, number> | null;
+  } = {
+    cislo_p: normalized.cisloP,
+    nazov: normalized.nazov,
+    source: normalized.source ?? "",
+    kategoria: normalized.kategoria ?? "Nabozenske",
+    poradie_sloh:
+      Array.isArray(normalized.poradieSloh) && normalized.poradieSloh.length > 0
+        ? normalized.poradieSloh
+        : null,
+    slohy: normalized.slohy,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (shouldUpdateVerseMultipliers) {
+    updatePayload.verse_font_multipliers =
+      normalized.verseFontMultipliers ?? null;
+  }
+
   const { error } = await supabase
     .from("songs")
-    .update({
-      cislo_p: song.cisloP,
-      nazov: song.nazov,
-      source: song.source ?? "",
-      kategoria: song.kategoria ?? "Nabozenske",
-      poradie_sloh:
-        Array.isArray(song.poradieSloh) && song.poradieSloh.length > 0
-          ? song.poradieSloh
-          : null,
-      slohy: song.slohy,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", id);
 
   if (error) {
@@ -1177,6 +1282,7 @@ export async function createSongInSupabase(song: Song): Promise<SongWithId> {
         normalized.poradieSloh.length > 0
           ? normalized.poradieSloh
           : null,
+      verse_font_multipliers: normalized.verseFontMultipliers ?? null,
       slohy: normalized.slohy,
       updated_at: new Date().toISOString(),
     })
@@ -1280,6 +1386,130 @@ export async function updateSongOrderById(
       parts.length > 0
         ? `Ukladanie poradia zlyhalo: ${parts.join(" | ")}`
         : "Ukladanie poradia zlyhalo.",
+    );
+  }
+}
+
+export async function updateSongVerseFontMultiplierById(
+  id: number,
+  verseKey: string,
+  multiplier?: number,
+): Promise<void> {
+  const normalizedKey = normalizeVerseKey(verseKey);
+  if (!normalizedKey) {
+    throw new Error("Ukladanie velkosti pisma zlyhalo: neplatny verse key.");
+  }
+
+  const normalizedMultiplier =
+    multiplier === undefined
+      ? undefined
+      : normalizeVerseFontMultiplierValue(multiplier);
+
+  if (multiplier !== undefined && normalizedMultiplier === undefined) {
+    throw new Error("Ukladanie velkosti pisma zlyhalo: neplatna hodnota.");
+  }
+
+  if (shouldUseOfflineDb()) {
+    let backendError: Error | null = null;
+
+    try {
+      const response = await fetch(`${OFFLINE_API_BASE_URL}/${id}/verse-font`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          verse_key: normalizedKey,
+          multiplier: normalizedMultiplier ?? null,
+        }),
+      });
+
+      if (response.ok) {
+        return;
+      }
+
+      const rawBody = await response.text();
+      const bodyText = rawBody.trim();
+      backendError = new Error(
+        bodyText.length > 0
+          ? `Offline API vratilo chybu ${response.status}: ${bodyText}`
+          : `Offline API vratilo chybu ${response.status}.`,
+      );
+    } catch (error) {
+      backendError =
+        error instanceof Error
+          ? error
+          : new Error("Offline API nie je dostupne.");
+    }
+
+    try {
+      const localSong = await loadSongForEditFromLocalDb(id);
+      const next = { ...(localSong.verseFontMultipliers ?? {}) };
+
+      if (normalizedMultiplier === undefined) {
+        delete next[normalizedKey];
+      } else {
+        next[normalizedKey] = normalizedMultiplier;
+      }
+
+      await updateSongInLocalDb(id, {
+        ...localSong,
+        verseFontMultipliers: Object.keys(next).length > 0 ? next : undefined,
+      });
+      return;
+    } catch {
+      if (backendError) {
+        throw backendError;
+      }
+
+      throw new Error("Ukladanie velkosti pisma zlyhalo v offline ulozisku.");
+    }
+  }
+
+  if (!supabase) {
+    throw new Error("Supabase nie je nakonfigurovany.");
+  }
+
+  const { data, error: selectError } = await supabase
+    .from("songs")
+    .select("verse_font_multipliers")
+    .eq("id", id)
+    .single();
+
+  if (selectError) {
+    throw new Error(`Nacitanie velkosti pisma zlyhalo: ${selectError.message}`);
+  }
+
+  const next = {
+    ...(normalizeVerseFontMultipliersMap(data?.verse_font_multipliers) ?? {}),
+  };
+
+  if (normalizedMultiplier === undefined) {
+    delete next[normalizedKey];
+  } else {
+    next[normalizedKey] = normalizedMultiplier;
+  }
+
+  const { error: updateError } = await supabase
+    .from("songs")
+    .update({
+      verse_font_multipliers: Object.keys(next).length > 0 ? next : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (updateError) {
+    const parts = [
+      updateError.message,
+      updateError.details,
+      updateError.hint,
+      updateError.code,
+    ]
+      .filter((v) => typeof v === "string" && v.trim().length > 0)
+      .map(String);
+
+    throw new Error(
+      parts.length > 0
+        ? `Ukladanie velkosti pisma zlyhalo: ${parts.join(" | ")}`
+        : "Ukladanie velkosti pisma zlyhalo.",
     );
   }
 }

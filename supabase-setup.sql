@@ -7,6 +7,7 @@ create table if not exists public.songs (
   source text,
   kategoria text,
   poradie_sloh text[],
+  verse_font_multipliers jsonb,
   slohy jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
@@ -49,6 +50,9 @@ end $$;
 
 alter table public.songs
   add column if not exists poradie_sloh text[];
+
+alter table public.songs
+  add column if not exists verse_font_multipliers jsonb;
 
 drop index if exists songs_cislo_nazov_unique;
 

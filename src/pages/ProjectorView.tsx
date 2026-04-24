@@ -24,6 +24,47 @@ function useWindowSize() {
   return size;
 }
 
+function normalizeVerseKey(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function getVerseMultiplierKey(
+  payload: ProjectorPayload,
+  verseIndex: number,
+): string {
+  const verses = payload.song?.slohy ?? [];
+  if (verses.length === 0) {
+    return "";
+  }
+
+  const boundedIndex = Math.max(0, Math.min(verseIndex, verses.length - 1));
+  const verseLabel = normalizeVerseKey(verses[boundedIndex]?.cisloS ?? "");
+  return verseLabel || `index:${boundedIndex}`;
+}
+
+function resolveVerseProjectorMultiplier(
+  payload: ProjectorPayload,
+  verseIndex: number,
+  fallback: number,
+): number {
+  const fallbackClamped = Number(
+    Math.min(2, Math.max(0.5, fallback || 1)).toFixed(2),
+  );
+  const verseKey = getVerseMultiplierKey(payload, verseIndex);
+
+  if (!verseKey) {
+    return fallbackClamped;
+  }
+
+  const raw = payload.song?.verseFontMultipliers?.[verseKey];
+  const numeric = Number(raw);
+  if (!Number.isFinite(numeric)) {
+    return fallbackClamped;
+  }
+
+  return Number(Math.min(2, Math.max(0.5, numeric)).toFixed(2));
+}
+
 export default function ProjectorView() {
   const settingsContext = useContext(SettingsContext);
   const projectorFontSizeMultiplier =
@@ -97,6 +138,11 @@ export default function ProjectorView() {
   const song = payload.song;
   const isBlackout = payload.blackout === true;
   const verseIndex = payload.selectedView ?? 0;
+  const activeVerseMultiplier = resolveVerseProjectorMultiplier(
+    payload,
+    verseIndex,
+    projectorFontSizeMultiplier,
+  );
 
   const text = useMemo(() => {
     if (!song?.slohy?.length) {
@@ -109,8 +155,7 @@ export default function ProjectorView() {
 
   // Výpočet redukcie veľkosti písma na základe počtu riadkov a dĺžky textu
   const autoFontSize = useMemo(() => {
-    if (!text)
-      return Math.round(baseAutoFontSize * (projectorFontSizeMultiplier || 1));
+    if (!text) return Math.round(baseAutoFontSize * activeVerseMultiplier);
 
     const lines = text.split("\n");
     const lineCount = lines.length;
@@ -130,9 +175,9 @@ export default function ProjectorView() {
       baseAutoFontSize *
         lineReduction *
         lengthReduction *
-        (projectorFontSizeMultiplier || 1),
+        activeVerseMultiplier,
     );
-  }, [text, baseAutoFontSize, projectorFontSizeMultiplier]);
+  }, [text, baseAutoFontSize, activeVerseMultiplier]);
 
   if (isBlackout) {
     return (

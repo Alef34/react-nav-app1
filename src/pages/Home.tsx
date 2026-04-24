@@ -20,7 +20,10 @@ import {
   subscribeProjectorConnectionState,
 } from "../realtime/projectorChannel";
 import { useVersionStore } from "../state/versionStore";
-import { updateSongOrderById } from "../api/supabaseSongs";
+import {
+  updateSongOrderById,
+  updateSongVerseFontMultiplierById,
+} from "../api/supabaseSongs";
 
 const ALL_CATEGORIES = "Vsetky";
 const SEARCH_QUERY_STORAGE_KEY = "home.searchQuery";
@@ -34,6 +37,9 @@ const SPLIT_LEFT_WIDTH_STORAGE_KEY = "home.splitLeftWidthPercent";
 const DEFAULT_SPLIT_LEFT_WIDTH_PERCENT = 34;
 const MIN_SPLIT_LEFT_WIDTH_PERCENT = 10;
 const MAX_SPLIT_LEFT_WIDTH_PERCENT = 90;
+const MIN_VERSE_FONT_MULTIPLIER = 0.5;
+const MAX_VERSE_FONT_MULTIPLIER = 2;
+const VERSE_FONT_STEP = 0.05;
 const ALL_PLAYLISTS_FILTER = "Vsetky playlisty";
 const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"] as const;
 
@@ -442,6 +448,53 @@ function normalizeVerseLabel(value: string): string {
   return value.trim().toLocaleLowerCase();
 }
 
+function getVerseMultiplierKey(song: Song | null, verseIndex: number): string {
+  if (!song || !Array.isArray(song.slohy) || song.slohy.length === 0) {
+    return "";
+  }
+
+  const boundedIndex = Math.max(0, Math.min(verseIndex, song.slohy.length - 1));
+  const verseLabel = normalizeVerseLabel(
+    song.slohy[boundedIndex]?.cisloS ?? "",
+  );
+  return verseLabel || `index:${boundedIndex}`;
+}
+
+function resolveVerseFontMultiplier(
+  song: Song | null,
+  verseIndex: number,
+  fallbackMultiplier: number,
+): number {
+  const fallback = Number(
+    Math.min(
+      MAX_VERSE_FONT_MULTIPLIER,
+      Math.max(MIN_VERSE_FONT_MULTIPLIER, fallbackMultiplier || 1),
+    ).toFixed(2),
+  );
+
+  if (!song) {
+    return fallback;
+  }
+
+  const verseKey = getVerseMultiplierKey(song, verseIndex);
+  if (!verseKey) {
+    return fallback;
+  }
+
+  const raw = song.verseFontMultipliers?.[verseKey];
+  const numeric = Number(raw);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+
+  return Number(
+    Math.min(
+      MAX_VERSE_FONT_MULTIPLIER,
+      Math.max(MIN_VERSE_FONT_MULTIPLIER, numeric),
+    ).toFixed(2),
+  );
+}
+
 function buildVersePlaybackOrder(song: Song | null): number[] {
   if (!song || !Array.isArray(song.slohy) || song.slohy.length === 0) {
     return [];
@@ -512,7 +565,7 @@ function getSongBoundaryState(
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { fontSize, showAkordy } = useContext(
+  const { fontSize, showAkordy, projectorFontSizeMultiplier } = useContext(
     SettingsContext,
   ) as SettingsContextType;
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -547,6 +600,7 @@ export default function Home() {
   const [selectedVerseCursor, setSelectedVerseCursor] = useState(0);
   const [verseOrderInput, setVerseOrderInput] = useState("");
   const [isSavingVerseOrder, setIsSavingVerseOrder] = useState(false);
+  const [isSavingVerseFont, setIsSavingVerseFont] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === "undefined" ? 0 : window.innerWidth,
   );
@@ -1049,6 +1103,7 @@ export default function Home() {
       source: item.source,
       kategoria: item.kategoria,
       poradieSloh: item.poradieSloh,
+      verseFontMultipliers: item.verseFontMultipliers,
     };
     setSelectedSong(piesen);
     setSelectedVerse(0);
@@ -1260,6 +1315,109 @@ export default function Home() {
     );
   }
 
+  function updateSongVerseFontInCache(verseKey: string, multiplier: number) {
+    if (!selectedSong) {
+      return;
+    }
+
+    const selectedId = getSongId(selectedSong);
+
+    queryClient.setQueryData<SongsData | undefined>(
+      ["songs", verziaDb],
+      (previous) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return previous.map((song) => {
+          if (selectedId !== undefined) {
+            if (getSongId(song) !== selectedId) {
+              return song;
+            }
+          } else if (!isSameSong(song, selectedSong)) {
+            return song;
+          }
+
+          return {
+            ...song,
+            verseFontMultipliers: {
+              ...(song.verseFontMultipliers ?? {}),
+              [verseKey]: multiplier,
+            },
+          };
+        });
+      },
+    );
+  }
+
+  async function handleAdjustSelectedVerseFont(step: -1 | 1) {
+    if (!selectedSong || isSavingVerseFont) {
+      return;
+    }
+
+    const selectedId = getSongId(selectedSong);
+    if (selectedId === undefined) {
+      console.error(
+        "Ukladanie velkosti pisma zlyhalo: skladba nema stabilne id.",
+      );
+      return;
+    }
+
+    const verseKey = getVerseMultiplierKey(selectedSong, selectedVerse);
+    if (!verseKey) {
+      return;
+    }
+
+    const currentMultiplier = resolveVerseFontMultiplier(
+      selectedSong,
+      selectedVerse,
+      projectorFontSizeMultiplier,
+    );
+
+    const nextMultiplier = Number(
+      Math.min(
+        MAX_VERSE_FONT_MULTIPLIER,
+        Math.max(
+          MIN_VERSE_FONT_MULTIPLIER,
+          currentMultiplier + step * VERSE_FONT_STEP,
+        ),
+      ).toFixed(2),
+    );
+
+    if (nextMultiplier === currentMultiplier) {
+      return;
+    }
+
+    setIsSavingVerseFont(true);
+    try {
+      await updateSongVerseFontMultiplierById(
+        selectedId,
+        verseKey,
+        nextMultiplier,
+      );
+
+      setSelectedSong((previous) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          verseFontMultipliers: {
+            ...(previous.verseFontMultipliers ?? {}),
+            [verseKey]: nextMultiplier,
+          },
+        };
+      });
+
+      updateSongVerseFontInCache(verseKey, nextMultiplier);
+    } catch (error) {
+      console.error("Ukladanie velkosti pisma zlyhalo:", error);
+    } finally {
+      setIsSavingVerseFont(false);
+    }
+  }
+
   async function handleSaveVerseOrder() {
     if (!selectedSong || isSavingVerseOrder) {
       return;
@@ -1429,6 +1587,14 @@ export default function Home() {
   const hasUnsavedVerseOrder =
     normalizeOrderSignatureFromRaw(verseOrderInput) !==
     normalizeOrderSignatureFromRaw(savedVerseOrderInput);
+  const selectedVerseMultiplier = resolveVerseFontMultiplier(
+    selectedSong,
+    selectedVerse,
+    projectorFontSizeMultiplier,
+  );
+  const selectedVerseMultiplierPercent = Math.round(
+    selectedVerseMultiplier * 100,
+  );
 
   if (isLoading) {
     return (
@@ -1692,7 +1858,7 @@ export default function Home() {
         </span>
 
         {isSplitView && (
-          <label
+          <div
             style={{
               display: "flex",
               alignItems: "center",
@@ -1701,20 +1867,73 @@ export default function Home() {
               fontWeight: 700,
             }}
           >
-            Sirka zoznamu: {splitLeftWidthPercent}%
-            <input
-              type="range"
-              min={MIN_SPLIT_LEFT_WIDTH_PERCENT}
-              max={MAX_SPLIT_LEFT_WIDTH_PERCENT}
-              step={1}
-              value={splitLeftWidthPercent}
-              onChange={(e) =>
-                setSplitLeftWidthPercent(
-                  clampSplitWidth(Number(e.target.value)),
-                )
-              }
-            />
-          </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              Sirka zoznamu: {splitLeftWidthPercent}%
+              <input
+                type="range"
+                min={MIN_SPLIT_LEFT_WIDTH_PERCENT}
+                max={MAX_SPLIT_LEFT_WIDTH_PERCENT}
+                step={1}
+                value={splitLeftWidthPercent}
+                onChange={(e) =>
+                  setSplitLeftWidthPercent(
+                    clampSplitWidth(Number(e.target.value)),
+                  )
+                }
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void handleAdjustSelectedVerseFont(-1)}
+              disabled={!selectedSong || isSavingVerseFont}
+              style={{
+                borderRadius: 10,
+                border: mutedBorder,
+                backgroundColor: "var(--color-input-bg)",
+                color: textColor,
+                fontWeight: 800,
+                fontSize: 16,
+                padding: "5px 10px",
+                cursor: "pointer",
+                minWidth: 40,
+              }}
+              title="Zmensit pismo pre aktualnu slohu na DTP"
+            >
+              -
+            </button>
+
+            <span
+              style={{
+                minWidth: 64,
+                textAlign: "center",
+                fontWeight: 800,
+              }}
+              title="Percento pre aktualnu slohu na DTP"
+            >
+              {selectedVerseMultiplierPercent}%
+            </span>
+
+            <button
+              type="button"
+              onClick={() => void handleAdjustSelectedVerseFont(1)}
+              disabled={!selectedSong || isSavingVerseFont}
+              style={{
+                borderRadius: 10,
+                border: mutedBorder,
+                backgroundColor: "var(--color-input-bg)",
+                color: textColor,
+                fontWeight: 800,
+                fontSize: 16,
+                padding: "5px 10px",
+                cursor: "pointer",
+                minWidth: 40,
+              }}
+              title="Zvacsit pismo pre aktualnu slohu na DTP"
+            >
+              +
+            </button>
+          </div>
         )}
       </div>
 
