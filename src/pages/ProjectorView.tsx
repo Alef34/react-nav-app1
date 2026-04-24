@@ -2,8 +2,11 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import Song from "../components/Song";
 import {
   ProjectorPayload,
+  ProjectorPayloadDiagnostic,
+  readProjectorPayloadDiagnostic,
   readProjectorPayload,
   startProjectorChannel,
+  subscribeProjectorPayloadDiagnostic,
   subscribeProjectorPayload,
 } from "../realtime/projectorChannel";
 import { SettingsContext } from "../context/SettingsContext";
@@ -77,6 +80,10 @@ export default function ProjectorView() {
   const [payload, setPayload] = useState<ProjectorPayload>(() =>
     readProjectorPayload(),
   );
+  const [diagnostic, setDiagnostic] =
+    useState<ProjectorPayloadDiagnostic | null>(() =>
+      readProjectorPayloadDiagnostic(),
+    );
 
   const { width, height } = useWindowSize();
   // veľkosť fontu = 9% výšky okna, ale aj 6.5% šírky — berie sa menšia hodnota
@@ -94,19 +101,39 @@ export default function ProjectorView() {
     const syncFromStorage = () => {
       const latestPayload = readProjectorPayload();
       setPayload(latestPayload);
+      setDiagnostic(readProjectorPayloadDiagnostic());
     };
 
     window.addEventListener("storage", syncFromStorage);
     const unsubscribe = subscribeProjectorPayload((latestPayload) => {
       setPayload(latestPayload);
     });
+    const unsubscribeDiagnostic = subscribeProjectorPayloadDiagnostic(
+      (nextDiagnostic) => {
+        setDiagnostic(nextDiagnostic);
+      },
+    );
     syncFromStorage();
 
     return () => {
       window.removeEventListener("storage", syncFromStorage);
       unsubscribe();
+      unsubscribeDiagnostic();
     };
   }, []);
+
+  const diagnosticMessage = useMemo(() => {
+    if (!diagnostic) {
+      return "";
+    }
+
+    const ageMs = Date.now() - diagnostic.at;
+    if (ageMs > 1000 * 60 * 3) {
+      return "";
+    }
+
+    return `Safe mode: payload bol zahodeny (${diagnostic.reason}).`;
+  }, [diagnostic]);
 
   useEffect(() => {
     let hideCursorTimeout = window.setTimeout(() => {
@@ -205,6 +232,27 @@ export default function ProjectorView() {
         cursor: isCursorVisible ? "default" : "none",
       }}
     >
+      {diagnosticMessage ? (
+        <div
+          style={{
+            position: "fixed",
+            top: 10,
+            right: 10,
+            zIndex: 9999,
+            background: "#fff4cc",
+            color: "#5c3b00",
+            border: "1px solid #f0cc70",
+            borderRadius: 8,
+            padding: "8px 12px",
+            fontSize: 16,
+            maxWidth: "75vw",
+            boxShadow: "0 3px 12px rgba(0, 0, 0, 0.25)",
+          }}
+        >
+          {diagnosticMessage}
+        </div>
+      ) : null}
+
       {!song ? (
         <div style={{ margin: "auto", textAlign: "center" }}>
           <h1

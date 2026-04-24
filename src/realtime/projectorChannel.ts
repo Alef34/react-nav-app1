@@ -11,9 +11,19 @@ export interface ProjectorPayload {
   source?: string;
 }
 
+export interface ProjectorPayloadDiagnostic {
+  reason: string;
+  at: number;
+}
+
 const STORAGE_KEY = "projector-song";
 const CLIENT_ID_KEY = "projector-client-id";
 const DISABLE_WS_PAYLOAD_KEY = "projector-disable-ws-payload";
+const PAYLOAD_DIAGNOSTIC_KEY = "projector-payload-diagnostic";
+const MAX_STORED_PAYLOAD_CHARS = 500_000;
+const MAX_ALLOWED_PAYLOAD_AGE_MS = 1000 * 60 * 60 * 24 * 3;
+const MAX_SONG_VERSES = 120;
+const MAX_VERSE_TEXT_CHARS = 8_000;
 
 let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
@@ -21,6 +31,9 @@ let roleForSocket: ProjectorRole = "controller";
 
 const listeners = new Set<(payload: ProjectorPayload) => void>();
 const connectionListeners = new Set<(connected: boolean) => void>();
+const diagnosticListeners = new Set<
+  (diagnostic: ProjectorPayloadDiagnostic | null) => void
+>();
 let isConnected = false;
 
 let latestPayloadTs = 0;
@@ -75,6 +88,129 @@ function getClientId(): string {
   return created;
 }
 
+function clearStoredPayload() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function readDiagnostic(): ProjectorPayloadDiagnostic | null {
+  try {
+    const raw = localStorage.getItem(PAYLOAD_DIAGNOSTIC_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ProjectorPayloadDiagnostic>;
+    if (typeof parsed.reason !== "string") {
+      return null;
+    }
+
+    const at = Number(parsed.at);
+    return {
+      reason: parsed.reason,
+      at: Number.isFinite(at) && at > 0 ? at : Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function notifyDiagnostic(diagnostic: ProjectorPayloadDiagnostic | null) {
+  diagnosticListeners.forEach((cb) => cb(diagnostic));
+}
+
+function recordDroppedPayload(reason: string) {
+  const diagnostic: ProjectorPayloadDiagnostic = {
+    reason,
+    at: Date.now(),
+  };
+
+  try {
+    localStorage.setItem(PAYLOAD_DIAGNOSTIC_KEY, JSON.stringify(diagnostic));
+  } catch {
+    // ignore storage errors
+  }
+
+  notifyDiagnostic(diagnostic);
+}
+
+function sanitizeProjectorPayload(
+  input: unknown,
+  source: "storage" | "ws" | "local",
+): ProjectorPayload | null {
+  if (!input || typeof input !== "object") {
+    if (source !== "local") {
+      recordDroppedPayload(`${source}:payload-not-object`);
+    }
+    return null;
+  }
+
+  const candidate = input as ProjectorPayload;
+  const output: ProjectorPayload = {};
+
+  const ts = Number(candidate.ts);
+  if (Number.isFinite(ts) && ts > 0) {
+    const ageMs = Date.now() - ts;
+    if (source !== "local" && ageMs > MAX_ALLOWED_PAYLOAD_AGE_MS) {
+      recordDroppedPayload(`${source}:payload-too-old`);
+      return null;
+    }
+    output.ts = ts;
+  }
+
+  if (typeof candidate.source === "string") {
+    output.source = candidate.source.slice(0, 120);
+  }
+
+  if (typeof candidate.selectedView === "number") {
+    output.selectedView = Math.max(
+      0,
+      Math.min(999, Math.floor(candidate.selectedView)),
+    );
+  }
+
+  if (typeof candidate.showAkordy === "boolean") {
+    output.showAkordy = candidate.showAkordy;
+  }
+
+  if (typeof candidate.blackout === "boolean") {
+    output.blackout = candidate.blackout;
+  }
+
+  if (candidate.song && typeof candidate.song === "object") {
+    const song = candidate.song as Song;
+    if (typeof song.cisloP !== "string" || typeof song.nazov !== "string") {
+      recordDroppedPayload(`${source}:song-metadata-invalid`);
+      return null;
+    }
+
+    if (!Array.isArray(song.slohy) || song.slohy.length > MAX_SONG_VERSES) {
+      recordDroppedPayload(`${source}:song-verses-invalid`);
+      return null;
+    }
+
+    const safeVerses = song.slohy
+      .filter((verse) => verse && typeof verse === "object")
+      .map((verse) => {
+        const cisloS = String(verse.cisloS ?? "").slice(0, 80);
+        const textik = String(verse.textik ?? "").slice(
+          0,
+          MAX_VERSE_TEXT_CHARS,
+        );
+        return { cisloS, textik };
+      });
+
+    output.song = {
+      ...song,
+      cisloP: song.cisloP.slice(0, 80),
+      nazov: song.nazov.slice(0, 300),
+      slohy: safeVerses,
+    };
+  }
+
+  return output;
+}
+
 export function getProjectorClientId(): string {
   return getClientId();
 }
@@ -83,26 +219,51 @@ export function readProjectorPayload(): ProjectorPayload {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
+    if (raw.length > MAX_STORED_PAYLOAD_CHARS) {
+      recordDroppedPayload("storage:payload-too-large");
+      clearStoredPayload();
+      return {};
+    }
+
     const parsed = JSON.parse(raw) as ProjectorPayload;
-    return parsed ?? {};
+    const safe = sanitizeProjectorPayload(parsed, "storage");
+    if (!safe) {
+      clearStoredPayload();
+      return {};
+    }
+
+    return safe;
   } catch {
+    recordDroppedPayload("storage:payload-json-invalid");
+    clearStoredPayload();
     return {};
   }
 }
 
 function persistAndNotify(payload: ProjectorPayload) {
-  const payloadTs = Number(payload.ts);
+  const safePayload = sanitizeProjectorPayload(payload, "local");
+  if (!safePayload) {
+    return;
+  }
+
+  const payloadTs = Number(safePayload.ts);
   if (Number.isFinite(payloadTs) && payloadTs > 0) {
     latestPayloadTs = Math.max(latestPayloadTs, payloadTs);
   }
 
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    const serialized = JSON.stringify(safePayload);
+    if (serialized.length > MAX_STORED_PAYLOAD_CHARS) {
+      recordDroppedPayload("local:payload-too-large");
+      clearStoredPayload();
+      return;
+    }
+    localStorage.setItem(STORAGE_KEY, serialized);
   } catch {
     // ignore quota/storage errors
   }
 
-  listeners.forEach((cb) => cb(payload));
+  listeners.forEach((cb) => cb(safePayload));
 }
 
 function getWsUrl(): string {
@@ -163,7 +324,10 @@ export function startProjectorChannel(role: ProjectorRole) {
       };
 
       if (msg.type === "projector-state" && msg.payload) {
-        const payload = msg.payload;
+        const payload = sanitizeProjectorPayload(msg.payload, "ws");
+        if (!payload) {
+          return;
+        }
 
         // Local sender already applied this payload via sendProjectorPayload().
         if (payload.source && payload.source === getClientId()) {
@@ -257,5 +421,20 @@ export function subscribeProjectorConnectionState(
 
   return () => {
     connectionListeners.delete(cb);
+  };
+}
+
+export function readProjectorPayloadDiagnostic() {
+  return readDiagnostic();
+}
+
+export function subscribeProjectorPayloadDiagnostic(
+  cb: (diagnostic: ProjectorPayloadDiagnostic | null) => void,
+) {
+  diagnosticListeners.add(cb);
+  cb(readDiagnostic());
+
+  return () => {
+    diagnosticListeners.delete(cb);
   };
 }
