@@ -17,10 +17,10 @@ let url = explicitUrl ?? "http://127.0.0.1:5179/projector";
 const isKiosk = mode === "kiosk";
 
 const AUTO_URL_CANDIDATES = [
-  "http://127.0.0.1:5173/projector",
   "http://127.0.0.1:5179/projector",
-  "http://localhost:5173/projector",
   "http://localhost:5179/projector",
+  "http://127.0.0.1:5173/projector",
+  "http://localhost:5173/projector",
 ];
 
 function getBrowserFlags() {

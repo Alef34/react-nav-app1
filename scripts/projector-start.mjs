@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import net from "node:net";
 
 function startProcess(label, scriptName) {
@@ -52,6 +53,75 @@ function isPortInUse(port, host = "127.0.0.1") {
   });
 }
 
+function listPidsOnPort(port) {
+  if (process.platform === "win32") {
+    return [];
+  }
+
+  const result = spawnSync("lsof", ["-t", `-iTCP:${port}`, "-sTCP:LISTEN"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    shell: false,
+  });
+
+  if (result.status !== 0 || !result.stdout) {
+    return [];
+  }
+
+  return result.stdout
+    .split(/\s+/)
+    .map((part) => Number(part.trim()))
+    .filter((pid) => Number.isInteger(pid) && pid > 0);
+}
+
+function killPid(pid, signal) {
+  if (!Number.isInteger(pid) || pid <= 0) {
+    return false;
+  }
+
+  try {
+    process.kill(pid, signal);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensurePortAvailable(port, label) {
+  const inUse = await isPortInUse(port);
+  if (!inUse) {
+    return;
+  }
+
+  const pids = listPidsOnPort(port);
+  if (pids.length === 0) {
+    console.log(`[${label}] port ${port} busy, but owner PID not resolved.`);
+    return;
+  }
+
+  console.log(
+    `[${label}] freeing port ${port} from PID(s): ${pids.join(", ")}`,
+  );
+  for (const pid of pids) {
+    killPid(pid, "SIGTERM");
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 350));
+
+  const stillInUse = await isPortInUse(port);
+  if (!stillInUse) {
+    console.log(`[${label}] port ${port} released.`);
+    return;
+  }
+
+  console.log(`[${label}] force killing PID(s) on port ${port}.`);
+  for (const pid of pids) {
+    killPid(pid, "SIGKILL");
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 250));
+}
+
 const children = [];
 let shuttingDown = false;
 
@@ -85,8 +155,13 @@ function watchChild(label, child) {
 console.log("Starting projector stack...");
 console.log("1) Vite LAN server: npm run dev:lan");
 console.log("2) Projector WS server: npm run projector:ws");
-console.log("Open fullscreen projector in another terminal: npm run projektor:fullscreen");
+console.log(
+  "Open fullscreen projector in another terminal: npm run projektor:fullscreen",
+);
 console.log("Press Ctrl+C to stop all processes.");
+
+await ensurePortAvailable(5179, "dev:lan");
+await ensurePortAvailable(8787, "projector:ws");
 
 const devLan = startProcess("dev:lan", "dev:lan");
 const hasExistingWs = await isPortInUse(8787);
@@ -95,7 +170,9 @@ const projectorWs = hasExistingWs
   : startProcess("projector:ws", "projector:ws");
 
 if (hasExistingWs) {
-  console.log("[projector:ws] existing server detected on 8787, skipping new instance.");
+  console.log(
+    "[projector:ws] existing server detected on 8787, skipping new instance.",
+  );
 }
 
 children.push(devLan);
