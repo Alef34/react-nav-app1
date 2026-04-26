@@ -273,7 +273,7 @@ export default function ProjectorView() {
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
         }}
       >
-        {isWsPayloadDisabled ? "WS payload: OFF" : "WS payload: ON"}
+        {isWsPayloadDisabled ? "WS payload- :: OFF" : "WS payload: ON"}
       </div>
 
       {!song ? (
