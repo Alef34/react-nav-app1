@@ -75,6 +75,10 @@ function isWsPayloadSyncDisabled(): boolean {
   return isTruthy(envValue);
 }
 
+export function getWsPayloadSyncDisabled(): boolean {
+  return isWsPayloadSyncDisabled();
+}
+
 function notifyConnection(connected: boolean) {
   isConnected = connected;
   connectionListeners.forEach((cb) => cb(connected));

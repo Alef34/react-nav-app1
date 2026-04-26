@@ -1,10 +1,11 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import SongRenderer from "../components/Song";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   SettingsContext,
   SettingsContextType,
 } from "../context/SettingsContext";
+import { getWsPayloadSyncDisabled } from "../realtime/projectorChannel";
 import { Song as SongType, SongVerse } from "../types/myTypes";
 import { GiSettingsKnobs } from "react-icons/gi";
 import {
@@ -140,6 +141,11 @@ export default function Akordy1() {
     message: string;
     tone: "ok" | "warn";
   } | null>(null);
+  const isWsPayloadDisabled = useMemo(
+    // Added state for WS payload sync
+    () => getWsPayloadSyncDisabled(),
+    [],
+  );
 
   useEffect(() => {
     setActiveSong(piesenka ?? null);
@@ -661,6 +667,26 @@ export default function Akordy1() {
         >
           PROJ
         </button>
+        <div // Added WS payload sync badge
+          style={{
+            height: btnSize,
+            minWidth: Math.round(btnSize * 1.8),
+            padding: "0 8px",
+            borderRadius: 12,
+            border: `1px solid ${borderColor}`,
+            backgroundColor: isWsPayloadDisabled ? "#fff4cc" : "#d6f5e6",
+            color: isWsPayloadDisabled ? "#5c3b00" : "#0a5131",
+            fontWeight: "bold",
+            fontSize: Math.round(btnSize * 0.28),
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            whiteSpace: "nowrap",
+          }}
+          title="Stav synchronizacie payloadu cez websocket"
+        >
+          {isWsPayloadDisabled ? "WS OFF" : "WS ON"}
+        </div>
         <label
           style={{
             ...getStyles(btnSize).button,

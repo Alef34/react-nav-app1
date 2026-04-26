@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import Song from "../components/Song";
 import {
+  getWsPayloadSyncDisabled,
   ProjectorPayload,
   ProjectorPayloadDiagnostic,
   readProjectorPayloadDiagnostic,
@@ -84,6 +85,7 @@ export default function ProjectorView() {
     useState<ProjectorPayloadDiagnostic | null>(() =>
       readProjectorPayloadDiagnostic(),
     );
+  const isWsPayloadDisabled = useMemo(() => getWsPayloadSyncDisabled(), []);
 
   const { width, height } = useWindowSize();
   // veľkosť fontu = 9% výšky okna, ale aj 6.5% šírky — berie sa menšia hodnota
@@ -252,6 +254,27 @@ export default function ProjectorView() {
           {diagnosticMessage}
         </div>
       ) : null}
+
+      <div
+        style={{
+          position: "fixed",
+          top: diagnosticMessage ? 62 : 10,
+          left: 10,
+          zIndex: 9999,
+          background: isWsPayloadDisabled ? "#fff4cc" : "#d6f5e6",
+          color: isWsPayloadDisabled ? "#5c3b00" : "#0a5131",
+          border: isWsPayloadDisabled
+            ? "1px solid #f0cc70"
+            : "1px solid #8ed8b3",
+          borderRadius: 8,
+          padding: "6px 10px",
+          fontSize: 14,
+          fontWeight: 700,
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+        }}
+      >
+        {isWsPayloadDisabled ? "WS payload: OFF" : "WS payload: ON"}
+      </div>
 
       {!song ? (
         <div style={{ margin: "auto", textAlign: "center" }}>
