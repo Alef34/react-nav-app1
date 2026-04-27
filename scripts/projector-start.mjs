@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import net from "node:net";
 
-function startProcess(label, scriptName) {
+function startProcess(label, scriptName, extraEnv = {}) {
   const isWin = process.platform === "win32";
   const command = isWin ? "cmd.exe" : "npm";
   const args = isWin
@@ -13,6 +13,10 @@ function startProcess(label, scriptName) {
 
   const child = spawn(command, args, {
     shell: false,
+    env: {
+      ...process.env,
+      ...extraEnv,
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
 
@@ -203,7 +207,9 @@ const webServer = startProcess("web", webScript);
 const hasExistingWs = await isPortInUse(8787);
 const projectorWs = hasExistingWs
   ? null
-  : startProcess("projector:ws", "projector:ws");
+  : startProcess("projector:ws", "projector:ws", {
+      PROJECTOR_WS_PORT: "8787",
+    });
 
 if (hasExistingWs) {
   console.log(
