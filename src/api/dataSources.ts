@@ -8,6 +8,46 @@ import { loadSongsFromSupabase } from "./supabaseSongs";
 const LOCAL_SONGS_URL = `${import.meta.env.BASE_URL}songs.json`;
 const REMOTE_SONGS_URL =
   "https://texty-piesni-csv.azurewebsites.net/WeatherForecast";
+const REQUEST_TIMEOUT_MS = 7000;
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  return await new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error("request-timeout"));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
 
 function getOfflineApiSongsUrl(): string {
   if (typeof window === "undefined") {
@@ -50,7 +90,7 @@ export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
   let response: Response;
 
   try {
-    response = await fetch(offlineApiUrl);
+    response = await fetchWithTimeout(offlineApiUrl, {}, REQUEST_TIMEOUT_MS);
   } catch {
     throw new Error(
       `Offline API nie je dostupne na ${offlineApiUrl}. Skontroluj, ci backend bezi na RPI (port 3001).`,
@@ -151,7 +191,11 @@ function normalizeSongs(rawSongs: unknown): Song[] {
 async function loadLocalSongs(): Promise<Udaje | undefined> {
   try {
     const cacheBustedUrl = `${LOCAL_SONGS_URL}?ts=${Date.now()}`;
-    const response = await fetch(cacheBustedUrl, { cache: "no-store" });
+    const response = await fetchWithTimeout(
+      cacheBustedUrl,
+      { cache: "no-store" },
+      REQUEST_TIMEOUT_MS,
+    );
     if (!response.ok) {
       return undefined;
     }
@@ -179,7 +223,10 @@ export async function getSongs(filter: string): Promise<Song[]> {
   // Ak je Supabase nakonfigurovaný, použij ho
   if (isSupabaseConfigured) {
     try {
-      return await loadSongsFromSupabase(loweredFilter);
+      return await withTimeout(
+        loadSongsFromSupabase(loweredFilter),
+        REQUEST_TIMEOUT_MS,
+      );
     } catch {
       // Fallback na ďalšie možnosti
     }
@@ -212,7 +259,11 @@ export async function getSongs(filter: string): Promise<Song[]> {
   }
 
   if (localData.get("udaje") == undefined) {
-    const response = await fetch(REMOTE_SONGS_URL);
+    const response = await fetchWithTimeout(
+      REMOTE_SONGS_URL,
+      {},
+      REQUEST_TIMEOUT_MS,
+    );
     const noveData: Udaje = await response.json();
     ud = normalizeSongs(noveData.piesne);
     localData.set("udaje", noveData);
@@ -250,7 +301,11 @@ export async function getVersion(): Promise<string> {
     return localSongs.verzia;
   }
 
-  const response = await fetch(REMOTE_SONGS_URL);
+  const response = await fetchWithTimeout(
+    REMOTE_SONGS_URL,
+    {},
+    REQUEST_TIMEOUT_MS,
+  );
   const noveData: Udaje = await response.json();
   ver = noveData.verzia;
   //localData.set('udaje', noveData);

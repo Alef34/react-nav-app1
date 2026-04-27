@@ -1,7 +1,7 @@
 {
   "name": "react-nav-app1",
   "private": true,
-  "version": "1.0.15",
+  "version": "1.0.17",
   "type": "module",
   "scripts": {
     "gen:version": "node scripts/gen-version.cjs",
