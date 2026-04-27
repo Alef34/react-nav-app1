@@ -243,30 +243,41 @@ export function readProjectorPayload(): ProjectorPayload {
   }
 }
 
-function persistAndNotify(payload: ProjectorPayload) {
+function persistAndNotify(payload: ProjectorPayload): ProjectorPayload | null {
   const safePayload = sanitizeProjectorPayload(payload, "local");
   if (!safePayload) {
-    return;
+    return null;
   }
 
-  const payloadTs = Number(safePayload.ts);
+  // If this is a partial update (no song), merge with the currently stored
+  // payload so the song is preserved both in localStorage and for listeners.
+  let finalPayload = safePayload;
+  if (safePayload.song === undefined) {
+    const existing = readProjectorPayload();
+    if (existing.song) {
+      finalPayload = { ...existing, ...safePayload };
+    }
+  }
+
+  const payloadTs = Number(finalPayload.ts);
   if (Number.isFinite(payloadTs) && payloadTs > 0) {
     latestPayloadTs = Math.max(latestPayloadTs, payloadTs);
   }
 
   try {
-    const serialized = JSON.stringify(safePayload);
+    const serialized = JSON.stringify(finalPayload);
     if (serialized.length > MAX_STORED_PAYLOAD_CHARS) {
       recordDroppedPayload("local:payload-too-large");
       clearStoredPayload();
-      return;
+      return null;
     }
     localStorage.setItem(STORAGE_KEY, serialized);
   } catch {
     // ignore quota/storage errors
   }
 
-  listeners.forEach((cb) => cb(safePayload));
+  listeners.forEach((cb) => cb(finalPayload));
+  return finalPayload;
 }
 
 function getWsUrl(): string {
@@ -396,7 +407,10 @@ export function sendProjectorPayload(
     source: getClientId(),
   };
 
-  persistAndNotify(fullPayload);
+  // persistAndNotify returns the merged payload (with song preserved for
+  // partial/verse-only updates). Use the merged version for the WS send so
+  // the relay server always stores the full state.
+  const mergedPayload = persistAndNotify(fullPayload);
 
   if (isWsPayloadSyncDisabled()) {
     return;
@@ -406,7 +420,7 @@ export function sendProjectorPayload(
     ws.send(
       JSON.stringify({
         type: "projector-state",
-        payload: fullPayload,
+        payload: mergedPayload ?? fullPayload,
       }),
     );
   }
