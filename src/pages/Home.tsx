@@ -1184,6 +1184,16 @@ export default function Home() {
     setSelectedVerse(0);
     setSelectedVerseCursor(0);
     setVerseOrderInput(formatVerseOrderInput(piesen));
+
+    if (!isProjectorBlackout) {
+      lastSentSongIdRef.current = getSongIdentity(piesen);
+      sendProjectorPayload({
+        song: piesen,
+        selectedView: 0,
+        showAkordy,
+        blackout: false,
+      });
+    }
   };
 
   function selectVerse(index: number) {
@@ -1257,6 +1267,16 @@ export default function Home() {
     setSelectedVerse(boundary.verseIndex);
     setSelectedVerseCursor(boundary.cursor);
     setVerseOrderInput(formatVerseOrderInput(nextSong));
+
+    if (!isProjectorBlackout) {
+      lastSentSongIdRef.current = getSongIdentity(nextSong);
+      sendProjectorPayload({
+        song: nextSong,
+        selectedView: boundary.verseIndex,
+        showAkordy,
+        blackout: false,
+      });
+    }
   }
 
   function handleOpenProjector() {

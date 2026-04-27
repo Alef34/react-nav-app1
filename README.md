@@ -138,3 +138,15 @@ sudo systemctl restart react-nav-projector.service
 
 - react-nav-projector.service
 - wpa_supplicant@wlan1.service.d
+
+Verzia:
+Zvýš verziu bez auto-commitu:
+npm version patch --no-git-tag-version --force
+
+npm run gen:version
+
+update:
+git restore /home/adminik/react-nav-app1/src/version.ts
+git pull
+npm run build
+npm run projector:start
