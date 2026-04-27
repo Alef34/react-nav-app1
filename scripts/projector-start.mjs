@@ -24,8 +24,22 @@ function startProcess(label, scriptName, extraEnv = {}) {
     process.stdout.write(`[${label}] ${chunk}`);
   });
 
+  child.stdout.on("error", (err) => {
+    if (err?.code === "EBADF") {
+      return;
+    }
+    console.error(`[${label}] stdout stream failed: ${err.message}`);
+  });
+
   child.stderr.on("data", (chunk) => {
     process.stderr.write(`[${label}] ${chunk}`);
+  });
+
+  child.stderr.on("error", (err) => {
+    if (err?.code === "EBADF") {
+      return;
+    }
+    console.error(`[${label}] stderr stream failed: ${err.message}`);
   });
 
   child.on("error", (err) => {
