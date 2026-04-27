@@ -149,3 +149,13 @@ git restore /home/adminik/react-nav-app1/src/version.ts
 git pull
 npm run build
 npm run projector:start
+
+rpi-connect
+
+# Pozri históriu restartov
+
+tail -f /tmp/rpi-connect-healthcheck.log
+
+# Alebo cez systemd logs
+
+sudo journalctl -u rpi-connect-healthcheck.service -f
