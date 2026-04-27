@@ -10,6 +10,7 @@ import { GiSettingsKnobs } from "react-icons/gi";
 import {
   getProjectorClientId,
   getProjectorChannelConnectionState,
+  getWsPayloadSyncDisabled,
   sendProjectorPayload,
   subscribeProjectorConnectionState,
   subscribeProjectorPayload,
@@ -71,6 +72,14 @@ function parseVerseOrderInput(raw: string): string[] {
     .split(/[\n,;]+/)
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
+}
+
+function getProjectorUnavailableMessage(): string {
+  if (getWsPayloadSyncDisabled()) {
+    return "WS sync je vypnuty (disableWsPayload).";
+  }
+
+  return "Projektor server nie je dostupny.";
 }
 
 function formatVerseOrderInput(song: SongType | null | undefined): string {
@@ -304,7 +313,7 @@ export default function Akordy1() {
     setProjectorFeedback(
       connected
         ? { message: "Odoslane do projektora.", tone: "ok" }
-        : { message: "Projektor server nie je dostupny.", tone: "warn" },
+        : { message: getProjectorUnavailableMessage(), tone: "warn" },
     );
 
     window.setTimeout(() => {
@@ -322,7 +331,7 @@ export default function Akordy1() {
       setProjectorFeedback(
         connected
           ? { message: "Projektor prepnuty na ciernu obrazovku.", tone: "ok" }
-          : { message: "Projektor server nie je dostupny.", tone: "warn" },
+          : { message: getProjectorUnavailableMessage(), tone: "warn" },
       );
     } else {
       if (activeSong) {

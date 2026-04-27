@@ -16,6 +16,7 @@ import {
 import {
   getProjectorClientId,
   getProjectorChannelConnectionState,
+  getWsPayloadSyncDisabled,
   sendProjectorPayload,
   startProjectorChannel,
   subscribeProjectorConnectionState,
@@ -54,6 +55,14 @@ function createEmptyPlaylists(): PlaylistsState {
     "Playlist 2": [],
     "Playlist 3": [],
   };
+}
+
+function getProjectorUnavailableMessage(): string {
+  if (getWsPayloadSyncDisabled()) {
+    return "WS sync je vypnuty (disableWsPayload).";
+  }
+
+  return "Projektor server nie je dostupny.";
 }
 
 function normalizePlaylistValue(raw: unknown): string[] {
@@ -1278,7 +1287,7 @@ export default function Home() {
     setProjectorFeedback(
       connected
         ? { message: "Odoslane do projektora.", tone: "ok" }
-        : { message: "Projektor server nie je dostupny.", tone: "warn" },
+        : { message: getProjectorUnavailableMessage(), tone: "warn" },
     );
 
     window.setTimeout(() => {
@@ -1296,7 +1305,7 @@ export default function Home() {
       setProjectorFeedback(
         connected
           ? { message: "Projektor prepnuty na ciernu obrazovku.", tone: "ok" }
-          : { message: "Projektor server nie je dostupny.", tone: "warn" },
+          : { message: getProjectorUnavailableMessage(), tone: "warn" },
       );
     } else if (selectedSong) {
       lastSentSongIdRef.current = getSongIdentity(selectedSong);

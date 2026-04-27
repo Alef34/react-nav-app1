@@ -34,7 +34,8 @@
     "projektor:mac": "npm run projector:mac",
     "projektor:kiosk": "npm run projector:kiosk",
     "projektor:kios": "npm run projector:kiosk",
-    "projektor:fullscreen": "npm run projector:fullscreen"
+    "projektor:fullscreen": "npm run projector:fullscreen",
+    "update:projector": "bash scripts/update-projector.sh"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
