@@ -54,19 +54,24 @@ function isWsPayloadSyncDisabled(): boolean {
   try {
     const params = new URLSearchParams(window.location.search);
 
-    // Keep legacy query/localStorage parsing for compatibility,
-    // but WS payload sync is intentionally disabled globally.
+    // ?disableWsPayload=1 to disable, ?disableWsPayload=0 to re-enable.
     if (params.has("disableWsPayload")) {
       const value = params.get("disableWsPayload");
       localStorage.setItem(DISABLE_WS_PAYLOAD_KEY, isTruthy(value) ? "1" : "0");
     }
 
-    localStorage.getItem(DISABLE_WS_PAYLOAD_KEY);
+    const persisted = localStorage.getItem(DISABLE_WS_PAYLOAD_KEY);
+    if (persisted != null) {
+      return persisted === "1";
+    }
   } catch {
     // Ignore URL/localStorage errors.
   }
 
-  return true;
+  const envValue = import.meta.env.VITE_DISABLE_WS_PAYLOAD as
+    | string
+    | undefined;
+  return isTruthy(envValue);
 }
 
 export function getWsPayloadSyncDisabled(): boolean {

@@ -614,6 +614,7 @@ export default function Home() {
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
   const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
   const applyingRemotePayloadRef = useRef(false);
+  const lastSentSongIdRef = useRef<string | undefined>(undefined);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
@@ -1119,12 +1120,19 @@ export default function Home() {
     }
 
     if (!isProjectorBlackout) {
-      sendProjectorPayload({
-        song: selectedSong,
-        selectedView: selectedVerse,
-        showAkordy,
-        blackout: false,
-      });
+      const songId = getSongIdentity(selectedSong);
+      const songChanged = lastSentSongIdRef.current !== songId;
+      lastSentSongIdRef.current = songId;
+      if (songChanged) {
+        sendProjectorPayload({
+          song: selectedSong,
+          selectedView: selectedVerse,
+          showAkordy,
+          blackout: false,
+        });
+      } else {
+        sendProjectorPayload({ selectedView: selectedVerse, blackout: false });
+      }
     }
   }, [
     selectedSong,
@@ -1258,6 +1266,7 @@ export default function Home() {
       return;
     }
 
+    lastSentSongIdRef.current = getSongIdentity(selectedSong);
     sendProjectorPayload({
       song: selectedSong,
       selectedView: selectedVerse,
@@ -1290,6 +1299,7 @@ export default function Home() {
           : { message: "Projektor server nie je dostupny.", tone: "warn" },
       );
     } else if (selectedSong) {
+      lastSentSongIdRef.current = getSongIdentity(selectedSong);
       sendProjectorPayload({
         song: selectedSong,
         selectedView: selectedVerse,

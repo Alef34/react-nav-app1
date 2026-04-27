@@ -136,6 +136,7 @@ export default function Akordy1() {
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
   const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
   const applyingRemotePayloadRef = useRef(false);
+  const lastSentSongIdRef = useRef<string | undefined>(undefined);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
@@ -291,6 +292,7 @@ export default function Akordy1() {
       return;
     }
 
+    lastSentSongIdRef.current = activeSong.cisloP + "|" + activeSong.nazov;
     sendProjectorPayload({
       song: activeSong,
       selectedView,
@@ -324,6 +326,7 @@ export default function Akordy1() {
       );
     } else {
       if (activeSong) {
+        lastSentSongIdRef.current = activeSong.cisloP + "|" + activeSong.nazov;
         sendProjectorPayload({
           song: activeSong,
           selectedView,
@@ -358,12 +361,7 @@ export default function Akordy1() {
     setSelectedViewCursor(nextCursor);
     setSelectedView(nextIndex);
     if (!isProjectorBlackout) {
-      sendProjectorPayload({
-        song: activeSong,
-        selectedView: nextIndex,
-        showAkordy,
-        blackout: false,
-      });
+      sendProjectorPayload({ selectedView: nextIndex, blackout: false });
     }
   }
 
@@ -389,12 +387,7 @@ export default function Akordy1() {
     setSelectedViewCursor(nextCursor);
     setSelectedView(nextVerseIndex);
     if (!isProjectorBlackout) {
-      sendProjectorPayload({
-        song: activeSong,
-        selectedView: nextVerseIndex,
-        showAkordy,
-        blackout: false,
-      });
+      sendProjectorPayload({ selectedView: nextVerseIndex, blackout: false });
     }
   }
 
@@ -521,12 +514,19 @@ export default function Akordy1() {
     }
 
     if (!isProjectorBlackout) {
-      sendProjectorPayload({
-        song: activeSong,
-        selectedView,
-        showAkordy,
-        blackout: false,
-      });
+      const songId = activeSong.cisloP + "|" + activeSong.nazov;
+      const songChanged = lastSentSongIdRef.current !== songId;
+      lastSentSongIdRef.current = songId;
+      if (songChanged) {
+        sendProjectorPayload({
+          song: activeSong,
+          selectedView,
+          showAkordy,
+          blackout: false,
+        });
+      } else {
+        sendProjectorPayload({ selectedView, blackout: false });
+      }
     }
   }, [activeSong, selectedView, showAkordy, isProjectorBlackout]);
 
