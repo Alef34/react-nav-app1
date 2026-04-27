@@ -7,6 +7,10 @@ export interface ProjectorPayload {
   selectedView?: number;
   showAkordy?: boolean;
   blackout?: boolean;
+  searchQuery?: string;
+  selectedCategory?: string;
+  selectedPlaylistFilter?: string;
+  playlists?: Record<string, string[]>;
   ts?: number;
   source?: string;
 }
@@ -24,6 +28,12 @@ const MAX_STORED_PAYLOAD_CHARS = 500_000;
 const MAX_ALLOWED_PAYLOAD_AGE_MS = 1000 * 60 * 60 * 24 * 3;
 const MAX_SONG_VERSES = 120;
 const MAX_VERSE_TEXT_CHARS = 8_000;
+const MAX_SYNC_SEARCH_CHARS = 180;
+const MAX_SYNC_CATEGORY_CHARS = 120;
+const MAX_SYNC_PLAYLIST_FILTER_CHARS = 120;
+const MAX_SYNC_PLAYLIST_KEYS = 8;
+const MAX_SYNC_PLAYLIST_ITEMS = 600;
+const MAX_SYNC_PLAYLIST_ITEM_CHARS = 120;
 
 let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
@@ -178,6 +188,62 @@ function sanitizeProjectorPayload(
 
   if (typeof candidate.blackout === "boolean") {
     output.blackout = candidate.blackout;
+  }
+
+  if (typeof candidate.searchQuery === "string") {
+    output.searchQuery = candidate.searchQuery.slice(0, MAX_SYNC_SEARCH_CHARS);
+  }
+
+  if (typeof candidate.selectedCategory === "string") {
+    output.selectedCategory = candidate.selectedCategory.slice(
+      0,
+      MAX_SYNC_CATEGORY_CHARS,
+    );
+  }
+
+  if (typeof candidate.selectedPlaylistFilter === "string") {
+    output.selectedPlaylistFilter = candidate.selectedPlaylistFilter.slice(
+      0,
+      MAX_SYNC_PLAYLIST_FILTER_CHARS,
+    );
+  }
+
+  if (
+    candidate.playlists &&
+    typeof candidate.playlists === "object" &&
+    !Array.isArray(candidate.playlists)
+  ) {
+    const entries = Object.entries(candidate.playlists).slice(
+      0,
+      MAX_SYNC_PLAYLIST_KEYS,
+    );
+
+    const safePlaylists: Record<string, string[]> = {};
+    for (const [rawKey, rawValue] of entries) {
+      const key = String(rawKey ?? "")
+        .trim()
+        .slice(0, MAX_SYNC_CATEGORY_CHARS);
+      if (!key || !Array.isArray(rawValue)) {
+        continue;
+      }
+
+      safePlaylists[key] = Array.from(
+        new Set(
+          rawValue
+            .slice(0, MAX_SYNC_PLAYLIST_ITEMS)
+            .map((item) =>
+              String(item ?? "")
+                .trim()
+                .slice(0, MAX_SYNC_PLAYLIST_ITEM_CHARS),
+            )
+            .filter((item) => item.length > 0),
+        ),
+      );
+    }
+
+    if (Object.keys(safePlaylists).length > 0) {
+      output.playlists = safePlaylists;
+    }
   }
 
   if (candidate.song && typeof candidate.song === "object") {

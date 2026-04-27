@@ -79,6 +79,32 @@ function normalizePlaylistValue(raw: unknown): string[] {
   );
 }
 
+function normalizePlaylistsFromPayload(raw: unknown): PlaylistsState | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+
+  const parsed = raw as Partial<Record<PlaylistKey, unknown>>;
+  return {
+    "Playlist 1": normalizePlaylistValue(parsed?.["Playlist 1"]),
+    "Playlist 2": normalizePlaylistValue(parsed?.["Playlist 2"]),
+    "Playlist 3": normalizePlaylistValue(parsed?.["Playlist 3"]),
+  };
+}
+
+function arePlaylistsEqual(a: PlaylistsState, b: PlaylistsState): boolean {
+  return PLAYLIST_KEYS.every((key) => {
+    const left = a[key] ?? [];
+    const right = b[key] ?? [];
+
+    if (left.length !== right.length) {
+      return false;
+    }
+
+    return left.every((item, index) => item === right[index]);
+  });
+}
+
 function loadPlaylistsFromStorage(): PlaylistsState {
   if (typeof window === "undefined") {
     return createEmptyPlaylists();
@@ -623,6 +649,7 @@ export default function Home() {
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
   const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
   const applyingRemotePayloadRef = useRef(false);
+  const applyingRemoteUiSyncRef = useRef(false);
   const lastSentSongIdRef = useRef<string | undefined>(undefined);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
@@ -773,6 +800,67 @@ export default function Home() {
         return;
       }
 
+      const incomingSearchQuery =
+        typeof payload.searchQuery === "string" ? payload.searchQuery : null;
+      const incomingCategory =
+        typeof payload.selectedCategory === "string"
+          ? payload.selectedCategory
+          : null;
+      const incomingPlaylistFilter =
+        typeof payload.selectedPlaylistFilter === "string"
+          ? payload.selectedPlaylistFilter
+          : null;
+      const incomingPlaylists = normalizePlaylistsFromPayload(
+        payload.playlists,
+      );
+
+      const hasUiSyncPayload =
+        incomingSearchQuery !== null ||
+        incomingCategory !== null ||
+        incomingPlaylistFilter !== null ||
+        incomingPlaylists !== null;
+
+      if (hasUiSyncPayload) {
+        applyingRemoteUiSyncRef.current = true;
+
+        if (incomingSearchQuery !== null) {
+          setSearchQuery((previous) =>
+            previous === incomingSearchQuery ? previous : incomingSearchQuery,
+          );
+        }
+
+        if (incomingCategory !== null) {
+          setSelectedCategory((previous) =>
+            previous === incomingCategory ? previous : incomingCategory,
+          );
+        }
+
+        if (incomingPlaylistFilter !== null) {
+          setSelectedPlaylistFilter((previous) => {
+            if (previous === incomingPlaylistFilter) {
+              return previous;
+            }
+
+            if (
+              incomingPlaylistFilter !== ALL_PLAYLISTS_FILTER &&
+              !PLAYLIST_KEYS.includes(incomingPlaylistFilter as PlaylistKey)
+            ) {
+              return previous;
+            }
+
+            return incomingPlaylistFilter;
+          });
+        }
+
+        if (incomingPlaylists !== null) {
+          setPlaylists((previous) =>
+            arePlaylistsEqual(previous, incomingPlaylists)
+              ? previous
+              : incomingPlaylists,
+          );
+        }
+      }
+
       setIsProjectorBlackout(payload.blackout === true);
 
       const incomingSong = payload.song;
@@ -817,6 +905,30 @@ export default function Home() {
       unsubscribePayload();
     };
   }, [songsData]);
+
+  useEffect(() => {
+    if (!playlistsReady) {
+      return;
+    }
+
+    if (applyingRemoteUiSyncRef.current) {
+      applyingRemoteUiSyncRef.current = false;
+      return;
+    }
+
+    sendProjectorPayload({
+      searchQuery,
+      selectedCategory,
+      selectedPlaylistFilter,
+      playlists,
+    });
+  }, [
+    playlists,
+    playlistsReady,
+    searchQuery,
+    selectedCategory,
+    selectedPlaylistFilter,
+  ]);
 
   function contains(song: Song, formatedQuery: string): boolean {
     return (
