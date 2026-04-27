@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import Song from "../components/Song";
+import { APP_VERSION } from "../version";
 import {
   ProjectorPayload,
   ProjectorPayloadDiagnostic,
@@ -311,6 +312,20 @@ export default function ProjectorView() {
           </div>
         </>
       )}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 8,
+          right: 10,
+          zIndex: 9999,
+          fontSize: 12,
+          opacity: 0.45,
+          color: projectorTextColor,
+          pointerEvents: "none",
+        }}
+      >
+        v{APP_VERSION}
+      </div>
     </div>
   );
 }
