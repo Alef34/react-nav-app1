@@ -142,7 +142,6 @@ sudo systemctl restart react-nav-projector.service
 Verzia:
 Zvýš verziu bez auto-commitu:
 npm version patch --no-git-tag-version --force
-
 npm run gen:version
 
 update:

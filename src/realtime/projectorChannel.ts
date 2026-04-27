@@ -315,15 +315,13 @@ function persistAndNotify(payload: ProjectorPayload): ProjectorPayload | null {
     return null;
   }
 
-  // If this is a partial update (no song), merge with the currently stored
-  // payload so the song is preserved both in localStorage and for listeners.
-  let finalPayload = safePayload;
-  if (safePayload.song === undefined) {
-    const existing = readProjectorPayload();
-    if (existing.song) {
-      finalPayload = { ...existing, ...safePayload };
-    }
-  }
+  // Merge every update with the latest stored state so omitted fields
+  // (song, filters, playlists, etc.) remain stable across partial payloads.
+  const existing = readProjectorPayload();
+  const finalPayload: ProjectorPayload = {
+    ...existing,
+    ...safePayload,
+  };
 
   const payloadTs = Number(finalPayload.ts);
   if (Number.isFinite(payloadTs) && payloadTs > 0) {
