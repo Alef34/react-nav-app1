@@ -126,3 +126,36 @@ sudo nano /etc/wpa_supplicant/wpa_supplicant-wlan1.conf
 
 Edit suboru, kde je popisana ProjectorAP
 sudo nano /etc/hostapd/hostapd.conf
+
+vypnutie payload
+http://127.0.0.1:5179/projector?disableWsPayload=1 / 0
+
+journalctl -u react-nav-projector.service -b --no-pager | tail -n 150
+
+sudo systemctl restart react-nav-projector.service
+
+/etc/systemd/system
+
+- react-nav-projector.service
+- wpa_supplicant@wlan1.service.d
+
+Verzia:
+Zvýš verziu bez auto-commitu:
+npm version patch --no-git-tag-version --force
+npm run gen:version
+
+update:
+git restore /home/adminik/react-nav-app1/src/version.ts
+git pull
+npm run build
+npm run projector:start
+
+rpi-connect
+
+# Pozri históriu restartov
+
+tail -f /tmp/rpi-connect-healthcheck.log
+
+# Alebo cez systemd logs
+
+sudo journalctl -u rpi-connect-healthcheck.service -f

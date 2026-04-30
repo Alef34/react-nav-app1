@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import net from "node:net";
 
-function startProcess(label, scriptName) {
+function startProcess(label, scriptName, extraEnv = {}) {
   const isWin = process.platform === "win32";
   const command = isWin ? "cmd.exe" : "npm";
   const args = isWin
@@ -13,6 +13,10 @@ function startProcess(label, scriptName) {
 
   const child = spawn(command, args, {
     shell: false,
+    env: {
+      ...process.env,
+      ...extraEnv,
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
 
@@ -20,8 +24,22 @@ function startProcess(label, scriptName) {
     process.stdout.write(`[${label}] ${chunk}`);
   });
 
+  child.stdout.on("error", (err) => {
+    if (err?.code === "EBADF") {
+      return;
+    }
+    console.error(`[${label}] stdout stream failed: ${err.message}`);
+  });
+
   child.stderr.on("data", (chunk) => {
     process.stderr.write(`[${label}] ${chunk}`);
+  });
+
+  child.stderr.on("error", (err) => {
+    if (err?.code === "EBADF") {
+      return;
+    }
+    console.error(`[${label}] stderr stream failed: ${err.message}`);
   });
 
   child.on("error", (err) => {
@@ -179,8 +197,10 @@ function watchChild(label, child) {
 
 console.log("Starting projector stack...");
 const webScript = process.env.PROJECTOR_WEB_SCRIPT || "projector:web";
+const backendScript = process.env.PROJECTOR_BACKEND_SCRIPT || "backend";
 console.log(`1) Web server: npm run ${webScript}`);
-console.log("2) Projector WS server: npm run projector:ws");
+console.log(`2) Backend API: npm run ${backendScript}`);
+console.log("3) Projector WS server: npm run projector:ws");
 console.log(
   "Open fullscreen projector in another terminal: npm run projektor:fullscreen",
 );
@@ -192,14 +212,18 @@ if (!existsSync(distIndexPath) && webScript === "projector:web") {
   runScriptSync("build", "web");
 }
 
+await ensurePortAvailable(3001, "backend");
 await ensurePortAvailable(5179, "web");
 await ensurePortAvailable(8787, "projector:ws");
 
+const backend = startProcess("backend", backendScript);
 const webServer = startProcess("web", webScript);
 const hasExistingWs = await isPortInUse(8787);
 const projectorWs = hasExistingWs
   ? null
-  : startProcess("projector:ws", "projector:ws");
+  : startProcess("projector:ws", "projector:ws", {
+      PROJECTOR_WS_PORT: "8787",
+    });
 
 if (hasExistingWs) {
   console.log(
@@ -207,10 +231,12 @@ if (hasExistingWs) {
   );
 }
 
+children.push(backend);
 children.push(webServer);
 if (projectorWs) {
   children.push(projectorWs);
 }
+watchChild("backend", backend);
 watchChild("web", webServer);
 if (projectorWs) {
   watchChild("projector:ws", projectorWs);

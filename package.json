@@ -1,7 +1,7 @@
 {
   "name": "react-nav-app1",
   "private": true,
-  "version": "1.0.13",
+  "version": "1.0.22",
   "type": "module",
   "scripts": {
     "gen:version": "node scripts/gen-version.cjs",
@@ -13,6 +13,7 @@
     "dev:lan": "vite --host 0.0.0.0 --port 5179",
     "free:backend-port": "sh -c 'lsof -ti:3001 | xargs kill -15 2>/dev/null || true'",
     "free:frontend-port": "sh -c 'lsof -ti:5179 | xargs kill -15 2>/dev/null || true'",
+    "warmup:frontend": "node scripts/warmup-frontend.mjs",
     "predev:offline": "npm run gen:version",
     "prebuild": "npm run gen:version",
     "build": "tsc && vite build",
@@ -21,7 +22,7 @@
     "preview": "vite preview",
     "projector:web": "vite preview --host 0.0.0.0 --port 5179 --strictPort",
     "backend": "node songs-api.cjs",
-    "dev:offline": "npm run free:backend-port && npm run free:frontend-port && concurrently \"npm run backend\" \"npm run dev:lan\"",
+    "dev:offline": "npm run free:backend-port && npm run free:frontend-port && concurrently \"npm run backend\" \"npm run dev:lan\" \"npm run warmup:frontend\"",
     "projector:ws": "node scripts/projector-ws-server.mjs",
     "projector:start": "node scripts/projector-start.mjs",
     "projector:mac": "node scripts/projector-mac-start.mjs",
@@ -33,7 +34,8 @@
     "projektor:mac": "npm run projector:mac",
     "projektor:kiosk": "npm run projector:kiosk",
     "projektor:kios": "npm run projector:kiosk",
-    "projektor:fullscreen": "npm run projector:fullscreen"
+    "projektor:fullscreen": "npm run projector:fullscreen",
+    "update:projector": "bash scripts/update-projector.sh"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",

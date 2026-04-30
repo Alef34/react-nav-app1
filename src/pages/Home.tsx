@@ -16,6 +16,7 @@ import {
 import {
   getProjectorClientId,
   getProjectorChannelConnectionState,
+  getWsPayloadSyncDisabled,
   sendProjectorPayload,
   startProjectorChannel,
   subscribeProjectorConnectionState,
@@ -56,6 +57,14 @@ function createEmptyPlaylists(): PlaylistsState {
   };
 }
 
+function getProjectorUnavailableMessage(): string {
+  if (getWsPayloadSyncDisabled()) {
+    return "WS sync je vypnuty (disableWsPayload).";
+  }
+
+  return "Projektor server nie je dostupny.";
+}
+
 function normalizePlaylistValue(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -68,6 +77,32 @@ function normalizePlaylistValue(raw: unknown): string[] {
         .filter((item) => item.length > 0),
     ),
   );
+}
+
+function normalizePlaylistsFromPayload(raw: unknown): PlaylistsState | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+
+  const parsed = raw as Partial<Record<PlaylistKey, unknown>>;
+  return {
+    "Playlist 1": normalizePlaylistValue(parsed?.["Playlist 1"]),
+    "Playlist 2": normalizePlaylistValue(parsed?.["Playlist 2"]),
+    "Playlist 3": normalizePlaylistValue(parsed?.["Playlist 3"]),
+  };
+}
+
+function arePlaylistsEqual(a: PlaylistsState, b: PlaylistsState): boolean {
+  return PLAYLIST_KEYS.every((key) => {
+    const left = a[key] ?? [];
+    const right = b[key] ?? [];
+
+    if (left.length !== right.length) {
+      return false;
+    }
+
+    return left.every((item, index) => item === right[index]);
+  });
 }
 
 function loadPlaylistsFromStorage(): PlaylistsState {
@@ -614,6 +649,8 @@ export default function Home() {
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
   const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
   const applyingRemotePayloadRef = useRef(false);
+  const applyingRemoteUiSyncRef = useRef(false);
+  const lastSentSongIdRef = useRef<string | undefined>(undefined);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
@@ -763,6 +800,67 @@ export default function Home() {
         return;
       }
 
+      const incomingSearchQuery =
+        typeof payload.searchQuery === "string" ? payload.searchQuery : null;
+      const incomingCategory =
+        typeof payload.selectedCategory === "string"
+          ? payload.selectedCategory
+          : null;
+      const incomingPlaylistFilter =
+        typeof payload.selectedPlaylistFilter === "string"
+          ? payload.selectedPlaylistFilter
+          : null;
+      const incomingPlaylists = normalizePlaylistsFromPayload(
+        payload.playlists,
+      );
+
+      const hasUiSyncPayload =
+        incomingSearchQuery !== null ||
+        incomingCategory !== null ||
+        incomingPlaylistFilter !== null ||
+        incomingPlaylists !== null;
+
+      if (hasUiSyncPayload) {
+        applyingRemoteUiSyncRef.current = true;
+
+        if (incomingSearchQuery !== null) {
+          setSearchQuery((previous) =>
+            previous === incomingSearchQuery ? previous : incomingSearchQuery,
+          );
+        }
+
+        if (incomingCategory !== null) {
+          setSelectedCategory((previous) =>
+            previous === incomingCategory ? previous : incomingCategory,
+          );
+        }
+
+        if (incomingPlaylistFilter !== null) {
+          setSelectedPlaylistFilter((previous) => {
+            if (previous === incomingPlaylistFilter) {
+              return previous;
+            }
+
+            if (
+              incomingPlaylistFilter !== ALL_PLAYLISTS_FILTER &&
+              !PLAYLIST_KEYS.includes(incomingPlaylistFilter as PlaylistKey)
+            ) {
+              return previous;
+            }
+
+            return incomingPlaylistFilter;
+          });
+        }
+
+        if (incomingPlaylists !== null) {
+          setPlaylists((previous) =>
+            arePlaylistsEqual(previous, incomingPlaylists)
+              ? previous
+              : incomingPlaylists,
+          );
+        }
+      }
+
       setIsProjectorBlackout(payload.blackout === true);
 
       const incomingSong = payload.song;
@@ -807,6 +905,30 @@ export default function Home() {
       unsubscribePayload();
     };
   }, [songsData]);
+
+  useEffect(() => {
+    if (!playlistsReady) {
+      return;
+    }
+
+    if (applyingRemoteUiSyncRef.current) {
+      applyingRemoteUiSyncRef.current = false;
+      return;
+    }
+
+    sendProjectorPayload({
+      searchQuery,
+      selectedCategory,
+      selectedPlaylistFilter,
+      playlists,
+    });
+  }, [
+    playlists,
+    playlistsReady,
+    searchQuery,
+    selectedCategory,
+    selectedPlaylistFilter,
+  ]);
 
   function contains(song: Song, formatedQuery: string): boolean {
     return (
@@ -1119,12 +1241,19 @@ export default function Home() {
     }
 
     if (!isProjectorBlackout) {
-      sendProjectorPayload({
-        song: selectedSong,
-        selectedView: selectedVerse,
-        showAkordy,
-        blackout: false,
-      });
+      const songId = getSongIdentity(selectedSong);
+      const songChanged = lastSentSongIdRef.current !== songId;
+      lastSentSongIdRef.current = songId;
+      if (songChanged) {
+        sendProjectorPayload({
+          song: selectedSong,
+          selectedView: selectedVerse,
+          showAkordy,
+          blackout: false,
+        });
+      } else {
+        sendProjectorPayload({ selectedView: selectedVerse, blackout: false });
+      }
     }
   }, [
     selectedSong,
@@ -1167,6 +1296,16 @@ export default function Home() {
     setSelectedVerse(0);
     setSelectedVerseCursor(0);
     setVerseOrderInput(formatVerseOrderInput(piesen));
+
+    if (!isProjectorBlackout) {
+      lastSentSongIdRef.current = getSongIdentity(piesen);
+      sendProjectorPayload({
+        song: piesen,
+        selectedView: 0,
+        showAkordy,
+        blackout: false,
+      });
+    }
   };
 
   function selectVerse(index: number) {
@@ -1240,6 +1379,16 @@ export default function Home() {
     setSelectedVerse(boundary.verseIndex);
     setSelectedVerseCursor(boundary.cursor);
     setVerseOrderInput(formatVerseOrderInput(nextSong));
+
+    if (!isProjectorBlackout) {
+      lastSentSongIdRef.current = getSongIdentity(nextSong);
+      sendProjectorPayload({
+        song: nextSong,
+        selectedView: boundary.verseIndex,
+        showAkordy,
+        blackout: false,
+      });
+    }
   }
 
   function handleOpenProjector() {
@@ -1258,6 +1407,7 @@ export default function Home() {
       return;
     }
 
+    lastSentSongIdRef.current = getSongIdentity(selectedSong);
     sendProjectorPayload({
       song: selectedSong,
       selectedView: selectedVerse,
@@ -1269,7 +1419,7 @@ export default function Home() {
     setProjectorFeedback(
       connected
         ? { message: "Odoslane do projektora.", tone: "ok" }
-        : { message: "Projektor server nie je dostupny.", tone: "warn" },
+        : { message: getProjectorUnavailableMessage(), tone: "warn" },
     );
 
     window.setTimeout(() => {
@@ -1287,9 +1437,10 @@ export default function Home() {
       setProjectorFeedback(
         connected
           ? { message: "Projektor prepnuty na ciernu obrazovku.", tone: "ok" }
-          : { message: "Projektor server nie je dostupny.", tone: "warn" },
+          : { message: getProjectorUnavailableMessage(), tone: "warn" },
       );
     } else if (selectedSong) {
+      lastSentSongIdRef.current = getSongIdentity(selectedSong);
       sendProjectorPayload({
         song: selectedSong,
         selectedView: selectedVerse,
@@ -1467,6 +1618,8 @@ export default function Home() {
           },
         };
       });
+
+      lastSentSongIdRef.current = "";
 
       updateSongVerseFontInCache(verseKey, nextMultiplier);
     } catch (error) {

@@ -10,6 +10,7 @@ import { GiSettingsKnobs } from "react-icons/gi";
 import {
   getProjectorClientId,
   getProjectorChannelConnectionState,
+  getWsPayloadSyncDisabled,
   sendProjectorPayload,
   subscribeProjectorConnectionState,
   subscribeProjectorPayload,
@@ -71,6 +72,14 @@ function parseVerseOrderInput(raw: string): string[] {
     .split(/[\n,;]+/)
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
+}
+
+function getProjectorUnavailableMessage(): string {
+  if (getWsPayloadSyncDisabled()) {
+    return "WS sync je vypnuty (disableWsPayload).";
+  }
+
+  return "Projektor server nie je dostupny.";
 }
 
 function formatVerseOrderInput(song: SongType | null | undefined): string {
@@ -136,6 +145,7 @@ export default function Akordy1() {
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
   const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
   const applyingRemotePayloadRef = useRef(false);
+  const lastSentSongIdRef = useRef<string | undefined>(undefined);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
@@ -291,6 +301,7 @@ export default function Akordy1() {
       return;
     }
 
+    lastSentSongIdRef.current = activeSong.cisloP + "|" + activeSong.nazov;
     sendProjectorPayload({
       song: activeSong,
       selectedView,
@@ -302,7 +313,7 @@ export default function Akordy1() {
     setProjectorFeedback(
       connected
         ? { message: "Odoslane do projektora.", tone: "ok" }
-        : { message: "Projektor server nie je dostupny.", tone: "warn" },
+        : { message: getProjectorUnavailableMessage(), tone: "warn" },
     );
 
     window.setTimeout(() => {
@@ -320,10 +331,11 @@ export default function Akordy1() {
       setProjectorFeedback(
         connected
           ? { message: "Projektor prepnuty na ciernu obrazovku.", tone: "ok" }
-          : { message: "Projektor server nie je dostupny.", tone: "warn" },
+          : { message: getProjectorUnavailableMessage(), tone: "warn" },
       );
     } else {
       if (activeSong) {
+        lastSentSongIdRef.current = activeSong.cisloP + "|" + activeSong.nazov;
         sendProjectorPayload({
           song: activeSong,
           selectedView,
@@ -358,12 +370,7 @@ export default function Akordy1() {
     setSelectedViewCursor(nextCursor);
     setSelectedView(nextIndex);
     if (!isProjectorBlackout) {
-      sendProjectorPayload({
-        song: activeSong,
-        selectedView: nextIndex,
-        showAkordy,
-        blackout: false,
-      });
+      sendProjectorPayload({ selectedView: nextIndex, blackout: false });
     }
   }
 
@@ -389,12 +396,7 @@ export default function Akordy1() {
     setSelectedViewCursor(nextCursor);
     setSelectedView(nextVerseIndex);
     if (!isProjectorBlackout) {
-      sendProjectorPayload({
-        song: activeSong,
-        selectedView: nextVerseIndex,
-        showAkordy,
-        blackout: false,
-      });
+      sendProjectorPayload({ selectedView: nextVerseIndex, blackout: false });
     }
   }
 
@@ -521,12 +523,19 @@ export default function Akordy1() {
     }
 
     if (!isProjectorBlackout) {
-      sendProjectorPayload({
-        song: activeSong,
-        selectedView,
-        showAkordy,
-        blackout: false,
-      });
+      const songId = activeSong.cisloP + "|" + activeSong.nazov;
+      const songChanged = lastSentSongIdRef.current !== songId;
+      lastSentSongIdRef.current = songId;
+      if (songChanged) {
+        sendProjectorPayload({
+          song: activeSong,
+          selectedView,
+          showAkordy,
+          blackout: false,
+        });
+      } else {
+        sendProjectorPayload({ selectedView, blackout: false });
+      }
     }
   }, [activeSong, selectedView, showAkordy, isProjectorBlackout]);
 

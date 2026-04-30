@@ -638,6 +638,18 @@ app.delete("/api/songs/:id", (req, res) => {
 
 // ... ďalšie endpointy podľa potreby (GET /api/songs/:id, PUT, DELETE, atď.)
 
-app.listen(3001, () => {
-  console.log("SQLite API beží na http://localhost:3001");
+const API_PORT = Number(process.env.API_PORT || 3001);
+const API_HOST = process.env.API_HOST || "0.0.0.0";
+
+const server = app.listen(API_PORT, API_HOST, () => {
+  console.log(`SQLite API beží na http://${API_HOST}:${API_PORT}`);
+});
+
+server.on("error", (error) => {
+  const message =
+    error instanceof Error ? error.message : "Unknown backend server error";
+  console.error(
+    `[backend] failed to start on ${API_HOST}:${API_PORT} - ${message}`,
+  );
+  process.exit(1);
 });
