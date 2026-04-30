@@ -1619,6 +1619,8 @@ export default function Home() {
         };
       });
 
+      lastSentSongIdRef.current = "";
+
       updateSongVerseFontInCache(verseKey, nextMultiplier);
     } catch (error) {
       console.error("Ukladanie velkosti pisma zlyhalo:", error);
