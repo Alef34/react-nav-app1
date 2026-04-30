@@ -207,6 +207,11 @@ export default function ProjectorView() {
     );
   }, [text, baseAutoFontSize, activeVerseMultiplier]);
 
+  const versionNumberOnly = useMemo(() => {
+    const match = APP_VERSION.match(/^(\d+(?:\.\d+)+)/);
+    return match?.[1] ?? APP_VERSION;
+  }, []);
+
   if (isBlackout) {
     return (
       <div
@@ -285,11 +290,15 @@ export default function ProjectorView() {
               marginBottom: Math.round(height * 0.01),
             }}
           >
-            <h1 style={{ margin: 0, fontSize: Math.round(height * 0.04) }}>
-              {song.cisloP}- {song.nazov}
-            </h1>
-            <div style={{ fontSize: Math.round(height * 0.028), opacity: 0.9 }}>
-              Piesen: {song.cisloP}
+            <div
+              style={{
+                margin: 0,
+                color: projectorTextColor,
+                fontSize: Math.round(height * 0.02),
+                opacity: 0.9,
+              }}
+            >
+              {song.kategoria}: {song.cisloP} - {song.nazov}
             </div>
           </div>
 
@@ -324,7 +333,7 @@ export default function ProjectorView() {
           pointerEvents: "none",
         }}
       >
-        v{APP_VERSION}
+        ver:{versionNumberOnly}
       </div>
     </div>
   );
