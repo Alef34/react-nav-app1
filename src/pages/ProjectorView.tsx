@@ -309,7 +309,7 @@ export default function ProjectorView() {
               alignItems: "center",
               justifyContent: "center",
               border: "none",
-              borderRadius: 0,
+              borderRadius: 10,
               padding: 0,
             }}
           >
