@@ -365,7 +365,7 @@ export default function ProjectorView() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              border: "none",
+              border: "1px solid #f0cc70",
               borderRadius: 10,
               padding: 0,
             }}
