@@ -1794,10 +1794,6 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (!isSplitView) {
-      return;
-    }
-
     const isEditableTarget = (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) {
         return false;
@@ -1878,7 +1874,6 @@ export default function Home() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    isSplitView,
     selectedSong,
     selectedVerse,
     selectedVerseCursor,
