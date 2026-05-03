@@ -36,10 +36,10 @@ function normalizeVerseKey(value: string): string {
 }
 
 function getVerseMultiplierKey(
-  payload: ProjectorPayload,
+  song: SongType | null | undefined,
   verseIndex: number,
 ): string {
-  const verses = payload.song?.slohy ?? [];
+  const verses = song?.slohy ?? [];
   if (verses.length === 0) {
     return "";
   }
@@ -50,20 +50,21 @@ function getVerseMultiplierKey(
 }
 
 function resolveVerseProjectorMultiplier(
-  payload: ProjectorPayload,
+  song: SongType | null,
+  overrides: Record<string, number> | undefined,
   verseIndex: number,
   fallback: number,
 ): number {
   const fallbackClamped = Number(
     Math.min(2, Math.max(0.5, fallback || 1)).toFixed(2),
   );
-  const verseKey = getVerseMultiplierKey(payload, verseIndex);
+  const verseKey = getVerseMultiplierKey(song, verseIndex);
 
   if (!verseKey) {
     return fallbackClamped;
   }
 
-  const raw = payload.song?.verseFontMultipliers?.[verseKey];
+  const raw = overrides?.[verseKey] ?? song?.verseFontMultipliers?.[verseKey];
   const numeric = Number(raw);
   if (!Number.isFinite(numeric)) {
     return fallbackClamped;
@@ -224,7 +225,8 @@ export default function ProjectorView() {
   const isBlackout = payload.blackout === true;
   const verseIndex = payload.selectedView ?? 0;
   const activeVerseMultiplier = resolveVerseProjectorMultiplier(
-    payload,
+    song,
+    payload.verseFontMultipliers,
     verseIndex,
     projectorFontSizeMultiplier,
   );
