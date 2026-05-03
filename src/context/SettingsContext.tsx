@@ -11,12 +11,16 @@ type ColorScheme = "light" | "dark";
 export type SettingsContextType = {
   fontSize: number;
   setFontSize: React.Dispatch<React.SetStateAction<number>>;
+  chordSizeMultiplier: number;
+  setChordSizeMultiplier: React.Dispatch<React.SetStateAction<number>>;
   projectorFontSizeMultiplier: number;
   setProjectorFontSizeMultiplier: React.Dispatch<React.SetStateAction<number>>;
   projectorBgColor: string;
   setProjectorBgColor: React.Dispatch<React.SetStateAction<string>>;
   projectorTextColor: string;
   setProjectorTextColor: React.Dispatch<React.SetStateAction<string>>;
+  homeChordColor: string;
+  setHomeChordColor: React.Dispatch<React.SetStateAction<string>>;
   colorScheme: ColorScheme;
   setColorScheme: React.Dispatch<React.SetStateAction<ColorScheme>>;
   showAkordy: boolean;
@@ -33,9 +37,11 @@ export const SettingsContext = createContext<SettingsContextType | undefined>(
 
 type StoredSettings = {
   fontSize: number;
+  chordSizeMultiplier: number;
   projectorFontSizeMultiplier: number;
   projectorBgColor: string;
   projectorTextColor: string;
+  homeChordColor: string;
   colorScheme: ColorScheme;
   showAkordy: boolean;
   showAkordyProjector: boolean;
@@ -44,9 +50,11 @@ type StoredSettings = {
 
 const DEFAULT_SETTINGS: StoredSettings = {
   fontSize: 30,
+  chordSizeMultiplier: 1,
   projectorFontSizeMultiplier: 1,
   projectorBgColor: "#000000",
   projectorTextColor: "#ffffff",
+  homeChordColor: "#0000ff",
   colorScheme: "dark",
   showAkordy: false,
   showAkordyProjector: false,
@@ -80,6 +88,15 @@ function normalizeProjectorFontSizeMultiplier(value: unknown): number {
   return Math.min(1.5, Math.max(0.7, numeric));
 }
 
+function normalizeChordSizeMultiplier(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 1;
+  }
+
+  return Number(Math.min(1.6, Math.max(0.7, numeric)).toFixed(2));
+}
+
 function normalizeHexColor(value: unknown, fallback: string): string {
   const color = String(value ?? "").trim();
   if (/^#[0-9a-fA-F]{6}$/.test(color)) {
@@ -95,6 +112,7 @@ function normalizeStoredSettings(
     raw && typeof raw === "object" ? (raw as Partial<StoredSettings>) : {};
   return {
     fontSize: normalizeFontSize(safe.fontSize),
+    chordSizeMultiplier: normalizeChordSizeMultiplier(safe.chordSizeMultiplier),
     projectorFontSizeMultiplier: normalizeProjectorFontSizeMultiplier(
       safe.projectorFontSizeMultiplier,
     ),
@@ -105,6 +123,10 @@ function normalizeStoredSettings(
     projectorTextColor: normalizeHexColor(
       safe.projectorTextColor,
       DEFAULT_SETTINGS.projectorTextColor,
+    ),
+    homeChordColor: normalizeHexColor(
+      safe.homeChordColor,
+      DEFAULT_SETTINGS.homeChordColor,
     ),
     colorScheme: safe.colorScheme === "light" ? "light" : "dark",
     showAkordy: Boolean(safe.showAkordy),
@@ -136,6 +158,9 @@ async function saveSettingsToApi(settings: StoredSettings): Promise<void> {
 
 export function SettingsContextProvider({ children }: { children: ReactNode }) {
   const [fontSize, setFontSize] = useState<number>(DEFAULT_SETTINGS.fontSize);
+  const [chordSizeMultiplier, setChordSizeMultiplier] = useState<number>(
+    DEFAULT_SETTINGS.chordSizeMultiplier,
+  );
   const [projectorFontSizeMultiplier, setProjectorFontSizeMultiplier] =
     useState<number>(DEFAULT_SETTINGS.projectorFontSizeMultiplier);
   const [projectorBgColor, setProjectorBgColor] = useState<string>(
@@ -143,6 +168,9 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
   );
   const [projectorTextColor, setProjectorTextColor] = useState<string>(
     DEFAULT_SETTINGS.projectorTextColor,
+  );
+  const [homeChordColor, setHomeChordColor] = useState<string>(
+    DEFAULT_SETTINGS.homeChordColor,
   );
   const [colorScheme, setColorScheme] = useState<ColorScheme>(
     DEFAULT_SETTINGS.colorScheme,
@@ -161,9 +189,11 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
     () =>
       normalizeStoredSettings({
         fontSize,
+        chordSizeMultiplier,
         projectorFontSizeMultiplier,
         projectorBgColor,
         projectorTextColor,
+        homeChordColor,
         colorScheme,
         showAkordy,
         showAkordyProjector,
@@ -171,9 +201,11 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
       }),
     [
       fontSize,
+      chordSizeMultiplier,
       projectorFontSizeMultiplier,
       projectorBgColor,
       projectorTextColor,
+      homeChordColor,
       colorScheme,
       showAkordy,
       showAkordyProjector,
@@ -192,9 +224,11 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
         }
 
         setFontSize(apiSettings.fontSize);
+        setChordSizeMultiplier(apiSettings.chordSizeMultiplier);
         setProjectorFontSizeMultiplier(apiSettings.projectorFontSizeMultiplier);
         setProjectorBgColor(apiSettings.projectorBgColor);
         setProjectorTextColor(apiSettings.projectorTextColor);
+        setHomeChordColor(apiSettings.homeChordColor);
         setColorScheme(apiSettings.colorScheme);
         setShowAkordy(apiSettings.showAkordy);
         setShowAkordyProjector(apiSettings.showAkordyProjector);
@@ -253,9 +287,11 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
 
         lastSavedPayloadRef.current = apiPayload;
         setFontSize(apiSettings.fontSize);
+        setChordSizeMultiplier(apiSettings.chordSizeMultiplier);
         setProjectorFontSizeMultiplier(apiSettings.projectorFontSizeMultiplier);
         setProjectorBgColor(apiSettings.projectorBgColor);
         setProjectorTextColor(apiSettings.projectorTextColor);
+        setHomeChordColor(apiSettings.homeChordColor);
         setColorScheme(apiSettings.colorScheme);
         setShowAkordy(apiSettings.showAkordy);
         setShowAkordyProjector(apiSettings.showAkordyProjector);
@@ -288,12 +324,16 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
       value={{
         fontSize,
         setFontSize,
+        chordSizeMultiplier,
+        setChordSizeMultiplier,
         projectorFontSizeMultiplier,
         setProjectorFontSizeMultiplier,
         projectorBgColor,
         setProjectorBgColor,
         projectorTextColor,
         setProjectorTextColor,
+        homeChordColor,
+        setHomeChordColor,
         colorScheme,
         setColorScheme,
         showAkordy,

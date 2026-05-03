@@ -106,8 +106,10 @@ export default function ProjectorView() {
   const settingsContext = useContext(SettingsContext);
   const projectorFontSizeMultiplier =
     settingsContext?.projectorFontSizeMultiplier ?? 1;
+  const chordSizeMultiplier = settingsContext?.chordSizeMultiplier ?? 1;
   const projectorBgColor = settingsContext?.projectorBgColor ?? "black";
   const projectorTextColor = settingsContext?.projectorTextColor ?? "white";
+  const homeChordColor = settingsContext?.homeChordColor ?? "#0000ff";
   const showAkordy = settingsContext?.showAkordyProjector ?? false;
   const [isCursorVisible, setIsCursorVisible] = useState(true);
 
@@ -372,6 +374,8 @@ export default function ProjectorView() {
               text={text}
               showChords={showAkordy}
               zadanaVelkost={autoFontSize}
+              chordColor={homeChordColor}
+              chordSizeMultiplier={chordSizeMultiplier}
             />
           </div>
         </>

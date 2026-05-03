@@ -7,9 +7,11 @@ const app = express();
 const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"];
 const DEFAULT_SETTINGS = {
   fontSize: 30,
+  chordSizeMultiplier: 1,
   projectorFontSizeMultiplier: 1,
   projectorBgColor: "#000000",
   projectorTextColor: "#ffffff",
+  homeChordColor: "#0000ff",
   colorScheme: "dark",
   showAkordy: false,
   showAkordyProjector: false,
@@ -92,6 +94,14 @@ function normalizeSettings(raw) {
     fontSize: Math.round(
       normalizeNumber(safe.fontSize, 20, 80, DEFAULT_SETTINGS.fontSize),
     ),
+    chordSizeMultiplier: Number(
+      normalizeNumber(
+        safe.chordSizeMultiplier,
+        0.7,
+        1.6,
+        DEFAULT_SETTINGS.chordSizeMultiplier,
+      ).toFixed(2),
+    ),
     projectorFontSizeMultiplier: Number(
       normalizeNumber(
         safe.projectorFontSizeMultiplier,
@@ -107,6 +117,10 @@ function normalizeSettings(raw) {
     projectorTextColor: normalizeColor(
       safe.projectorTextColor,
       DEFAULT_SETTINGS.projectorTextColor,
+    ),
+    homeChordColor: normalizeColor(
+      safe.homeChordColor,
+      DEFAULT_SETTINGS.homeChordColor,
     ),
     colorScheme:
       safe.colorScheme === "light" || safe.colorScheme === "dark"

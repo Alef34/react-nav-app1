@@ -671,9 +671,13 @@ function getSongBoundaryState(
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { fontSize, showAkordy, projectorFontSizeMultiplier } = useContext(
-    SettingsContext,
-  ) as SettingsContextType;
+  const {
+    fontSize,
+    showAkordy,
+    chordSizeMultiplier,
+    projectorFontSizeMultiplier,
+    homeChordColor,
+  } = useContext(SettingsContext) as SettingsContextType;
   const [searchQuery, setSearchQuery] = useState(() => {
     return localStorage.getItem(SEARCH_QUERY_STORAGE_KEY) ?? "";
   });
@@ -2570,6 +2574,8 @@ export default function Home() {
                   80,
                   Math.max(20, Number(fontSize) || 30),
                 )}
+                chordColor={homeChordColor}
+                chordSizeMultiplier={chordSizeMultiplier}
               />
             ) : (
               <div

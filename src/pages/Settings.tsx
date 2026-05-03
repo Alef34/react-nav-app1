@@ -54,6 +54,23 @@ export const Modal: React.FC = () => {
                 />
               </div>
               <div className="itemA item-1A">
+                <label htmlFor="chord-size" style={{ fontSize: "x-large" }}>
+                  Velkost akordov:{" "}
+                  {(myProps.chordSizeMultiplier * 100).toFixed(0)}%
+                </label>
+                <input
+                  type="range"
+                  id="chord-size"
+                  min="0.7"
+                  max="1.6"
+                  step="0.05"
+                  value={myProps.chordSizeMultiplier}
+                  onChange={(e) =>
+                    myProps.setChordSizeMultiplier(Number(e.target.value))
+                  }
+                />
+              </div>
+              <div className="itemA item-1A">
                 <label
                   htmlFor="projector-font-size"
                   style={{ fontSize: "x-large" }}
@@ -104,6 +121,21 @@ export const Modal: React.FC = () => {
                   onChange={(e) =>
                     myProps.setProjectorTextColor(e.target.value)
                   }
+                  style={{ width: 50, height: 40, cursor: "pointer" }}
+                />
+              </div>
+              <div className="itemA item-1A">
+                <label
+                  htmlFor="home-chord-color"
+                  style={{ fontSize: "x-large", marginRight: 10 }}
+                >
+                  Farba akordov (Home):
+                </label>
+                <input
+                  type="color"
+                  id="home-chord-color"
+                  value={myProps.homeChordColor}
+                  onChange={(e) => myProps.setHomeChordColor(e.target.value)}
                   style={{ width: 50, height: 40, cursor: "pointer" }}
                 />
               </div>
