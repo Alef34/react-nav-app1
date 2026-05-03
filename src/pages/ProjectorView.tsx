@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Song from "../components/Song";
 import { APP_VERSION } from "../version";
 import {
@@ -11,6 +12,8 @@ import {
   subscribeProjectorPayload,
 } from "../realtime/projectorChannel";
 import { SettingsContext } from "../context/SettingsContext";
+import { getSongs } from "../api/dataSources";
+import { Song as SongType } from "../types/myTypes";
 
 function useWindowSize() {
   const [size, setSize] = useState({
@@ -69,6 +72,36 @@ function resolveVerseProjectorMultiplier(
   return Number(Math.min(2, Math.max(0.5, numeric)).toFixed(2));
 }
 
+function getSongId(song: SongType | null | undefined): number | undefined {
+  if (!song) {
+    return undefined;
+  }
+
+  const parsed = Number(song.id);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return Math.trunc(parsed);
+}
+
+function applyVerseMultiplierOverrides(
+  song: SongType,
+  overrides: Record<string, number> | undefined,
+): SongType {
+  if (!overrides || Object.keys(overrides).length === 0) {
+    return song;
+  }
+
+  return {
+    ...song,
+    verseFontMultipliers: {
+      ...(song.verseFontMultipliers ?? {}),
+      ...overrides,
+    },
+  };
+}
+
 export default function ProjectorView() {
   const settingsContext = useContext(SettingsContext);
   const projectorFontSizeMultiplier =
@@ -85,6 +118,10 @@ export default function ProjectorView() {
     useState<ProjectorPayloadDiagnostic | null>(() =>
       readProjectorPayloadDiagnostic(),
     );
+  const { data: songsData = [] } = useQuery({
+    queryKey: ["songs", "projector-view"],
+    queryFn: () => getSongs(""),
+  });
 
   const { width, height } = useWindowSize();
   // veľkosť fontu = 9% výšky okna, ale aj 6.5% šírky — berie sa menšia hodnota
@@ -163,7 +200,25 @@ export default function ProjectorView() {
     };
   }, []);
 
-  const song = payload.song;
+  const resolvedSong = useMemo(() => {
+    const payloadSongId =
+      typeof payload.songId === "number"
+        ? Math.trunc(payload.songId)
+        : undefined;
+    const fromSongId =
+      payloadSongId !== undefined
+        ? songsData.find((item) => getSongId(item) === payloadSongId)
+        : undefined;
+    const fromPayload = payload.song;
+    const song = fromSongId ?? fromPayload;
+    if (!song) {
+      return null;
+    }
+
+    return applyVerseMultiplierOverrides(song, payload.verseFontMultipliers);
+  }, [payload.song, payload.songId, payload.verseFontMultipliers, songsData]);
+
+  const song = resolvedSong;
   const isBlackout = payload.blackout === true;
   const verseIndex = payload.selectedView ?? 0;
   const activeVerseMultiplier = resolveVerseProjectorMultiplier(

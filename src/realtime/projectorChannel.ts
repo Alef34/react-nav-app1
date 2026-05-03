@@ -3,7 +3,9 @@ import { Song } from "../types/myTypes";
 export type ProjectorRole = "controller" | "projector";
 
 export interface ProjectorPayload {
+  songId?: number;
   song?: Song;
+  verseFontMultipliers?: Record<string, number>;
   selectedView?: number;
   showAkordy?: boolean;
   blackout?: boolean;
@@ -34,6 +36,7 @@ const MAX_SYNC_PLAYLIST_FILTER_CHARS = 120;
 const MAX_SYNC_PLAYLIST_KEYS = 8;
 const MAX_SYNC_PLAYLIST_ITEMS = 600;
 const MAX_SYNC_PLAYLIST_ITEM_CHARS = 120;
+const MAX_SYNC_VERSE_MULTIPLIER_KEYS = 180;
 
 let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
@@ -175,6 +178,13 @@ function sanitizeProjectorPayload(
     output.source = candidate.source.slice(0, 120);
   }
 
+  if (typeof candidate.songId === "number") {
+    const normalizedSongId = Math.trunc(candidate.songId);
+    if (Number.isFinite(normalizedSongId) && normalizedSongId > 0) {
+      output.songId = normalizedSongId;
+    }
+  }
+
   if (typeof candidate.selectedView === "number") {
     output.selectedView = Math.max(
       0,
@@ -206,6 +216,36 @@ function sanitizeProjectorPayload(
       0,
       MAX_SYNC_PLAYLIST_FILTER_CHARS,
     );
+  }
+
+  if (
+    candidate.verseFontMultipliers &&
+    typeof candidate.verseFontMultipliers === "object" &&
+    !Array.isArray(candidate.verseFontMultipliers)
+  ) {
+    const safeVerseFontMultipliers: Record<string, number> = {};
+
+    Object.entries(candidate.verseFontMultipliers)
+      .slice(0, MAX_SYNC_VERSE_MULTIPLIER_KEYS)
+      .forEach(([rawKey, rawValue]) => {
+        const key = String(rawKey ?? "")
+          .trim()
+          .toLocaleLowerCase()
+          .slice(0, 80);
+        const numeric = Number(rawValue);
+
+        if (!key || !Number.isFinite(numeric)) {
+          return;
+        }
+
+        safeVerseFontMultipliers[key] = Number(
+          Math.min(2, Math.max(0.5, numeric)).toFixed(2),
+        );
+      });
+
+    if (Object.keys(safeVerseFontMultipliers).length > 0) {
+      output.verseFontMultipliers = safeVerseFontMultipliers;
+    }
   }
 
   if (
@@ -322,6 +362,10 @@ function persistAndNotify(payload: ProjectorPayload): ProjectorPayload | null {
     ...existing,
     ...safePayload,
   };
+
+  if (typeof safePayload.songId === "number" && !safePayload.song) {
+    delete finalPayload.song;
+  }
 
   const payloadTs = Number(finalPayload.ts);
   if (Number.isFinite(payloadTs) && payloadTs > 0) {

@@ -333,6 +333,75 @@ function getSongIdentity(song: Song): string {
   return getLegacySongIdentity(song);
 }
 
+function getVerseFontMultiplierSignature(
+  song: Song | null | undefined,
+): string {
+  if (!song?.verseFontMultipliers) {
+    return "";
+  }
+
+  return Object.entries(song.verseFontMultipliers)
+    .map(([key, value]) => {
+      const safeKey = String(key ?? "")
+        .trim()
+        .toLocaleLowerCase();
+      const numeric = Number(value);
+
+      if (!safeKey || !Number.isFinite(numeric)) {
+        return "";
+      }
+
+      return `${safeKey}:${Number(
+        Math.min(2, Math.max(0.5, numeric)).toFixed(2),
+      )}`;
+    })
+    .filter((entry) => entry.length > 0)
+    .sort()
+    .join("|");
+}
+
+function buildProjectorSongPayload(song: Song): {
+  songId?: number;
+  song?: Song;
+  verseFontMultipliers?: Record<string, number>;
+} {
+  const songId = getSongId(song);
+  const verseFontMultipliers =
+    song.verseFontMultipliers &&
+    Object.keys(song.verseFontMultipliers).length > 0
+      ? song.verseFontMultipliers
+      : undefined;
+
+  if (songId !== undefined) {
+    return {
+      songId,
+      verseFontMultipliers,
+    };
+  }
+
+  return {
+    song,
+    verseFontMultipliers,
+  };
+}
+
+function applyVerseFontMultipliersFromPayload(
+  song: Song,
+  multipliers: Record<string, number> | undefined,
+): Song {
+  if (!multipliers || Object.keys(multipliers).length === 0) {
+    return song;
+  }
+
+  return {
+    ...song,
+    verseFontMultipliers: {
+      ...(song.verseFontMultipliers ?? {}),
+      ...multipliers,
+    },
+  };
+}
+
 function isSameSong(left: Song, right: Song): boolean {
   return getSongIdentity(left) === getSongIdentity(right);
 }
@@ -651,6 +720,7 @@ export default function Home() {
   const applyingRemotePayloadRef = useRef(false);
   const applyingRemoteUiSyncRef = useRef(false);
   const lastSentSongIdRef = useRef<string | undefined>(undefined);
+  const lastSentVerseFontSignatureRef = useRef<string>("");
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
@@ -863,40 +933,56 @@ export default function Home() {
 
       setIsProjectorBlackout(payload.blackout === true);
 
-      const incomingSong = payload.song;
+      const incomingSongId =
+        typeof payload.songId === "number"
+          ? Math.trunc(payload.songId)
+          : undefined;
+      const incomingSong =
+        payload.song ??
+        (incomingSongId
+          ? songsData.find((song) => getSongId(song) === incomingSongId)
+          : undefined);
+
       if (!incomingSong) {
         return;
       }
 
       applyingRemotePayloadRef.current = true;
 
-      const incomingSongId = getSongId(incomingSong);
-      const resolvedSong =
-        songsData.find((song) => {
-          if (incomingSongId !== undefined) {
-            return getSongId(song) === incomingSongId;
-          }
+      if (incomingSong) {
+        const resolvedSongId = getSongId(incomingSong);
+        const resolvedSong =
+          songsData.find((song) => {
+            if (resolvedSongId !== undefined) {
+              return getSongId(song) === resolvedSongId;
+            }
 
-          return isSameSong(song, incomingSong);
-        }) ?? incomingSong;
+            return isSameSong(song, incomingSong);
+          }) ?? incomingSong;
 
-      setSelectedSongIdentity(getSongIdentity(resolvedSong));
-      setSelectedSong(resolvedSong);
-      setVerseOrderInput(formatVerseOrderInput(resolvedSong));
-
-      if (typeof payload.selectedView === "number") {
-        const playbackOrder = buildVersePlaybackOrder(resolvedSong);
-        const safeIndex = Math.max(
-          0,
-          Math.min(
-            payload.selectedView,
-            Math.max(0, resolvedSong.slohy.length - 1),
-          ),
+        const syncedSong = applyVerseFontMultipliersFromPayload(
+          resolvedSong,
+          payload.verseFontMultipliers,
         );
-        setSelectedVerseCursor((previousCursor) =>
-          resolveVerseCursor(playbackOrder, safeIndex, previousCursor),
-        );
-        setSelectedVerse(safeIndex);
+
+        setSelectedSongIdentity(getSongIdentity(syncedSong));
+        setSelectedSong(syncedSong);
+        setVerseOrderInput(formatVerseOrderInput(syncedSong));
+
+        if (typeof payload.selectedView === "number") {
+          const playbackOrder = buildVersePlaybackOrder(syncedSong);
+          const safeIndex = Math.max(
+            0,
+            Math.min(
+              payload.selectedView,
+              Math.max(0, syncedSong.slohy.length - 1),
+            ),
+          );
+          setSelectedVerseCursor((previousCursor) =>
+            resolveVerseCursor(playbackOrder, safeIndex, previousCursor),
+          );
+          setSelectedVerse(safeIndex);
+        }
       }
     });
 
@@ -1241,12 +1327,18 @@ export default function Home() {
     }
 
     if (!isProjectorBlackout) {
-      const songId = getSongIdentity(selectedSong);
-      const songChanged = lastSentSongIdRef.current !== songId;
-      lastSentSongIdRef.current = songId;
-      if (songChanged) {
+      const songIdentity = getSongIdentity(selectedSong);
+      const verseFontSignature = getVerseFontMultiplierSignature(selectedSong);
+      const songChanged = lastSentSongIdRef.current !== songIdentity;
+      const verseFontChanged =
+        lastSentVerseFontSignatureRef.current !== verseFontSignature;
+
+      lastSentSongIdRef.current = songIdentity;
+      lastSentVerseFontSignatureRef.current = verseFontSignature;
+
+      if (songChanged || verseFontChanged) {
         sendProjectorPayload({
-          song: selectedSong,
+          ...buildProjectorSongPayload(selectedSong),
           selectedView: selectedVerse,
           showAkordy,
           blackout: false,
@@ -1299,8 +1391,10 @@ export default function Home() {
 
     if (!isProjectorBlackout) {
       lastSentSongIdRef.current = getSongIdentity(piesen);
+      lastSentVerseFontSignatureRef.current =
+        getVerseFontMultiplierSignature(piesen);
       sendProjectorPayload({
-        song: piesen,
+        ...buildProjectorSongPayload(piesen),
         selectedView: 0,
         showAkordy,
         blackout: false,
@@ -1382,8 +1476,10 @@ export default function Home() {
 
     if (!isProjectorBlackout) {
       lastSentSongIdRef.current = getSongIdentity(nextSong);
+      lastSentVerseFontSignatureRef.current =
+        getVerseFontMultiplierSignature(nextSong);
       sendProjectorPayload({
-        song: nextSong,
+        ...buildProjectorSongPayload(nextSong),
         selectedView: boundary.verseIndex,
         showAkordy,
         blackout: false,
@@ -1408,8 +1504,10 @@ export default function Home() {
     }
 
     lastSentSongIdRef.current = getSongIdentity(selectedSong);
+    lastSentVerseFontSignatureRef.current =
+      getVerseFontMultiplierSignature(selectedSong);
     sendProjectorPayload({
-      song: selectedSong,
+      ...buildProjectorSongPayload(selectedSong),
       selectedView: selectedVerse,
       showAkordy,
       blackout: false,
@@ -1441,8 +1539,10 @@ export default function Home() {
       );
     } else if (selectedSong) {
       lastSentSongIdRef.current = getSongIdentity(selectedSong);
+      lastSentVerseFontSignatureRef.current =
+        getVerseFontMultiplierSignature(selectedSong);
       sendProjectorPayload({
-        song: selectedSong,
+        ...buildProjectorSongPayload(selectedSong),
         selectedView: selectedVerse,
         showAkordy,
         blackout: false,
@@ -1619,7 +1719,7 @@ export default function Home() {
         };
       });
 
-      lastSentSongIdRef.current = "";
+      lastSentVerseFontSignatureRef.current = "";
 
       updateSongVerseFontInCache(verseKey, nextMultiplier);
     } catch (error) {
