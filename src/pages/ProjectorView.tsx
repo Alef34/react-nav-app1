@@ -113,10 +113,23 @@ export default function ProjectorView() {
   const homeChordColor = settingsContext?.homeChordColor ?? "#0000ff";
   const showAkordy = settingsContext?.showAkordyProjector ?? false;
   const [isCursorVisible, setIsCursorVisible] = useState(true);
+  const [networkInfo, setNetworkInfo] = useState<{
+    ips: { iface: string; address: string }[];
+    ssid: string | null;
+  } | null>(null);
 
   const [payload, setPayload] = useState<ProjectorPayload>(() =>
     readProjectorPayload(),
   );
+
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+    const apiOrigin = `${protocol}//${window.location.hostname}:3001`;
+    fetch(`${apiOrigin}/api/network-info`)
+      .then((r) => r.json())
+      .then((data) => setNetworkInfo(data))
+      .catch(() => setNetworkInfo(null));
+  }, []);
   const [diagnostic, setDiagnostic] =
     useState<ProjectorPayloadDiagnostic | null>(() =>
       readProjectorPayloadDiagnostic(),
@@ -338,6 +351,28 @@ export default function ProjectorView() {
           >
             V hlavnom okne otvor skladbu a klikni na tlacidlo PROJ.
           </p>
+          {networkInfo && (
+            <div
+              style={{
+                marginTop: 24,
+                fontSize: Math.round(height * 0.025),
+                opacity: 0.75,
+                color: projectorTextColor,
+                lineHeight: 1.6,
+              }}
+            >
+              {networkInfo.ssid && (
+                <div>
+                  Sieť: <strong>{networkInfo.ssid}</strong>
+                </div>
+              )}
+              {networkInfo.ips.map((entry) => (
+                <div key={entry.iface}>
+                  IP ({entry.iface}): <strong>{entry.address}</strong>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <>

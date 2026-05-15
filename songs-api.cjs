@@ -1,6 +1,8 @@
 const express = require("express");
 const Database = require("better-sqlite3");
 const cors = require("cors");
+const os = require("os");
+const { execSync } = require("child_process");
 
 const db = new Database("songs.db");
 const app = express();
@@ -651,6 +653,41 @@ app.delete("/api/songs/:id", (req, res) => {
 });
 
 // ... ďalšie endpointy podľa potreby (GET /api/songs/:id, PUT, DELETE, atď.)
+
+app.get("/api/network-info", (_req, res) => {
+  const interfaces = os.networkInterfaces();
+  const ips = [];
+  for (const [name, addrs] of Object.entries(interfaces)) {
+    if (!addrs) continue;
+    for (const addr of addrs) {
+      if (addr.family === "IPv4" && !addr.internal) {
+        ips.push({ iface: name, address: addr.address });
+      }
+    }
+  }
+
+  let ssid = null;
+  try {
+    const platform = os.platform();
+    if (platform === "linux") {
+      ssid =
+        execSync("iwgetid -r 2>/dev/null", { timeout: 2000 })
+          .toString()
+          .trim() || null;
+    } else if (platform === "darwin") {
+      const raw = execSync(
+        "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I 2>/dev/null",
+        { timeout: 2000 },
+      ).toString();
+      const match = raw.match(/\s+SSID:\s*(.+)/);
+      ssid = match ? match[1].trim() : null;
+    }
+  } catch (_e) {
+    ssid = null;
+  }
+
+  res.json({ ips, ssid });
+});
 
 const API_PORT = Number(process.env.API_PORT || 3001);
 const API_HOST = process.env.API_HOST || "0.0.0.0";
