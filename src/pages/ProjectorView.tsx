@@ -137,6 +137,10 @@ export default function ProjectorView() {
   const { data: songsData = [] } = useQuery({
     queryKey: ["songs", "projector-view"],
     queryFn: () => getSongs(""),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const { width, height } = useWindowSize();
