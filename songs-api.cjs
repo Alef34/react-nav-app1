@@ -4,7 +4,8 @@ const cors = require("cors");
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
-const { execSync } = require("child_process");
+const crypto = require("crypto");
+const { execSync, spawn } = require("child_process");
 
 const STORAGE_MODE_RAW = String(process.env.STORAGE_MODE || "sqlite")
   .trim()
@@ -15,6 +16,13 @@ const JSON_DB_FILE = path.resolve(
   process.cwd(),
   process.env.LOCAL_JSON_PATH || "songs.local.json",
 );
+const RPI_REBOOT_COMMAND =
+  process.env.RPI_REBOOT_COMMAND || "sudo /sbin/reboot";
+const RPI_SHUTDOWN_COMMAND =
+  process.env.RPI_SHUTDOWN_COMMAND || "sudo /sbin/poweroff";
+const POWER_CONTROL_TOKEN = String(
+  process.env.POWER_CONTROL_TOKEN || "",
+).trim();
 
 const app = express();
 const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"];
@@ -817,6 +825,32 @@ function parsePsalmFromLcKbsHtml(html) {
   };
 }
 
+function extractPowerToken(req) {
+  const directHeader = String(req.headers["x-admin-power-token"] ?? "").trim();
+  if (directHeader.length > 0) {
+    return directHeader;
+  }
+
+  const authHeader = String(req.headers.authorization ?? "").trim();
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  return bearerMatch ? bearerMatch[1].trim() : "";
+}
+
+function safeTokenEquals(expected, actual) {
+  if (!expected || !actual) {
+    return false;
+  }
+
+  const left = Buffer.from(expected, "utf8");
+  const right = Buffer.from(actual, "utf8");
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(left, right);
+}
+
 app.get("/api/settings", (_req, res) => {
   const settings = loadSettings();
   res.json(settings);
@@ -871,6 +905,69 @@ app.get("/api/liturgy/zalm-today", async (req, res) => {
       error instanceof Error
         ? error.message
         : "Nepodarilo sa nacitat dnesny zalm.";
+    return res.status(500).json({ error: message });
+  }
+});
+
+app.post("/api/system/power", (req, res) => {
+  const action = String(req.body?.action ?? "")
+    .trim()
+    .toLowerCase();
+  const platform = os.platform();
+
+  if (!POWER_CONTROL_TOKEN) {
+    return res.status(503).json({
+      error:
+        "Power endpoint nie je aktivny. Nastav POWER_CONTROL_TOKEN v prostredi backendu.",
+    });
+  }
+
+  const providedToken = extractPowerToken(req);
+  if (!safeTokenEquals(POWER_CONTROL_TOKEN, providedToken)) {
+    return res
+      .status(401)
+      .json({ error: "Neplatny alebo chybajuci power token." });
+  }
+
+  if (action !== "reboot" && action !== "shutdown") {
+    return res
+      .status(400)
+      .json({ error: "Neplatna akcia. Pouzi reboot alebo shutdown." });
+  }
+
+  if (platform !== "linux") {
+    return res.status(400).json({
+      error: `Power akcie su podporene iba na Linuxe (aktualne: ${platform}).`,
+    });
+  }
+
+  const command =
+    action === "reboot" ? RPI_REBOOT_COMMAND : RPI_SHUTDOWN_COMMAND;
+  const requestedAt = new Date().toISOString();
+
+  try {
+    setTimeout(() => {
+      const child = spawn("sh", ["-lc", command], {
+        detached: true,
+        stdio: "ignore",
+      });
+      child.unref();
+    }, 400);
+
+    return res.json({
+      queued: true,
+      action,
+      requestedAt,
+      message:
+        action === "reboot"
+          ? "Reboot Raspberry Pi bol odoslany."
+          : "Shutdown Raspberry Pi bol odoslany.",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Nepodarilo sa spustit systemovu akciu.";
     return res.status(500).json({ error: message });
   }
 });

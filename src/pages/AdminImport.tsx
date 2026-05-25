@@ -60,6 +60,10 @@ type DailyPsalmPayload = {
   sourceUrl?: string;
 };
 
+type PowerAction = "reboot" | "shutdown";
+
+const POWER_TOKEN_STORAGE_KEY = "admin-power-token";
+
 function sortSongsForAdmin(items: SongWithId[]): SongWithId[] {
   return [...items].sort((a, b) => {
     const byNumber = a.cisloP.localeCompare(b.cisloP, undefined, {
@@ -284,6 +288,16 @@ export default function AdminImport({
     status: "idle" | "loading" | "success" | "error";
     message: string;
   }>({ status: "idle", message: "" });
+  const [powerState, setPowerState] = useState<{
+    status: "idle" | "loading" | "success" | "error";
+    message: string;
+  }>({ status: "idle", message: "" });
+  const [powerToken, setPowerToken] = useState<string>(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    return sessionStorage.getItem(POWER_TOKEN_STORAGE_KEY) ?? "";
+  });
 
   const verseRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
   const addVerseRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
@@ -321,6 +335,19 @@ export default function AdminImport({
 
     initialize();
   }, [dataMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (powerToken.trim().length === 0) {
+      sessionStorage.removeItem(POWER_TOKEN_STORAGE_KEY);
+      return;
+    }
+
+    sessionStorage.setItem(POWER_TOKEN_STORAGE_KEY, powerToken);
+  }, [powerToken]);
 
   const isOfflineMode = dataMode === "offline" || dataMode === "local";
   const canSyncWithSupabase = isSupabaseConfigured && isLoggedIn;
@@ -1057,6 +1084,79 @@ export default function AdminImport({
     }
   }
 
+  function confirmPowerAction(action: PowerAction): boolean {
+    return window.confirm(
+      action === "reboot"
+        ? "Naozaj rebootovat Raspberry Pi?"
+        : "Naozaj vypnut Raspberry Pi?",
+    );
+  }
+
+  async function handlePowerAction(action: PowerAction) {
+    const token = powerToken.trim();
+    if (!token) {
+      setPowerState({
+        status: "error",
+        message: "Najprv zadaj power token.",
+      });
+      return;
+    }
+
+    if (!confirmPowerAction(action)) {
+      return;
+    }
+
+    setPowerState({
+      status: "loading",
+      message:
+        action === "reboot"
+          ? "Odosielam reboot prikaz..."
+          : "Odosielam shutdown prikaz...",
+    });
+
+    try {
+      const response = await fetch(buildApiUrl("/system/power"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-power-token": token,
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      let payload: { message?: unknown; error?: unknown } = {};
+      try {
+        payload = (await response.json()) as {
+          message?: unknown;
+          error?: unknown;
+        };
+      } catch {
+        payload = {};
+      }
+
+      if (!response.ok) {
+        const errorMessage =
+          typeof payload.error === "string" && payload.error.trim().length > 0
+            ? payload.error
+            : `Power akcia zlyhala (HTTP ${response.status}).`;
+        throw new Error(errorMessage);
+      }
+
+      setPowerState({
+        status: "success",
+        message:
+          typeof payload.message === "string" &&
+          payload.message.trim().length > 0
+            ? payload.message
+            : action === "reboot"
+            ? "Reboot prikaz bol odoslany."
+            : "Shutdown prikaz bol odoslany.",
+      });
+    } catch (error) {
+      setPowerState({ status: "error", message: formatImportError(error) });
+    }
+  }
+
   return (
     <div
       style={{
@@ -1085,6 +1185,94 @@ export default function AdminImport({
       <p>
         <Link to="/">Spat na domov</Link>
       </p>
+
+      <div
+        style={{
+          marginBottom: 16,
+          padding: 12,
+          borderRadius: 8,
+          border: "1px solid #bbb",
+          backgroundColor: "#f8f8f8",
+        }}
+      >
+        <strong>Raspberry Pi napajanie</strong>
+        <p style={{ marginTop: 8, marginBottom: 10 }}>
+          Systemove akcie pre zariadenie. Pouzi iba ked si si isty.
+        </p>
+        <label style={{ display: "grid", gap: 6, marginBottom: 10 }}>
+          <span>Power token:</span>
+          <input
+            type="password"
+            value={powerToken}
+            onChange={(e) => setPowerToken(e.target.value)}
+            placeholder="Zadaj POWER_CONTROL_TOKEN"
+            autoComplete="off"
+            spellCheck={false}
+            style={{
+              width: "100%",
+              maxWidth: 360,
+              padding: 8,
+              boxSizing: "border-box",
+            }}
+          />
+        </label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => handlePowerAction("reboot")}
+            disabled={powerState.status === "loading" || !powerToken.trim()}
+            style={{
+              padding: "10px 18px",
+              background: "#ef6c00",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: "pointer",
+              boxShadow: "0 1px 4px #0002",
+            }}
+          >
+            Reboot RPi
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePowerAction("shutdown")}
+            disabled={powerState.status === "loading" || !powerToken.trim()}
+            style={{
+              padding: "10px 18px",
+              background: "#b71c1c",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: "pointer",
+              boxShadow: "0 1px 4px #0002",
+            }}
+          >
+            Shutdown RPi
+          </button>
+        </div>
+        {powerState.message && (
+          <p
+            style={{
+              marginTop: 10,
+              marginBottom: 0,
+              padding: 10,
+              borderRadius: 8,
+              backgroundColor:
+                powerState.status === "error"
+                  ? "var(--color-danger-bg)"
+                  : powerState.status === "success"
+                  ? "var(--color-success-bg)"
+                  : "var(--color-panel-bg)",
+            }}
+          >
+            {powerState.message}
+          </p>
+        )}
+      </div>
 
       {!crudOnly && (
         <div
