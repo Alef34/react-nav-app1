@@ -88,7 +88,14 @@ export default function AdminExport() {
   useEffect(() => {
     const handleDataModeChanged = (event: Event) => {
       const customEvent = event as CustomEvent<DataMode>;
-      setDataModeState(customEvent.detail === "offline" ? "offline" : "online");
+      const nextMode = customEvent.detail;
+      if (
+        nextMode === "online" ||
+        nextMode === "offline" ||
+        nextMode === "local"
+      ) {
+        setDataModeState(nextMode);
+      }
     };
 
     window.addEventListener("data-mode-changed", handleDataModeChanged);
@@ -314,6 +321,15 @@ export default function AdminExport() {
               onChange={() => handleDataModeChange("offline")}
             />
             Offline (lokalna DB)
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input
+              type="radio"
+              name="export-data-mode"
+              checked={dataMode === "local"}
+              onChange={() => handleDataModeChange("local")}
+            />
+            Local (JSON subor)
           </label>
         </div>
       </div>

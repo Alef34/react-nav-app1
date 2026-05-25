@@ -5,6 +5,7 @@ import React, {
   useState,
   ReactNode,
 } from "react";
+import { buildApiUrl } from "../api/apiBase";
 
 type ColorScheme = "light" | "dark";
 
@@ -62,12 +63,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
 };
 
 function getOfflineApiSettingsUrl(): string {
-  if (typeof window === "undefined") {
-    return "http://localhost:3001/api/settings";
-  }
-
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  return `${protocol}//${window.location.hostname}:3001/api/settings`;
+  return buildApiUrl("/settings");
 }
 
 function normalizeFontSize(value: unknown): number {

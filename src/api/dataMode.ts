@@ -1,19 +1,29 @@
-export type DataMode = "online" | "offline";
+export type DataMode = "online" | "offline" | "local";
 
 const DATA_MODE_STORAGE_KEY = "app.dataMode";
-const OFFLINE_ONLY_MODE: DataMode = "offline";
+const DEFAULT_MODE: DataMode = "offline";
 
-export function getDataMode(): DataMode {
-  return OFFLINE_ONLY_MODE;
+function normalizeDataMode(raw: unknown): DataMode {
+  return raw === "online" || raw === "offline" || raw === "local"
+    ? raw
+    : DEFAULT_MODE;
 }
 
-export function setDataMode(_mode: DataMode): void {
+export function getDataMode(): DataMode {
+  if (typeof window === "undefined") {
+    return DEFAULT_MODE;
+  }
+
+  const raw = window.localStorage.getItem(DATA_MODE_STORAGE_KEY);
+  return normalizeDataMode(raw);
+}
+
+export function setDataMode(mode: DataMode): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  // Offline-only build: persist and broadcast only "offline" regardless of input.
-  const nextMode: DataMode = OFFLINE_ONLY_MODE;
+  const nextMode = normalizeDataMode(mode);
   window.localStorage.setItem(DATA_MODE_STORAGE_KEY, nextMode);
   window.dispatchEvent(
     new CustomEvent<DataMode>("data-mode-changed", { detail: nextMode }),

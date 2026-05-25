@@ -4,6 +4,11 @@ import { checkInternetConnection } from "./myTools";
 import { isSupabaseConfigured } from "./supabaseClient";
 import { getDataMode } from "./dataMode";
 import { loadSongsFromSupabase } from "./supabaseSongs";
+import { buildApiUrl } from "./apiBase";
+
+function usesLocalBackendMode(mode: string): boolean {
+  return mode === "offline" || mode === "local";
+}
 
 const LOCAL_SONGS_URL = `${import.meta.env.BASE_URL}songs.json`;
 const REMOTE_SONGS_URL =
@@ -50,12 +55,7 @@ async function withTimeout<T>(
 }
 
 function getOfflineApiSongsUrl(): string {
-  if (typeof window === "undefined") {
-    return "http://localhost:3001/api/songs";
-  }
-
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  return `${protocol}//${window.location.hostname}:3001/api/songs`;
+  return buildApiUrl("/songs");
 }
 
 function normalizeSong(raw: unknown): Song {
@@ -93,7 +93,7 @@ export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
     response = await fetchWithTimeout(offlineApiUrl, {}, REQUEST_TIMEOUT_MS);
   } catch {
     throw new Error(
-      `Offline API nie je dostupne na ${offlineApiUrl}. Skontroluj, ci backend bezi na RPI (port 3001).`,
+      `Offline API nie je dostupne na ${offlineApiUrl}. Skontroluj, ci backend bezi.`,
     );
   }
 
@@ -215,8 +215,8 @@ export async function getSongs(filter: string): Promise<Song[]> {
   const loweredFilter = filter.toLowerCase();
   const dataMode = getDataMode();
 
-  // Ak je offline režim, načítaj piesne z lokálneho SQLite backendu
-  if (dataMode === "offline") {
+  // Ak je lokalny backend rezim, nacitaj piesne z lokalneho backendu.
+  if (usesLocalBackendMode(dataMode)) {
     return await loadSongsFromLocalApi(loweredFilter);
   }
 
@@ -288,6 +288,10 @@ export async function getVersion(): Promise<string> {
 
   if (dataMode === "offline") {
     return "offline-local-db";
+  }
+
+  if (dataMode === "local") {
+    return "local-json-file";
   }
 
   if (isSupabaseConfigured) {

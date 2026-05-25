@@ -27,6 +27,7 @@ import {
   updateSongOrderById,
   updateSongVerseFontMultiplierById,
 } from "../api/supabaseSongs";
+import { buildApiUrl } from "../api/apiBase";
 
 const ALL_CATEGORIES = "Vsetky";
 const SEARCH_QUERY_STORAGE_KEY = "home.searchQuery";
@@ -127,17 +128,8 @@ function loadPlaylistsFromStorage(): PlaylistsState {
   }
 }
 
-function getOfflineApiOrigin(): string {
-  if (typeof window === "undefined") {
-    return "http://localhost:3001";
-  }
-
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  return `${protocol}//${window.location.hostname}:3001`;
-}
-
 async function loadPlaylistsFromOfflineApi(): Promise<PlaylistsState> {
-  const response = await fetch(`${getOfflineApiOrigin()}/api/playlists`);
+  const response = await fetch(buildApiUrl("/playlists"));
   if (!response.ok) {
     throw new Error(`Offline playlist API chyba ${response.status}`);
   }
@@ -153,7 +145,7 @@ async function loadPlaylistsFromOfflineApi(): Promise<PlaylistsState> {
 async function savePlaylistsToOfflineApi(
   playlists: PlaylistsState,
 ): Promise<void> {
-  const response = await fetch(`${getOfflineApiOrigin()}/api/playlists`, {
+  const response = await fetch(buildApiUrl("/playlists"), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -186,6 +178,34 @@ function clampSplitWidth(value: number): number {
     MIN_SPLIT_LEFT_WIDTH_PERCENT,
     Math.min(MAX_SPLIT_LEFT_WIDTH_PERCENT, Math.round(value)),
   );
+}
+
+function getDataModeBadgeStyle(mode: DataMode): {
+  label: string;
+  backgroundColor: string;
+  textColor: string;
+} {
+  if (mode === "online") {
+    return {
+      label: "SUPA",
+      backgroundColor: "#dcfce7",
+      textColor: "#166534",
+    };
+  }
+
+  if (mode === "local") {
+    return {
+      label: "JSON",
+      backgroundColor: "#dbeafe",
+      textColor: "#1d4ed8",
+    };
+  }
+
+  return {
+    label: "SQL",
+    backgroundColor: "#fef3c7",
+    textColor: "#92400e",
+  };
 }
 
 function normalizeCategory(value: string): string {
@@ -769,7 +789,11 @@ export default function Home() {
   useEffect(() => {
     const handleDataModeChanged = (event: Event) => {
       const nextMode = (event as CustomEvent<DataMode>).detail;
-      if (nextMode === "online" || nextMode === "offline") {
+      if (
+        nextMode === "online" ||
+        nextMode === "offline" ||
+        nextMode === "local"
+      ) {
         setDataMode(nextMode);
       }
     };
@@ -1905,6 +1929,7 @@ export default function Home() {
   const selectedVerseMultiplierPercent = Math.round(
     selectedVerseMultiplier * 100,
   );
+  const dataModeBadge = getDataModeBadgeStyle(dataMode);
 
   if (isLoading) {
     return (
@@ -2163,9 +2188,38 @@ export default function Home() {
           - Z playlistu
         </button>
 
-        <span style={{ fontSize: 20, fontWeight: 700 }}>
-          {filteredData.length} / {songsData.length}
-        </span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 20,
+            fontWeight: 700,
+          }}
+          title="Pocet skladieb a aktivny datovy rezim"
+        >
+          <span>
+            {filteredData.length} / {songsData.length}
+          </span>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minWidth: 74,
+              borderRadius: 999,
+              padding: "3px 10px",
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: "0.05em",
+              backgroundColor: dataModeBadge.backgroundColor,
+              color: dataModeBadge.textColor,
+              border: "1px solid rgba(0,0,0,0.16)",
+            }}
+          >
+            {dataModeBadge.label}
+          </span>
+        </div>
 
         {isSplitView && (
           <div

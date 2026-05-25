@@ -2,9 +2,20 @@ const express = require("express");
 const Database = require("better-sqlite3");
 const cors = require("cors");
 const os = require("os");
+const fs = require("fs");
+const path = require("path");
 const { execSync } = require("child_process");
 
-const db = new Database("songs.db");
+const STORAGE_MODE_RAW = String(process.env.STORAGE_MODE || "sqlite")
+  .trim()
+  .toLowerCase();
+const USE_JSON_STORAGE =
+  STORAGE_MODE_RAW === "json" || STORAGE_MODE_RAW === "local";
+const JSON_DB_FILE = path.resolve(
+  process.cwd(),
+  process.env.LOCAL_JSON_PATH || "songs.local.json",
+);
+
 const app = express();
 const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"];
 const DEFAULT_SETTINGS = {
@@ -19,60 +30,12 @@ const DEFAULT_SETTINGS = {
   showAkordyProjector: false,
   verzia: "",
 };
+
+let db = null;
+
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
-console.log("Spúšťam backend...");
-// Inicializácia tabuľky
-db.exec(`
-  CREATE TABLE IF NOT EXISTS songs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cislo_p TEXT,
-    nazov TEXT,
-    source TEXT,
-    kategoria TEXT,
-    poradie_sloh TEXT,
-    verse_font_multipliers TEXT,
-    slohy TEXT,
-    updated_at TEXT
-  )
-`);
-
-try {
-  db.exec("ALTER TABLE songs ADD COLUMN verse_font_multipliers TEXT");
-} catch (error) {
-  // Ignore if column already exists.
-}
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS playlists (
-    name TEXT PRIMARY KEY,
-    song_ids TEXT NOT NULL,
-    updated_at TEXT
-  )
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS app_settings (
-    setting_key TEXT PRIMARY KEY,
-    setting_value TEXT NOT NULL,
-    updated_at TEXT
-  )
-`);
-
-const ensurePlaylistStmt = db.prepare(
-  "INSERT OR IGNORE INTO playlists (name, song_ids, updated_at) VALUES (?, '[]', datetime('now'))",
-);
-PLAYLIST_KEYS.forEach((name) => {
-  ensurePlaylistStmt.run(name);
-});
-
-const ensureSettingStmt = db.prepare(
-  "INSERT OR IGNORE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, datetime('now'))",
-);
-
-Object.entries(DEFAULT_SETTINGS).forEach(([key, value]) => {
-  ensureSettingStmt.run(key, JSON.stringify(value));
-});
+console.log("Spustam backend...");
 
 function normalizeNumber(value, min, max, fallback) {
   const numeric = Number(value);
@@ -134,55 +97,6 @@ function normalizeSettings(raw) {
   };
 }
 
-function loadSettingsFromDb() {
-  const rows = db
-    .prepare("SELECT setting_key, setting_value FROM app_settings")
-    .all();
-  const merged = { ...DEFAULT_SETTINGS };
-
-  rows.forEach((row) => {
-    if (!(row.setting_key in merged)) {
-      return;
-    }
-    try {
-      merged[row.setting_key] = JSON.parse(row.setting_value);
-    } catch {
-      // Keep default value when stored JSON is invalid.
-    }
-  });
-
-  return normalizeSettings(merged);
-}
-
-app.get("/api/settings", (_req, res) => {
-  const settings = loadSettingsFromDb();
-  res.json(settings);
-});
-
-app.put("/api/settings", (req, res) => {
-  const incoming = req.body;
-  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
-    return res
-      .status(400)
-      .json({ error: "Neplatny format settings payloadu." });
-  }
-
-  const current = loadSettingsFromDb();
-  const merged = normalizeSettings({ ...current, ...incoming });
-  const upsertStmt = db.prepare(
-    "INSERT INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = datetime('now')",
-  );
-
-  const transaction = db.transaction(() => {
-    Object.entries(merged).forEach(([key, value]) => {
-      upsertStmt.run(key, JSON.stringify(value));
-    });
-  });
-
-  transaction();
-  res.json(merged);
-});
-
 function parsePlaylistSongIds(value) {
   if (!Array.isArray(value)) {
     return [];
@@ -195,6 +109,584 @@ function parsePlaylistSongIds(value) {
         .filter((item) => item.length > 0),
     ),
   );
+}
+
+function normalizeVerseFontMultipliers(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+
+  const next = {};
+  Object.entries(raw).forEach(([key, value]) => {
+    const safeKey = String(key ?? "")
+      .trim()
+      .toLowerCase();
+    const numeric = Number(value);
+    if (!safeKey || !Number.isFinite(numeric)) {
+      return;
+    }
+
+    next[safeKey] = Number(Math.min(2, Math.max(0.5, numeric)).toFixed(2));
+  });
+
+  return next;
+}
+
+function normalizeSongRow(raw, fallbackId = 0) {
+  const parsedId = Number(raw?.id);
+  const id = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : fallbackId;
+
+  return {
+    id,
+    cislo_p: String(raw?.cislo_p ?? "").trim(),
+    nazov: String(raw?.nazov ?? "").trim(),
+    source: String(raw?.source ?? ""),
+    kategoria: String(raw?.kategoria ?? "Nabozenske"),
+    poradie_sloh: Array.isArray(raw?.poradie_sloh)
+      ? raw.poradie_sloh
+          .map((item) => String(item ?? "").trim())
+          .filter((item) => item.length > 0)
+      : [],
+    verse_font_multipliers: normalizeVerseFontMultipliers(
+      raw?.verse_font_multipliers,
+    ),
+    slohy: Array.isArray(raw?.slohy) ? raw.slohy : [],
+    updated_at: String(raw?.updated_at ?? new Date().toISOString()),
+  };
+}
+
+function createDefaultJsonState() {
+  return {
+    nextSongId: 1,
+    songs: [],
+    playlists: {
+      "Playlist 1": [],
+      "Playlist 2": [],
+      "Playlist 3": [],
+    },
+    settings: { ...DEFAULT_SETTINGS },
+  };
+}
+
+function normalizeJsonState(raw) {
+  const safe = raw && typeof raw === "object" ? raw : {};
+  const base = createDefaultJsonState();
+
+  PLAYLIST_KEYS.forEach((key) => {
+    base.playlists[key] = parsePlaylistSongIds(safe?.playlists?.[key]);
+  });
+
+  base.settings = normalizeSettings(safe?.settings);
+
+  const songsRaw = Array.isArray(safe?.songs) ? safe.songs : [];
+  const taken = new Set();
+  let cursor = 1;
+
+  base.songs = songsRaw
+    .map((song) => normalizeSongRow(song, 0))
+    .map((song) => {
+      let nextId = Number(song.id);
+      if (!Number.isFinite(nextId) || nextId <= 0 || taken.has(nextId)) {
+        while (taken.has(cursor)) {
+          cursor += 1;
+        }
+        nextId = cursor;
+      }
+      taken.add(nextId);
+      cursor = Math.max(cursor, nextId + 1);
+      return { ...song, id: nextId };
+    });
+
+  const maxId = base.songs.reduce((max, row) => Math.max(max, row.id), 0);
+  const parsedNextId = Number(safe?.nextSongId);
+  base.nextSongId =
+    Number.isFinite(parsedNextId) && parsedNextId > 0
+      ? Math.max(Math.trunc(parsedNextId), maxId + 1)
+      : maxId + 1;
+
+  return base;
+}
+
+function ensureJsonStateFile() {
+  if (fs.existsSync(JSON_DB_FILE)) {
+    return;
+  }
+
+  const dir = path.dirname(JSON_DB_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  const initial = createDefaultJsonState();
+  fs.writeFileSync(JSON_DB_FILE, JSON.stringify(initial, null, 2));
+}
+
+function readJsonState() {
+  ensureJsonStateFile();
+  try {
+    const raw = fs.readFileSync(JSON_DB_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    return normalizeJsonState(parsed);
+  } catch {
+    const fallback = createDefaultJsonState();
+    fs.writeFileSync(JSON_DB_FILE, JSON.stringify(fallback, null, 2));
+    return fallback;
+  }
+}
+
+function writeJsonState(state) {
+  const normalized = normalizeJsonState(state);
+  fs.writeFileSync(JSON_DB_FILE, JSON.stringify(normalized, null, 2));
+}
+
+if (!USE_JSON_STORAGE) {
+  db = new Database("songs.db");
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS songs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cislo_p TEXT,
+      nazov TEXT,
+      source TEXT,
+      kategoria TEXT,
+      poradie_sloh TEXT,
+      verse_font_multipliers TEXT,
+      slohy TEXT,
+      updated_at TEXT
+    )
+  `);
+
+  try {
+    db.exec("ALTER TABLE songs ADD COLUMN verse_font_multipliers TEXT");
+  } catch {
+    // Ignore when column already exists.
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS playlists (
+      name TEXT PRIMARY KEY,
+      song_ids TEXT NOT NULL,
+      updated_at TEXT
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      setting_key TEXT PRIMARY KEY,
+      setting_value TEXT NOT NULL,
+      updated_at TEXT
+    )
+  `);
+
+  const ensurePlaylistStmt = db.prepare(
+    "INSERT OR IGNORE INTO playlists (name, song_ids, updated_at) VALUES (?, '[]', datetime('now'))",
+  );
+  PLAYLIST_KEYS.forEach((name) => {
+    ensurePlaylistStmt.run(name);
+  });
+
+  const ensureSettingStmt = db.prepare(
+    "INSERT OR IGNORE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, datetime('now'))",
+  );
+
+  Object.entries(DEFAULT_SETTINGS).forEach(([key, value]) => {
+    ensureSettingStmt.run(key, JSON.stringify(value));
+  });
+} else {
+  ensureJsonStateFile();
+}
+
+function loadSettings() {
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    return normalizeSettings(state.settings);
+  }
+
+  const rows = db
+    .prepare("SELECT setting_key, setting_value FROM app_settings")
+    .all();
+  const merged = { ...DEFAULT_SETTINGS };
+
+  rows.forEach((row) => {
+    if (!(row.setting_key in merged)) {
+      return;
+    }
+    try {
+      merged[row.setting_key] = JSON.parse(row.setting_value);
+    } catch {
+      // Keep defaults when stored JSON is invalid.
+    }
+  });
+
+  return normalizeSettings(merged);
+}
+
+function saveSettings(settings) {
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    state.settings = normalizeSettings(settings);
+    writeJsonState(state);
+    return;
+  }
+
+  const upsertStmt = db.prepare(
+    "INSERT INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = datetime('now')",
+  );
+
+  const transaction = db.transaction(() => {
+    Object.entries(settings).forEach(([key, value]) => {
+      upsertStmt.run(key, JSON.stringify(value));
+    });
+  });
+
+  transaction();
+}
+
+function getPlaylistsPayload() {
+  const payload = {
+    "Playlist 1": [],
+    "Playlist 2": [],
+    "Playlist 3": [],
+  };
+
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    PLAYLIST_KEYS.forEach((key) => {
+      payload[key] = parsePlaylistSongIds(state.playlists?.[key]);
+    });
+    return payload;
+  }
+
+  const rows = db
+    .prepare("SELECT name, song_ids FROM playlists WHERE name IN (?, ?, ?)")
+    .all(...PLAYLIST_KEYS);
+
+  rows.forEach((row) => {
+    try {
+      payload[row.name] = parsePlaylistSongIds(JSON.parse(row.song_ids));
+    } catch {
+      payload[row.name] = [];
+    }
+  });
+
+  return payload;
+}
+
+function savePlaylistsPayload(body) {
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    PLAYLIST_KEYS.forEach((playlistKey) => {
+      state.playlists[playlistKey] = parsePlaylistSongIds(body[playlistKey]);
+    });
+    writeJsonState(state);
+    return;
+  }
+
+  const upsertStmt = db.prepare(
+    "INSERT INTO playlists (name, song_ids, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(name) DO UPDATE SET song_ids = excluded.song_ids, updated_at = datetime('now')",
+  );
+
+  const transaction = db.transaction(() => {
+    PLAYLIST_KEYS.forEach((playlistKey) => {
+      const songIds = parsePlaylistSongIds(body[playlistKey]);
+      upsertStmt.run(playlistKey, JSON.stringify(songIds));
+    });
+  });
+
+  transaction();
+}
+
+function parseSqliteSongRow(row) {
+  return {
+    ...row,
+    slohy: (() => {
+      try {
+        return JSON.parse(row.slohy);
+      } catch {
+        return [];
+      }
+    })(),
+    poradie_sloh: (() => {
+      try {
+        return JSON.parse(row.poradie_sloh);
+      } catch {
+        return [];
+      }
+    })(),
+    verse_font_multipliers: (() => {
+      try {
+        return JSON.parse(row.verse_font_multipliers || "{}");
+      } catch {
+        return {};
+      }
+    })(),
+  };
+}
+
+function getAllSongs() {
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    return state.songs.map((row) => normalizeSongRow(row, 0));
+  }
+
+  const rows = db.prepare("SELECT * FROM songs").all();
+  return rows.map(parseSqliteSongRow);
+}
+
+function getSongById(id) {
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    const row = state.songs.find((song) => song.id === id);
+    return row ? normalizeSongRow(row, id) : null;
+  }
+
+  const row = db.prepare("SELECT * FROM songs WHERE id = ?").get(id);
+  return row ? parseSqliteSongRow(row) : null;
+}
+
+function insertSong(payload) {
+  const normalized = normalizeSongRow(payload, 0);
+
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    const id = state.nextSongId;
+    state.songs.push({
+      ...normalized,
+      id,
+      updated_at: new Date().toISOString(),
+    });
+    state.nextSongId = id + 1;
+    writeJsonState(state);
+    return id;
+  }
+
+  const stmt = db.prepare(`
+    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, verse_font_multipliers, slohy, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
+
+  const info = stmt.run(
+    normalized.cislo_p,
+    normalized.nazov,
+    normalized.source,
+    normalized.kategoria,
+    JSON.stringify(normalized.poradie_sloh),
+    JSON.stringify(normalized.verse_font_multipliers),
+    JSON.stringify(normalized.slohy),
+  );
+
+  return Number(info.lastInsertRowid);
+}
+
+function updateSong(id, payload) {
+  const normalized = normalizeSongRow(payload, id);
+
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    const index = state.songs.findIndex((song) => song.id === id);
+    if (index === -1) {
+      return false;
+    }
+
+    state.songs[index] = {
+      ...state.songs[index],
+      ...normalized,
+      id,
+      updated_at: new Date().toISOString(),
+    };
+    writeJsonState(state);
+    return true;
+  }
+
+  const stmt = db.prepare(
+    "UPDATE songs SET cislo_p = ?, nazov = ?, source = ?, kategoria = ?, poradie_sloh = ?, verse_font_multipliers = ?, slohy = ?, updated_at = datetime('now') WHERE id = ?",
+  );
+  const result = stmt.run(
+    normalized.cislo_p,
+    normalized.nazov,
+    normalized.source,
+    normalized.kategoria,
+    JSON.stringify(normalized.poradie_sloh),
+    JSON.stringify(normalized.verse_font_multipliers),
+    JSON.stringify(normalized.slohy),
+    id,
+  );
+
+  return result.changes > 0;
+}
+
+function importSongs(songs) {
+  if (!Array.isArray(songs)) {
+    return 0;
+  }
+
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    let imported = 0;
+
+    songs.forEach((song) => {
+      const normalized = normalizeSongRow(
+        {
+          cislo_p: song.cisloP,
+          nazov: song.nazov,
+          source: song.source,
+          kategoria: song.kategoria,
+          poradie_sloh: song.poradieSloh ?? [],
+          verse_font_multipliers:
+            song.verseFontMultipliers ?? song.verse_font_multipliers ?? {},
+          slohy: song.slohy ?? [],
+        },
+        state.nextSongId,
+      );
+
+      state.songs.push({
+        ...normalized,
+        id: state.nextSongId,
+        updated_at: new Date().toISOString(),
+      });
+      state.nextSongId += 1;
+      imported += 1;
+    });
+
+    writeJsonState(state);
+    return imported;
+  }
+
+  const stmt = db.prepare(`
+    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, verse_font_multipliers, slohy, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
+  let count = 0;
+
+  for (const song of songs) {
+    stmt.run(
+      song.cisloP,
+      song.nazov,
+      song.source,
+      song.kategoria,
+      JSON.stringify(song.poradieSloh ?? []),
+      JSON.stringify(
+        song.verseFontMultipliers ?? song.verse_font_multipliers ?? {},
+      ),
+      JSON.stringify(song.slohy ?? []),
+    );
+    count += 1;
+  }
+
+  return count;
+}
+
+function deleteAllSongs() {
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    const deleted = state.songs.length;
+    state.songs = [];
+    state.nextSongId = 1;
+    writeJsonState(state);
+    return deleted;
+  }
+
+  const result = db.prepare("DELETE FROM songs").run();
+  return result.changes;
+}
+
+function deleteSongById(id) {
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    const before = state.songs.length;
+    state.songs = state.songs.filter((song) => song.id !== id);
+    const changed = before !== state.songs.length;
+    if (changed) {
+      writeJsonState(state);
+    }
+    return changed;
+  }
+
+  const result = db.prepare("DELETE FROM songs WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+function updateSongOrder(id, poradieSloh) {
+  const normalizedOrder = Array.isArray(poradieSloh) ? poradieSloh : [];
+
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    const index = state.songs.findIndex((song) => song.id === id);
+    if (index === -1) {
+      return false;
+    }
+
+    state.songs[index] = {
+      ...state.songs[index],
+      poradie_sloh: normalizedOrder,
+      updated_at: new Date().toISOString(),
+    };
+    writeJsonState(state);
+    return true;
+  }
+
+  const stmt = db.prepare(
+    "UPDATE songs SET poradie_sloh = ?, updated_at = datetime('now') WHERE id = ?",
+  );
+  const result = stmt.run(JSON.stringify(normalizedOrder), id);
+  return result.changes > 0;
+}
+
+function updateSongVerseFont(id, verseKey, multiplier) {
+  if (USE_JSON_STORAGE) {
+    const state = readJsonState();
+    const index = state.songs.findIndex((song) => song.id === id);
+    if (index === -1) {
+      return null;
+    }
+
+    const current = normalizeVerseFontMultipliers(
+      state.songs[index].verse_font_multipliers,
+    );
+
+    if (multiplier === null) {
+      delete current[verseKey];
+    } else {
+      current[verseKey] = multiplier;
+    }
+
+    state.songs[index] = {
+      ...state.songs[index],
+      verse_font_multipliers: current,
+      updated_at: new Date().toISOString(),
+    };
+    writeJsonState(state);
+    return current;
+  }
+
+  const row = db
+    .prepare("SELECT verse_font_multipliers FROM songs WHERE id = ?")
+    .get(id);
+  if (!row) {
+    return null;
+  }
+
+  let current = {};
+  try {
+    const parsed = JSON.parse(row.verse_font_multipliers || "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      current = parsed;
+    }
+  } catch {
+    current = {};
+  }
+
+  if (multiplier === null) {
+    delete current[verseKey];
+  } else {
+    current[verseKey] = multiplier;
+  }
+
+  const stmt = db.prepare(
+    "UPDATE songs SET verse_font_multipliers = ?, updated_at = datetime('now') WHERE id = ?",
+  );
+  stmt.run(JSON.stringify(current), id);
+  return current;
 }
 
 function decodeHtmlEntities(value) {
@@ -325,26 +817,27 @@ function parsePsalmFromLcKbsHtml(html) {
   };
 }
 
+app.get("/api/settings", (_req, res) => {
+  const settings = loadSettings();
+  res.json(settings);
+});
+
+app.put("/api/settings", (req, res) => {
+  const incoming = req.body;
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
+    return res
+      .status(400)
+      .json({ error: "Neplatny format settings payloadu." });
+  }
+
+  const current = loadSettings();
+  const merged = normalizeSettings({ ...current, ...incoming });
+  saveSettings(merged);
+  res.json(merged);
+});
+
 app.get("/api/playlists", (_req, res) => {
-  const rows = db
-    .prepare("SELECT name, song_ids FROM playlists WHERE name IN (?, ?, ?)")
-    .all(...PLAYLIST_KEYS);
-
-  const payload = {
-    "Playlist 1": [],
-    "Playlist 2": [],
-    "Playlist 3": [],
-  };
-
-  rows.forEach((row) => {
-    try {
-      payload[row.name] = parsePlaylistSongIds(JSON.parse(row.song_ids));
-    } catch {
-      payload[row.name] = [];
-    }
-  });
-
-  res.json(payload);
+  res.json(getPlaylistsPayload());
 });
 
 app.get("/api/liturgy/zalm-today", async (req, res) => {
@@ -390,35 +883,21 @@ app.put("/api/playlists", (req, res) => {
       .json({ error: "Neplatny format playlist payloadu." });
   }
 
-  const upsertStmt = db.prepare(
-    "INSERT INTO playlists (name, song_ids, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(name) DO UPDATE SET song_ids = excluded.song_ids, updated_at = datetime('now')",
-  );
-
-  const transaction = db.transaction(() => {
-    PLAYLIST_KEYS.forEach((playlistKey) => {
-      const songIds = parsePlaylistSongIds(body[playlistKey]);
-      upsertStmt.run(playlistKey, JSON.stringify(songIds));
-    });
-  });
-
-  transaction();
+  savePlaylistsPayload(body);
   res.json({ updated: true });
 });
 
-// PATCH: aktualizuj poradie_sloh podľa id
 app.patch("/api/songs/:id/poradie", (req, res) => {
   const id = Number(req.params.id);
   const { poradie_sloh } = req.body;
   if (!Array.isArray(poradie_sloh)) {
-    return res.status(400).json({ error: "poradie_sloh musí byť pole." });
+    return res.status(400).json({ error: "poradie_sloh musi byt pole." });
   }
-  const stmt = db.prepare(
-    "UPDATE songs SET poradie_sloh = ?, updated_at = datetime('now') WHERE id = ?",
-  );
-  const result = stmt.run(JSON.stringify(poradie_sloh), id);
-  if (result.changes === 0) {
+
+  if (!updateSongOrder(id, poradie_sloh)) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
+
   res.json({ updated: true });
 });
 
@@ -448,103 +927,47 @@ app.patch("/api/songs/:id/verse-font", (req, res) => {
     multiplier = Number(Math.min(2, Math.max(0.5, parsed)).toFixed(2));
   }
 
-  const row = db
-    .prepare("SELECT verse_font_multipliers FROM songs WHERE id = ?")
-    .get(id);
-  if (!row) {
+  const updated = updateSongVerseFont(id, verseKey, multiplier);
+  if (!updated) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
 
-  let current = {};
-  try {
-    const parsed = JSON.parse(row.verse_font_multipliers || "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      current = parsed;
-    }
-  } catch {
-    current = {};
-  }
-
-  if (multiplier === null) {
-    delete current[verseKey];
-  } else {
-    current[verseKey] = multiplier;
-  }
-
-  const stmt = db.prepare(
-    "UPDATE songs SET verse_font_multipliers = ?, updated_at = datetime('now') WHERE id = ?",
-  );
-  stmt.run(JSON.stringify(current), id);
-  res.json({ updated: true, verse_font_multipliers: current });
+  res.json({ updated: true, verse_font_multipliers: updated });
 });
 
-// Hromadný import piesní (pole piesní v tele požiadavky)
 app.post("/api/import", (req, res) => {
-  const songs = req.body; // očakáva pole piesní
+  const songs = req.body;
   if (!Array.isArray(songs)) {
-    return res.status(400).json({ error: "Očakáva sa pole piesní." });
+    return res.status(400).json({ error: "Ocakava sa pole piesni." });
   }
-  const stmt = db.prepare(`
-    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, verse_font_multipliers, slohy, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `);
-  let count = 0;
-  for (const song of songs) {
-    stmt.run(
-      song.cisloP,
-      song.nazov,
-      song.source,
-      song.kategoria,
-      JSON.stringify(song.poradieSloh ?? []),
-      JSON.stringify(
-        song.verseFontMultipliers ?? song.verse_font_multipliers ?? {},
-      ),
-      JSON.stringify(song.slohy ?? []),
-    );
-    count++;
-  }
+
+  const count = importSongs(songs);
   res.json({ imported: count });
 });
 
-app.delete("/api/songs", (req, res) => {
-  db.prepare("DELETE FROM songs").run();
+app.delete("/api/songs", (_req, res) => {
+  deleteAllSongs();
   res.json({ deleted: true });
 });
-// Získaj všetky piesne
-app.get("/api/songs", (req, res) => {
-  const rows = db.prepare("SELECT * FROM songs").all();
-  // slohy a poradie_sloh sú uložené ako JSON stringy
-  res.json(
-    rows.map((row) => ({
-      ...row,
-      slohy: JSON.parse(row.slohy),
-      poradie_sloh: JSON.parse(row.poradie_sloh),
-      verse_font_multipliers: JSON.parse(row.verse_font_multipliers || "{}"),
-    })),
-  );
+
+app.get("/api/songs", (_req, res) => {
+  res.json(getAllSongs());
 });
 
-// Získaj jednu pieseň podľa ID
 app.get("/api/songs/:id", (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
     return res.status(400).json({ error: "Neplatne id." });
   }
 
-  const row = db.prepare("SELECT * FROM songs WHERE id = ?").get(id);
+  const row = getSongById(id);
   if (!row) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
 
-  res.json({
-    ...row,
-    slohy: JSON.parse(row.slohy),
-    poradie_sloh: JSON.parse(row.poradie_sloh),
-    verse_font_multipliers: JSON.parse(row.verse_font_multipliers || "{}"),
-  });
+  res.json(row);
 });
 
-// Pridaj novú pieseň
 app.post("/api/songs", (req, res) => {
   const {
     cislo_p,
@@ -564,29 +987,24 @@ app.post("/api/songs", (req, res) => {
     return res.status(400).json({ error: "slohy musi byt neprzdne pole." });
   }
 
-  const stmt = db.prepare(`
-    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, verse_font_multipliers, slohy, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `);
-  const info = stmt.run(
-    String(cislo_p).trim(),
-    String(nazov).trim(),
-    String(source ?? ""),
-    String(kategoria ?? "Nabozenske"),
-    JSON.stringify(Array.isArray(poradie_sloh) ? poradie_sloh : []),
-    JSON.stringify(
+  const id = insertSong({
+    cislo_p: String(cislo_p).trim(),
+    nazov: String(nazov).trim(),
+    source: String(source ?? ""),
+    kategoria: String(kategoria ?? "Nabozenske"),
+    poradie_sloh: Array.isArray(poradie_sloh) ? poradie_sloh : [],
+    verse_font_multipliers:
       verse_font_multipliers &&
-        typeof verse_font_multipliers === "object" &&
-        !Array.isArray(verse_font_multipliers)
+      typeof verse_font_multipliers === "object" &&
+      !Array.isArray(verse_font_multipliers)
         ? verse_font_multipliers
         : {},
-    ),
-    JSON.stringify(slohy),
-  );
-  res.json({ id: info.lastInsertRowid });
+    slohy,
+  });
+
+  res.json({ id });
 });
 
-// Uprav skladbu podľa ID
 app.put("/api/songs/:id", (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
@@ -602,6 +1020,7 @@ app.put("/api/songs/:id", (req, res) => {
     verse_font_multipliers,
     slohy,
   } = req.body;
+
   if (!String(cislo_p ?? "").trim() || !String(nazov ?? "").trim()) {
     return res.status(400).json({ error: "cislo_p a nazov su povinne." });
   }
@@ -610,49 +1029,41 @@ app.put("/api/songs/:id", (req, res) => {
     return res.status(400).json({ error: "slohy musi byt neprzdne pole." });
   }
 
-  const stmt = db.prepare(
-    "UPDATE songs SET cislo_p = ?, nazov = ?, source = ?, kategoria = ?, poradie_sloh = ?, verse_font_multipliers = ?, slohy = ?, updated_at = datetime('now') WHERE id = ?",
-  );
-  const result = stmt.run(
-    String(cislo_p).trim(),
-    String(nazov).trim(),
-    String(source ?? ""),
-    String(kategoria ?? "Nabozenske"),
-    JSON.stringify(Array.isArray(poradie_sloh) ? poradie_sloh : []),
-    JSON.stringify(
+  const updated = updateSong(id, {
+    id,
+    cislo_p: String(cislo_p).trim(),
+    nazov: String(nazov).trim(),
+    source: String(source ?? ""),
+    kategoria: String(kategoria ?? "Nabozenske"),
+    poradie_sloh: Array.isArray(poradie_sloh) ? poradie_sloh : [],
+    verse_font_multipliers:
       verse_font_multipliers &&
-        typeof verse_font_multipliers === "object" &&
-        !Array.isArray(verse_font_multipliers)
+      typeof verse_font_multipliers === "object" &&
+      !Array.isArray(verse_font_multipliers)
         ? verse_font_multipliers
         : {},
-    ),
-    JSON.stringify(slohy),
-    id,
-  );
+    slohy,
+  });
 
-  if (result.changes === 0) {
+  if (!updated) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
 
   res.json({ updated: true });
 });
 
-// Vymaž jednu skladbu podľa ID
 app.delete("/api/songs/:id", (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
     return res.status(400).json({ error: "Neplatne id." });
   }
 
-  const result = db.prepare("DELETE FROM songs WHERE id = ?").run(id);
-  if (result.changes === 0) {
+  if (!deleteSongById(id)) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
 
   res.json({ deleted: true });
 });
-
-// ... ďalšie endpointy podľa potreby (GET /api/songs/:id, PUT, DELETE, atď.)
 
 app.get("/api/network-info", (_req, res) => {
   const interfaces = os.networkInterfaces();
@@ -682,7 +1093,7 @@ app.get("/api/network-info", (_req, res) => {
       const match = raw.match(/\s+SSID:\s*(.+)/);
       ssid = match ? match[1].trim() : null;
     }
-  } catch (_e) {
+  } catch {
     ssid = null;
   }
 
@@ -693,7 +1104,10 @@ const API_PORT = Number(process.env.API_PORT || 3001);
 const API_HOST = process.env.API_HOST || "0.0.0.0";
 
 const server = app.listen(API_PORT, API_HOST, () => {
-  console.log(`SQLite API beží na http://${API_HOST}:${API_PORT}`);
+  const backendType = USE_JSON_STORAGE
+    ? `JSON file (${JSON_DB_FILE})`
+    : "SQLite (songs.db)";
+  console.log(`${backendType} API bezi na http://${API_HOST}:${API_PORT}`);
 });
 
 server.on("error", (error) => {

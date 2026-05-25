@@ -1,19 +1,11 @@
 import { Song, SongVerse, Udaje } from "../types/myTypes";
 import { supabase } from "./supabaseClient";
 import { getDataMode } from "./dataMode";
+import { buildApiUrl } from "./apiBase";
 
 const LOCAL_DB_STORAGE_KEY = "songs.localDb.v1";
 
-function getOfflineApiOrigin(): string {
-  if (typeof window === "undefined") {
-    return "http://localhost:3001";
-  }
-
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  return `${protocol}//${window.location.hostname}:3001`;
-}
-
-const OFFLINE_API_BASE_URL = `${getOfflineApiOrigin()}/api/songs`;
+const OFFLINE_API_BASE_URL = buildApiUrl("/songs");
 
 type DbSongRow = {
   id?: number;
@@ -351,7 +343,7 @@ async function upsertSongsToOfflineApi(payload: Udaje): Promise<number> {
     return 0;
   }
 
-  const response = await fetch(`${getOfflineApiOrigin()}/api/import`, {
+  const response = await fetch(buildApiUrl("/import"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(rowsToImport),
@@ -504,7 +496,8 @@ function mapLocalRowToSong(row: LocalDbSongRow): Song {
 }
 
 function shouldUseOfflineDb(): boolean {
-  return getDataMode() === "offline" || !supabase;
+  const mode = getDataMode();
+  return mode === "offline" || mode === "local" || !supabase;
 }
 
 async function loadSongsFromLocalDb(filter: string): Promise<Song[]> {

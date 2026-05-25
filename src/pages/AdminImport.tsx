@@ -21,6 +21,7 @@ import {
   updateSongInSupabase,
   upsertSongsToSupabase,
 } from "../api/supabaseSongs";
+import { buildApiUrl } from "../api/apiBase";
 
 type ImportState = {
   status: "idle" | "loading" | "success" | "error";
@@ -165,15 +166,6 @@ function getNextVerseLabel(verses: SongVerse[]): string {
   return `V${index}`;
 }
 
-function getOfflineApiBaseUrl(): string {
-  if (typeof window === "undefined") {
-    return "http://localhost:3001";
-  }
-
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  return `${protocol}//${window.location.hostname}:3001`;
-}
-
 function normalizeCategory(value: string): string {
   return String(value ?? "")
     .normalize("NFD")
@@ -204,7 +196,7 @@ async function fetchTodayPsalm(date: string): Promise<DailyPsalmPayload> {
     : getTodayDateInputValue();
   const query = new URLSearchParams({ den: safeDate });
   const response = await fetch(
-    `${getOfflineApiBaseUrl()}/api/liturgy/zalm-today?${query.toString()}`,
+    `${buildApiUrl("/liturgy/zalm-today")}?${query.toString()}`,
   );
   let payload: unknown = null;
 
@@ -299,7 +291,14 @@ export default function AdminImport({
   useEffect(() => {
     const handleDataModeChanged = (event: Event) => {
       const customEvent = event as CustomEvent<DataMode>;
-      setDataModeState(customEvent.detail === "offline" ? "offline" : "online");
+      const nextMode = customEvent.detail;
+      if (
+        nextMode === "online" ||
+        nextMode === "offline" ||
+        nextMode === "local"
+      ) {
+        setDataModeState(nextMode);
+      }
     };
 
     window.addEventListener("data-mode-changed", handleDataModeChanged);
@@ -309,7 +308,7 @@ export default function AdminImport({
 
   useEffect(() => {
     const initialize = async () => {
-      if (dataMode === "offline") {
+      if (dataMode !== "online") {
         setIsLoggedIn(false);
         setIsAuthLoading(false);
         return;
@@ -323,7 +322,7 @@ export default function AdminImport({
     initialize();
   }, [dataMode]);
 
-  const isOfflineMode = dataMode === "offline";
+  const isOfflineMode = dataMode === "offline" || dataMode === "local";
   const canSyncWithSupabase = isSupabaseConfigured && isLoggedIn;
 
   const canUseImport = useMemo(
@@ -936,9 +935,11 @@ export default function AdminImport({
     setImportState({
       status: "idle",
       message:
-        nextMode === "offline"
-          ? "Offline rezim aktivny. Pouzije sa lokalna DB v zariadeni."
-          : "Online rezim aktivny. Pouzije sa Supabase.",
+        nextMode === "online"
+          ? "Online rezim aktivny. Pouzije sa Supabase."
+          : nextMode === "local"
+          ? "Local rezim aktivny. Pouzije sa lokalny JSON subor na serveri."
+          : "Offline rezim aktivny. Pouzije sa lokalna DB v zariadeni.",
     });
     setAdminSongs([]);
     setAdminSongsLoaded(false);
@@ -993,13 +994,13 @@ export default function AdminImport({
 
       // 2. Ak treba, vymaž SQLite databázu (voliteľné, podľa replaceLocalOnSync)
       if (replaceLocalOnSync) {
-        await fetch(`${getOfflineApiBaseUrl()}/api/songs`, {
+        await fetch(buildApiUrl("/songs"), {
           method: "DELETE",
         });
       }
 
       // 3. Pošli piesne do backendu cez /api/import
-      const resp = await fetch(`${getOfflineApiBaseUrl()}/api/import`, {
+      const resp = await fetch(buildApiUrl("/import"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(songs),
@@ -1075,9 +1076,11 @@ export default function AdminImport({
         </span>
       </h1>
       <p>
-        {isOfflineMode
-          ? "Offline rezim uklada skladby do lokalnej DB v tomto zariadeni (bez internetu)."
-          : "Online rezim uklada skladby do Supabase. Po importe budu skladby dostupne v publikovanej aplikacii bez noveho deployu."}
+        {dataMode === "online"
+          ? "Online rezim uklada skladby do Supabase. Po importe budu skladby dostupne v publikovanej aplikacii bez noveho deployu."
+          : dataMode === "local"
+          ? "Local rezim uklada skladby do JSON suboru na lokalnom serveri."
+          : "Offline rezim uklada skladby do lokalnej DB v tomto zariadeni (bez internetu)."}
       </p>
       <p>
         <Link to="/">Spat na domov</Link>
@@ -1158,6 +1161,15 @@ export default function AdminImport({
               onChange={() => handleDataModeChange("offline")}
             />
             Offline (lokalna DB)
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input
+              type="radio"
+              name="data-mode"
+              checked={dataMode === "local"}
+              onChange={() => handleDataModeChange("local")}
+            />
+            Local (JSON subor)
           </label>
         </div>
       </div>
@@ -1371,9 +1383,11 @@ export default function AdminImport({
             </div>
           )}
           <label>
-            {isOfflineMode
-              ? "Vyber JSON subor pre lokalnu DB (format: Udaje/piesne)"
-              : "Vyber JSON subor (format: Udaje/piesne)"}
+            {dataMode === "online"
+              ? "Vyber JSON subor (format: Udaje/piesne)"
+              : dataMode === "local"
+              ? "Vyber JSON subor pre lokalny serverovy JSON subor (format: Udaje/piesne)"
+              : "Vyber JSON subor pre lokalnu DB (format: Udaje/piesne)"}
             <input
               type="file"
               accept="application/json"

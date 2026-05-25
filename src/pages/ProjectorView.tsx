@@ -14,6 +14,7 @@ import {
 import { SettingsContext } from "../context/SettingsContext";
 import { getSongs } from "../api/dataSources";
 import { Song as SongType } from "../types/myTypes";
+import { buildApiUrl } from "../api/apiBase";
 
 function useWindowSize() {
   const [size, setSize] = useState({
@@ -123,9 +124,7 @@ export default function ProjectorView() {
   );
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-    const apiOrigin = `${protocol}//${window.location.hostname}:3001`;
-    fetch(`${apiOrigin}/api/network-info`)
+    fetch(buildApiUrl("/network-info"))
       .then((r) => r.json())
       .then((data) => setNetworkInfo(data))
       .catch(() => setNetworkInfo(null));
