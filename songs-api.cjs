@@ -1,8 +1,23 @@
 const express = require("express");
-const Database = require("better-sqlite3");
+const fs = require("fs");
+const path = require("path");
 const cors = require("cors");
 
-const db = new Database("songs.db");
+const DATA_FILE = path.join(__dirname, "songs-data.json");
+function loadData() {
+  try {
+    return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+  } catch {
+    return { songs: [], playlists: { "Playlist 1": [], "Playlist 2": [], "Playlist 3": [] }, settings: {} };
+  }
+}
+function saveData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+}
+let data = loadData();
+function nextSongId() {
+  return data.songs.length > 0 ? Math.max(...data.songs.map(s => s.id || 0)) + 1 : 1;
+}
 const app = express();
 const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"];
 const DEFAULT_SETTINGS = {
@@ -18,57 +33,15 @@ const DEFAULT_SETTINGS = {
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 console.log("Spúšťam backend...");
-// Inicializácia tabuľky
-db.exec(`
-  CREATE TABLE IF NOT EXISTS songs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cislo_p TEXT,
-    nazov TEXT,
-    source TEXT,
-    kategoria TEXT,
-    poradie_sloh TEXT,
-    verse_font_multipliers TEXT,
-    slohy TEXT,
-    updated_at TEXT
-  )
-`);
 
-try {
-  db.exec("ALTER TABLE songs ADD COLUMN verse_font_multipliers TEXT");
-} catch (error) {
-  // Ignore if column already exists.
-}
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS playlists (
-    name TEXT PRIMARY KEY,
-    song_ids TEXT NOT NULL,
-    updated_at TEXT
-  )
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS app_settings (
-    setting_key TEXT PRIMARY KEY,
-    setting_value TEXT NOT NULL,
-    updated_at TEXT
-  )
-`);
-
-const ensurePlaylistStmt = db.prepare(
-  "INSERT OR IGNORE INTO playlists (name, song_ids, updated_at) VALUES (?, '[]', datetime('now'))",
-);
+// Inicializácia dát
 PLAYLIST_KEYS.forEach((name) => {
-  ensurePlaylistStmt.run(name);
+  if (!data.playlists[name]) data.playlists[name] = [];
 });
-
-const ensureSettingStmt = db.prepare(
-  "INSERT OR IGNORE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, datetime('now'))",
-);
-
 Object.entries(DEFAULT_SETTINGS).forEach(([key, value]) => {
-  ensureSettingStmt.run(key, JSON.stringify(value));
+  if (!(key in data.settings)) data.settings[key] = value;
 });
+saveData(data);
 
 function normalizeNumber(value, min, max, fallback) {
   const numeric = Number(value);
@@ -118,52 +91,26 @@ function normalizeSettings(raw) {
   };
 }
 
+
 function loadSettingsFromDb() {
-  const rows = db
-    .prepare("SELECT setting_key, setting_value FROM app_settings")
-    .all();
-  const merged = { ...DEFAULT_SETTINGS };
-
-  rows.forEach((row) => {
-    if (!(row.setting_key in merged)) {
-      return;
-    }
-    try {
-      merged[row.setting_key] = JSON.parse(row.setting_value);
-    } catch {
-      // Keep default value when stored JSON is invalid.
-    }
-  });
-
-  return normalizeSettings(merged);
+  return normalizeSettings({ ...DEFAULT_SETTINGS, ...data.settings });
 }
 
+
 app.get("/api/settings", (_req, res) => {
-  const settings = loadSettingsFromDb();
-  res.json(settings);
+  res.json(loadSettingsFromDb());
 });
+
 
 app.put("/api/settings", (req, res) => {
   const incoming = req.body;
   if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
-    return res
-      .status(400)
-      .json({ error: "Neplatny format settings payloadu." });
+    return res.status(400).json({ error: "Neplatny format settings payloadu." });
   }
-
   const current = loadSettingsFromDb();
   const merged = normalizeSettings({ ...current, ...incoming });
-  const upsertStmt = db.prepare(
-    "INSERT INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = datetime('now')",
-  );
-
-  const transaction = db.transaction(() => {
-    Object.entries(merged).forEach(([key, value]) => {
-      upsertStmt.run(key, JSON.stringify(value));
-    });
-  });
-
-  transaction();
+  data.settings = merged;
+  saveData(data);
   res.json(merged);
 });
 
@@ -309,25 +256,9 @@ function parsePsalmFromLcKbsHtml(html) {
   };
 }
 
+
 app.get("/api/playlists", (_req, res) => {
-  const rows = db
-    .prepare("SELECT name, song_ids FROM playlists WHERE name IN (?, ?, ?)")
-    .all(...PLAYLIST_KEYS);
-
-  const payload = {
-    "Playlist 1": [],
-    "Playlist 2": [],
-    "Playlist 3": [],
-  };
-
-  rows.forEach((row) => {
-    try {
-      payload[row.name] = parsePlaylistSongIds(JSON.parse(row.song_ids));
-    } catch {
-      payload[row.name] = [];
-    }
-  });
-
+  const payload = { ...data.playlists };
   res.json(payload);
 });
 
@@ -366,169 +297,126 @@ app.get("/api/liturgy/zalm-today", async (req, res) => {
   }
 });
 
+
 app.put("/api/playlists", (req, res) => {
   const body = req.body;
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return res
-      .status(400)
-      .json({ error: "Neplatny format playlist payloadu." });
+    return res.status(400).json({ error: "Neplatny format playlist payloadu." });
   }
-
-  const upsertStmt = db.prepare(
-    "INSERT INTO playlists (name, song_ids, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(name) DO UPDATE SET song_ids = excluded.song_ids, updated_at = datetime('now')",
-  );
-
-  const transaction = db.transaction(() => {
-    PLAYLIST_KEYS.forEach((playlistKey) => {
-      const songIds = parsePlaylistSongIds(body[playlistKey]);
-      upsertStmt.run(playlistKey, JSON.stringify(songIds));
-    });
+  PLAYLIST_KEYS.forEach((playlistKey) => {
+    data.playlists[playlistKey] = parsePlaylistSongIds(body[playlistKey]);
   });
-
-  transaction();
+  saveData(data);
   res.json({ updated: true });
 });
 
 // PATCH: aktualizuj poradie_sloh podľa id
+
 app.patch("/api/songs/:id/poradie", (req, res) => {
   const id = Number(req.params.id);
   const { poradie_sloh } = req.body;
   if (!Array.isArray(poradie_sloh)) {
     return res.status(400).json({ error: "poradie_sloh musí byť pole." });
   }
-  const stmt = db.prepare(
-    "UPDATE songs SET poradie_sloh = ?, updated_at = datetime('now') WHERE id = ?",
-  );
-  const result = stmt.run(JSON.stringify(poradie_sloh), id);
-  if (result.changes === 0) {
+  const song = data.songs.find(s => s.id === id);
+  if (!song) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
+  song.poradie_sloh = poradie_sloh;
+  song.updated_at = new Date().toISOString();
+  saveData(data);
   res.json({ updated: true });
 });
+
 
 app.patch("/api/songs/:id/verse-font", (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
     return res.status(400).json({ error: "Neplatne id." });
   }
-
-  const verseKey = String(req.body?.verse_key ?? "")
-    .trim()
-    .toLowerCase();
+  const verseKey = String(req.body?.verse_key ?? "").trim().toLowerCase();
   if (!verseKey) {
     return res.status(400).json({ error: "verse_key musi byt text." });
   }
-
   const rawMultiplier = req.body?.multiplier;
   let multiplier = null;
   if (rawMultiplier !== null && rawMultiplier !== undefined) {
     const parsed = Number(rawMultiplier);
     if (!Number.isFinite(parsed)) {
-      return res
-        .status(400)
-        .json({ error: "multiplier musi byt cislo alebo null." });
+      return res.status(400).json({ error: "multiplier musi byt cislo alebo null." });
     }
-
     multiplier = Number(Math.min(2, Math.max(0.5, parsed)).toFixed(2));
   }
-
-  const row = db
-    .prepare("SELECT verse_font_multipliers FROM songs WHERE id = ?")
-    .get(id);
-  if (!row) {
+  const song = data.songs.find(s => s.id === id);
+  if (!song) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
-
-  let current = {};
-  try {
-    const parsed = JSON.parse(row.verse_font_multipliers || "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      current = parsed;
-    }
-  } catch {
-    current = {};
-  }
-
+  let current = song.verse_font_multipliers || {};
   if (multiplier === null) {
     delete current[verseKey];
   } else {
     current[verseKey] = multiplier;
   }
-
-  const stmt = db.prepare(
-    "UPDATE songs SET verse_font_multipliers = ?, updated_at = datetime('now') WHERE id = ?",
-  );
-  stmt.run(JSON.stringify(current), id);
+  song.verse_font_multipliers = current;
+  song.updated_at = new Date().toISOString();
+  saveData(data);
   res.json({ updated: true, verse_font_multipliers: current });
 });
 
 // Hromadný import piesní (pole piesní v tele požiadavky)
+
 app.post("/api/import", (req, res) => {
-  const songs = req.body; // očakáva pole piesní
+  const songs = req.body;
   if (!Array.isArray(songs)) {
     return res.status(400).json({ error: "Očakáva sa pole piesní." });
   }
-  const stmt = db.prepare(`
-    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, verse_font_multipliers, slohy, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `);
   let count = 0;
   for (const song of songs) {
-    stmt.run(
-      song.cisloP,
-      song.nazov,
-      song.source,
-      song.kategoria,
-      JSON.stringify(song.poradieSloh ?? []),
-      JSON.stringify(
-        song.verseFontMultipliers ?? song.verse_font_multipliers ?? {},
-      ),
-      JSON.stringify(song.slohy ?? []),
-    );
+    data.songs.push({
+      id: nextSongId(),
+      cislo_p: song.cisloP,
+      nazov: song.nazov,
+      source: song.source,
+      kategoria: song.kategoria,
+      poradie_sloh: song.poradieSloh ?? [],
+      verse_font_multipliers: song.verseFontMultipliers ?? song.verse_font_multipliers ?? {},
+      slohy: song.slohy ?? [],
+      updated_at: new Date().toISOString(),
+    });
     count++;
   }
+  saveData(data);
   res.json({ imported: count });
 });
 
+
 app.delete("/api/songs", (req, res) => {
-  db.prepare("DELETE FROM songs").run();
+  data.songs = [];
+  saveData(data);
   res.json({ deleted: true });
 });
 // Získaj všetky piesne
+
 app.get("/api/songs", (req, res) => {
-  const rows = db.prepare("SELECT * FROM songs").all();
-  // slohy a poradie_sloh sú uložené ako JSON stringy
-  res.json(
-    rows.map((row) => ({
-      ...row,
-      slohy: JSON.parse(row.slohy),
-      poradie_sloh: JSON.parse(row.poradie_sloh),
-      verse_font_multipliers: JSON.parse(row.verse_font_multipliers || "{}"),
-    })),
-  );
+  res.json(data.songs);
 });
 
 // Získaj jednu pieseň podľa ID
+
 app.get("/api/songs/:id", (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
     return res.status(400).json({ error: "Neplatne id." });
   }
-
-  const row = db.prepare("SELECT * FROM songs WHERE id = ?").get(id);
-  if (!row) {
+  const song = data.songs.find(s => s.id === id);
+  if (!song) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
-
-  res.json({
-    ...row,
-    slohy: JSON.parse(row.slohy),
-    poradie_sloh: JSON.parse(row.poradie_sloh),
-    verse_font_multipliers: JSON.parse(row.verse_font_multipliers || "{}"),
-  });
+  res.json(song);
 });
 
 // Pridaj novú pieseň
+
 app.post("/api/songs", (req, res) => {
   const {
     cislo_p,
@@ -539,44 +427,40 @@ app.post("/api/songs", (req, res) => {
     verse_font_multipliers,
     slohy,
   } = req.body;
-
   if (!String(cislo_p ?? "").trim() || !String(nazov ?? "").trim()) {
     return res.status(400).json({ error: "cislo_p a nazov su povinne." });
   }
-
   if (!Array.isArray(slohy) || slohy.length === 0) {
     return res.status(400).json({ error: "slohy musi byt neprzdne pole." });
   }
-
-  const stmt = db.prepare(`
-    INSERT INTO songs (cislo_p, nazov, source, kategoria, poradie_sloh, verse_font_multipliers, slohy, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `);
-  const info = stmt.run(
-    String(cislo_p).trim(),
-    String(nazov).trim(),
-    String(source ?? ""),
-    String(kategoria ?? "Nabozenske"),
-    JSON.stringify(Array.isArray(poradie_sloh) ? poradie_sloh : []),
-    JSON.stringify(
+  const song = {
+    id: nextSongId(),
+    cislo_p: String(cislo_p).trim(),
+    nazov: String(nazov).trim(),
+    source: String(source ?? ""),
+    kategoria: String(kategoria ?? "Nabozenske"),
+    poradie_sloh: Array.isArray(poradie_sloh) ? poradie_sloh : [],
+    verse_font_multipliers:
       verse_font_multipliers &&
-        typeof verse_font_multipliers === "object" &&
-        !Array.isArray(verse_font_multipliers)
+      typeof verse_font_multipliers === "object" &&
+      !Array.isArray(verse_font_multipliers)
         ? verse_font_multipliers
         : {},
-    ),
-    JSON.stringify(slohy),
-  );
-  res.json({ id: info.lastInsertRowid });
+    slohy,
+    updated_at: new Date().toISOString(),
+  };
+  data.songs.push(song);
+  saveData(data);
+  res.json({ id: song.id });
 });
 
 // Uprav skladbu podľa ID
+
 app.put("/api/songs/:id", (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
     return res.status(400).json({ error: "Neplatne id." });
   }
-
   const {
     cislo_p,
     nazov,
@@ -589,50 +473,43 @@ app.put("/api/songs/:id", (req, res) => {
   if (!String(cislo_p ?? "").trim() || !String(nazov ?? "").trim()) {
     return res.status(400).json({ error: "cislo_p a nazov su povinne." });
   }
-
   if (!Array.isArray(slohy) || slohy.length === 0) {
     return res.status(400).json({ error: "slohy musi byt neprzdne pole." });
   }
-
-  const stmt = db.prepare(
-    "UPDATE songs SET cislo_p = ?, nazov = ?, source = ?, kategoria = ?, poradie_sloh = ?, verse_font_multipliers = ?, slohy = ?, updated_at = datetime('now') WHERE id = ?",
-  );
-  const result = stmt.run(
-    String(cislo_p).trim(),
-    String(nazov).trim(),
-    String(source ?? ""),
-    String(kategoria ?? "Nabozenske"),
-    JSON.stringify(Array.isArray(poradie_sloh) ? poradie_sloh : []),
-    JSON.stringify(
-      verse_font_multipliers &&
-        typeof verse_font_multipliers === "object" &&
-        !Array.isArray(verse_font_multipliers)
-        ? verse_font_multipliers
-        : {},
-    ),
-    JSON.stringify(slohy),
-    id,
-  );
-
-  if (result.changes === 0) {
+  const song = data.songs.find(s => s.id === id);
+  if (!song) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
-
+  song.cislo_p = String(cislo_p).trim();
+  song.nazov = String(nazov).trim();
+  song.source = String(source ?? "");
+  song.kategoria = String(kategoria ?? "Nabozenske");
+  song.poradie_sloh = Array.isArray(poradie_sloh) ? poradie_sloh : [];
+  song.verse_font_multipliers =
+    verse_font_multipliers &&
+    typeof verse_font_multipliers === "object" &&
+    !Array.isArray(verse_font_multipliers)
+      ? verse_font_multipliers
+      : {};
+  song.slohy = slohy;
+  song.updated_at = new Date().toISOString();
+  saveData(data);
   res.json({ updated: true });
 });
 
 // Vymaž jednu skladbu podľa ID
+
 app.delete("/api/songs/:id", (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
     return res.status(400).json({ error: "Neplatne id." });
   }
-
-  const result = db.prepare("DELETE FROM songs WHERE id = ?").run(id);
-  if (result.changes === 0) {
+  const idx = data.songs.findIndex(s => s.id === id);
+  if (idx === -1) {
     return res.status(404).json({ error: "Skladba neexistuje." });
   }
-
+  data.songs.splice(idx, 1);
+  saveData(data);
   res.json({ deleted: true });
 });
 
@@ -642,14 +519,11 @@ const API_PORT = Number(process.env.API_PORT || 3001);
 const API_HOST = process.env.API_HOST || "0.0.0.0";
 
 const server = app.listen(API_PORT, API_HOST, () => {
-  console.log(`SQLite API beží na http://${API_HOST}:${API_PORT}`);
+  console.log(`File backend API beží na http://${API_HOST}:${API_PORT}`);
 });
 
 server.on("error", (error) => {
-  const message =
-    error instanceof Error ? error.message : "Unknown backend server error";
-  console.error(
-    `[backend] failed to start on ${API_HOST}:${API_PORT} - ${message}`,
-  );
+  const message = error instanceof Error ? error.message : "Unknown backend server error";
+  console.error(`[backend] failed to start on ${API_HOST}:${API_PORT} - ${message}`);
   process.exit(1);
 });

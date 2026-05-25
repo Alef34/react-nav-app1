@@ -1,0 +1,18 @@
+{
+  "songs": [],
+  "playlists": {
+    "Playlist 1": [],
+    "Playlist 2": [],
+    "Playlist 3": []
+  },
+  "settings": {
+    "fontSize": 30,
+    "projectorFontSizeMultiplier": 1,
+    "projectorBgColor": "#000000",
+    "projectorTextColor": "#ffffff",
+    "colorScheme": "dark",
+    "showAkordy": false,
+    "showAkordyProjector": false,
+    "verzia": ""
+  }
+}
