@@ -1,5 +1,4 @@
 const express = require("express");
-const Database = require("better-sqlite3");
 const cors = require("cors");
 const os = require("os");
 const fs = require("fs");
@@ -7,7 +6,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { execSync, spawn } = require("child_process");
 
-const STORAGE_MODE_RAW = String(process.env.STORAGE_MODE || "sqlite")
+const STORAGE_MODE_RAW = String(process.env.STORAGE_MODE || "json")
   .trim()
   .toLowerCase();
 const USE_JSON_STORAGE =
@@ -248,61 +247,12 @@ function writeJsonState(state) {
 }
 
 if (!USE_JSON_STORAGE) {
-  db = new Database("songs.db");
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS songs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      cislo_p TEXT,
-      nazov TEXT,
-      source TEXT,
-      kategoria TEXT,
-      poradie_sloh TEXT,
-      verse_font_multipliers TEXT,
-      slohy TEXT,
-      updated_at TEXT
-    )
-  `);
-
-  try {
-    db.exec("ALTER TABLE songs ADD COLUMN verse_font_multipliers TEXT");
-  } catch {
-    // Ignore when column already exists.
-  }
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS playlists (
-      name TEXT PRIMARY KEY,
-      song_ids TEXT NOT NULL,
-      updated_at TEXT
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS app_settings (
-      setting_key TEXT PRIMARY KEY,
-      setting_value TEXT NOT NULL,
-      updated_at TEXT
-    )
-  `);
-
-  const ensurePlaylistStmt = db.prepare(
-    "INSERT OR IGNORE INTO playlists (name, song_ids, updated_at) VALUES (?, '[]', datetime('now'))",
+  throw new Error(
+    "SQL storage mode was removed. Use STORAGE_MODE=json (or local).",
   );
-  PLAYLIST_KEYS.forEach((name) => {
-    ensurePlaylistStmt.run(name);
-  });
-
-  const ensureSettingStmt = db.prepare(
-    "INSERT OR IGNORE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, datetime('now'))",
-  );
-
-  Object.entries(DEFAULT_SETTINGS).forEach(([key, value]) => {
-    ensureSettingStmt.run(key, JSON.stringify(value));
-  });
-} else {
-  ensureJsonStateFile();
 }
+
+ensureJsonStateFile();
 
 function loadSettings() {
   if (USE_JSON_STORAGE) {
@@ -404,7 +354,7 @@ function savePlaylistsPayload(body) {
   transaction();
 }
 
-function parseSqliteSongRow(row) {
+function parseDbSongRow(row) {
   return {
     ...row,
     slohy: (() => {
@@ -438,7 +388,7 @@ function getAllSongs() {
   }
 
   const rows = db.prepare("SELECT * FROM songs").all();
-  return rows.map(parseSqliteSongRow);
+  return rows.map(parseDbSongRow);
 }
 
 function getSongById(id) {
@@ -449,7 +399,7 @@ function getSongById(id) {
   }
 
   const row = db.prepare("SELECT * FROM songs WHERE id = ?").get(id);
-  return row ? parseSqliteSongRow(row) : null;
+  return row ? parseDbSongRow(row) : null;
 }
 
 function insertSong(payload) {
@@ -1201,9 +1151,7 @@ const API_PORT = Number(process.env.API_PORT || 3001);
 const API_HOST = process.env.API_HOST || "0.0.0.0";
 
 const server = app.listen(API_PORT, API_HOST, () => {
-  const backendType = USE_JSON_STORAGE
-    ? `JSON file (${JSON_DB_FILE})`
-    : "SQLite (songs.db)";
+  const backendType = `JSON file (${JSON_DB_FILE})`;
   console.log(`${backendType} API bezi na http://${API_HOST}:${API_PORT}`);
 });
 

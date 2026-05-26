@@ -89,11 +89,7 @@ export default function AdminExport() {
     const handleDataModeChanged = (event: Event) => {
       const customEvent = event as CustomEvent<DataMode>;
       const nextMode = customEvent.detail;
-      if (
-        nextMode === "online" ||
-        nextMode === "offline" ||
-        nextMode === "local"
-      ) {
+      if (nextMode === "online" || nextMode === "local") {
         setDataModeState(nextMode);
       }
     };
@@ -312,15 +308,6 @@ export default function AdminExport() {
               onChange={() => handleDataModeChange("online")}
             />
             Online (Supabase)
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input
-              type="radio"
-              name="export-data-mode"
-              checked={dataMode === "offline"}
-              onChange={() => handleDataModeChange("offline")}
-            />
-            Offline (lokalna DB)
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <input

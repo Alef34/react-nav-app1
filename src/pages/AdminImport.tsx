@@ -306,11 +306,7 @@ export default function AdminImport({
     const handleDataModeChanged = (event: Event) => {
       const customEvent = event as CustomEvent<DataMode>;
       const nextMode = customEvent.detail;
-      if (
-        nextMode === "online" ||
-        nextMode === "offline" ||
-        nextMode === "local"
-      ) {
+      if (nextMode === "online" || nextMode === "local") {
         setDataModeState(nextMode);
       }
     };
@@ -349,12 +345,12 @@ export default function AdminImport({
     sessionStorage.setItem(POWER_TOKEN_STORAGE_KEY, powerToken);
   }, [powerToken]);
 
-  const isOfflineMode = dataMode === "offline" || dataMode === "local";
+  const isLocalMode = dataMode === "local";
   const canSyncWithSupabase = isSupabaseConfigured && isLoggedIn;
 
   const canUseImport = useMemo(
-    () => isOfflineMode || (isSupabaseConfigured && isLoggedIn),
-    [isOfflineMode, isLoggedIn],
+    () => isLocalMode || (isSupabaseConfigured && isLoggedIn),
+    [isLocalMode, isLoggedIn],
   );
 
   const filteredAdminSongs = useMemo(() => {
@@ -873,7 +869,7 @@ export default function AdminImport({
   }
 
   async function handleLogout() {
-    if (isOfflineMode) {
+    if (isLocalMode) {
       return;
     }
 
@@ -964,9 +960,7 @@ export default function AdminImport({
       message:
         nextMode === "online"
           ? "Online rezim aktivny. Pouzije sa Supabase."
-          : nextMode === "local"
-          ? "Local rezim aktivny. Pouzije sa lokalny JSON subor na serveri."
-          : "Offline rezim aktivny. Pouzije sa lokalna DB v zariadeni.",
+          : "Local rezim aktivny. Pouzije sa lokalny JSON subor na serveri.",
     });
     setAdminSongs([]);
     setAdminSongsLoaded(false);
@@ -998,7 +992,7 @@ export default function AdminImport({
   }
 
   async function handleSyncSupabaseToLocal() {
-    // Nová implementácia: Sync Supabase -> SQLite backend
+    // Sync Supabase -> lokalny JSON backend
     if (!canSyncWithSupabase) {
       setSyncState({
         status: "error",
@@ -1019,7 +1013,7 @@ export default function AdminImport({
       // 1. Načítaj všetky piesne zo Supabase
       const songs = await loadSongsFromSupabase("");
 
-      // 2. Ak treba, vymaž SQLite databázu (voliteľné, podľa replaceLocalOnSync)
+      // 2. Ak treba, vymaz lokalne ulozisko (volitelne, podla replaceLocalOnSync)
       if (replaceLocalOnSync) {
         await fetch(buildApiUrl("/songs"), {
           method: "DELETE",
@@ -1037,12 +1031,12 @@ export default function AdminImport({
         status: "success",
         message: `Hotovo. Prenesenych ${
           result.imported ?? songs.length
-        } skladieb do lokalnej DB (${
+        } skladieb do lokalneho JSON uloziska (${
           replaceLocalOnSync ? "prepisat ciel" : "pridat nove"
         }).`,
       });
 
-      if (adminSongsLoaded && isOfflineMode) {
+      if (adminSongsLoaded && isLocalMode) {
         await handleLoadAdminSongs();
       }
     } catch (err) {
@@ -1076,7 +1070,7 @@ export default function AdminImport({
         }).`,
       });
 
-      if (adminSongsLoaded && !isOfflineMode) {
+      if (adminSongsLoaded && !isLocalMode) {
         await handleLoadAdminSongs();
       }
     } catch (err) {
@@ -1178,9 +1172,7 @@ export default function AdminImport({
       <p>
         {dataMode === "online"
           ? "Online rezim uklada skladby do Supabase. Po importe budu skladby dostupne v publikovanej aplikacii bez noveho deployu."
-          : dataMode === "local"
-          ? "Local rezim uklada skladby do JSON suboru na lokalnom serveri."
-          : "Offline rezim uklada skladby do lokalnej DB v tomto zariadeni (bez internetu)."}
+          : "Local rezim uklada skladby do JSON suboru na lokalnom serveri."}
       </p>
       <p>
         <Link to="/">Spat na domov</Link>
@@ -1345,15 +1337,6 @@ export default function AdminImport({
             <input
               type="radio"
               name="data-mode"
-              checked={dataMode === "offline"}
-              onChange={() => handleDataModeChange("offline")}
-            />
-            Offline (lokalna DB)
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input
-              type="radio"
-              name="data-mode"
               checked={dataMode === "local"}
               onChange={() => handleDataModeChange("local")}
             />
@@ -1374,7 +1357,7 @@ export default function AdminImport({
         >
           <strong>Synchronizacia databaz</strong>
           <p style={{ marginTop: 8, marginBottom: 8 }}>
-            Prenos skladieb medzi Supabase a lokalnou DB.
+            Prenos skladieb medzi Supabase a lokalnym JSON uloziskom.
           </p>
           {!canSyncWithSupabase && (
             <p style={{ marginTop: 0, color: "#b00" }}>
@@ -1416,7 +1399,7 @@ export default function AdminImport({
                   checked={replaceLocalOnSync}
                   onChange={(e) => setReplaceLocalOnSync(e.target.checked)}
                 />
-                Prepisat lokalnu DB
+                Prepisat lokalne JSON ulozisko
               </label>
             </div>
 
@@ -1480,7 +1463,7 @@ export default function AdminImport({
         </div>
       )}
 
-      {!isOfflineMode && !isSupabaseConfigured && (
+      {!isLocalMode && !isSupabaseConfigured && (
         <div
           style={{
             padding: 12,
@@ -1494,11 +1477,11 @@ export default function AdminImport({
         </div>
       )}
 
-      {!isOfflineMode && isSupabaseConfigured && isAuthLoading && (
+      {!isLocalMode && isSupabaseConfigured && isAuthLoading && (
         <p>Overujem session...</p>
       )}
 
-      {!isOfflineMode &&
+      {!isLocalMode &&
         isSupabaseConfigured &&
         !isAuthLoading &&
         !isLoggedIn && (
@@ -1548,7 +1531,7 @@ export default function AdminImport({
 
       {!crudOnly && canUseImport && (
         <div style={{ display: "grid", gap: 12 }}>
-          {!isOfflineMode && (
+          {!isLocalMode && (
             <div>
               <button
                 type="button"
@@ -1573,9 +1556,7 @@ export default function AdminImport({
           <label>
             {dataMode === "online"
               ? "Vyber JSON subor (format: Udaje/piesne)"
-              : dataMode === "local"
-              ? "Vyber JSON subor pre lokalny serverovy JSON subor (format: Udaje/piesne)"
-              : "Vyber JSON subor pre lokalnu DB (format: Udaje/piesne)"}
+              : "Vyber JSON subor pre lokalny serverovy JSON subor (format: Udaje/piesne)"}
             <input
               type="file"
               accept="application/json"

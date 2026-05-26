@@ -62,7 +62,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
   verzia: "",
 };
 
-function getOfflineApiSettingsUrl(): string {
+function getLocalApiSettingsUrl(): string {
   return buildApiUrl("/settings");
 }
 
@@ -132,7 +132,7 @@ function normalizeStoredSettings(
 }
 
 async function fetchSettingsFromApi(): Promise<StoredSettings> {
-  const response = await fetch(getOfflineApiSettingsUrl());
+  const response = await fetch(getLocalApiSettingsUrl());
   if (!response.ok) {
     throw new Error(`Nacitavanie settings zlyhalo (${response.status}).`);
   }
@@ -141,7 +141,7 @@ async function fetchSettingsFromApi(): Promise<StoredSettings> {
 }
 
 async function saveSettingsToApi(settings: StoredSettings): Promise<void> {
-  const response = await fetch(getOfflineApiSettingsUrl(), {
+  const response = await fetch(getLocalApiSettingsUrl(), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),

@@ -128,10 +128,10 @@ function loadPlaylistsFromStorage(): PlaylistsState {
   }
 }
 
-async function loadPlaylistsFromOfflineApi(): Promise<PlaylistsState> {
+async function loadPlaylistsFromLocalApi(): Promise<PlaylistsState> {
   const response = await fetch(buildApiUrl("/playlists"));
   if (!response.ok) {
-    throw new Error(`Offline playlist API chyba ${response.status}`);
+    throw new Error(`Lokalne playlist API chyba ${response.status}`);
   }
 
   const raw = (await response.json()) as Partial<Record<PlaylistKey, unknown>>;
@@ -142,7 +142,7 @@ async function loadPlaylistsFromOfflineApi(): Promise<PlaylistsState> {
   };
 }
 
-async function savePlaylistsToOfflineApi(
+async function savePlaylistsToLocalApi(
   playlists: PlaylistsState,
 ): Promise<void> {
   const response = await fetch(buildApiUrl("/playlists"), {
@@ -154,7 +154,7 @@ async function savePlaylistsToOfflineApi(
   });
 
   if (!response.ok) {
-    throw new Error(`Offline playlist API chyba ${response.status}`);
+    throw new Error(`Lokalne playlist API chyba ${response.status}`);
   }
 }
 
@@ -202,9 +202,9 @@ function getDataModeBadgeStyle(mode: DataMode): {
   }
 
   return {
-    label: "SQL",
-    backgroundColor: "#fef3c7",
-    textColor: "#92400e",
+    label: "JSON",
+    backgroundColor: "#dbeafe",
+    textColor: "#1d4ed8",
   };
 }
 
@@ -789,11 +789,7 @@ export default function Home() {
   useEffect(() => {
     const handleDataModeChanged = (event: Event) => {
       const nextMode = (event as CustomEvent<DataMode>).detail;
-      if (
-        nextMode === "online" ||
-        nextMode === "offline" ||
-        nextMode === "local"
-      ) {
+      if (nextMode === "online" || nextMode === "local") {
         setDataMode(nextMode);
       }
     };
@@ -818,14 +814,14 @@ export default function Home() {
       }
 
       try {
-        const fromApi = await loadPlaylistsFromOfflineApi();
+        const fromApi = await loadPlaylistsFromLocalApi();
         if (!cancelled) {
           setPlaylists(fromApi);
           setPlaylistsReady(true);
         }
       } catch (error) {
         if (!cancelled) {
-          console.warn("Offline playlists fallback to localStorage", error);
+          console.warn("Lokalne playlisty fallback to localStorage", error);
           setPlaylists(loadPlaylistsFromStorage());
           setPlaylistsReady(true);
         }
@@ -849,8 +845,8 @@ export default function Home() {
       return;
     }
 
-    savePlaylistsToOfflineApi(playlists).catch((error) => {
-      console.warn("Offline playlists save failed", error);
+    savePlaylistsToLocalApi(playlists).catch((error) => {
+      console.warn("Lokalne playlisty save failed", error);
     });
   }, [dataMode, playlists, playlistsReady]);
 

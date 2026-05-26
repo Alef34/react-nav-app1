@@ -7,7 +7,7 @@ import { loadSongsFromSupabase } from "./supabaseSongs";
 import { buildApiUrl } from "./apiBase";
 
 function usesLocalBackendMode(mode: string): boolean {
-  return mode === "offline" || mode === "local";
+  return mode === "local";
 }
 
 const LOCAL_SONGS_URL = `${import.meta.env.BASE_URL}songs.json`;
@@ -54,7 +54,7 @@ async function withTimeout<T>(
   });
 }
 
-function getOfflineApiSongsUrl(): string {
+function getLocalApiSongsUrl(): string {
   return buildApiUrl("/songs");
 }
 
@@ -86,14 +86,14 @@ function normalizeSong(raw: unknown): Song {
 
 // Príklad fetchu piesní z lokálneho backendu
 export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
-  const offlineApiUrl = getOfflineApiSongsUrl();
+  const localApiUrl = getLocalApiSongsUrl();
   let response: Response;
 
   try {
-    response = await fetchWithTimeout(offlineApiUrl, {}, REQUEST_TIMEOUT_MS);
+    response = await fetchWithTimeout(localApiUrl, {}, REQUEST_TIMEOUT_MS);
   } catch {
     throw new Error(
-      `Offline API nie je dostupne na ${offlineApiUrl}. Skontroluj, ci backend bezi.`,
+      `Lokalne API nie je dostupne na ${localApiUrl}. Skontroluj, ci backend bezi.`,
     );
   }
 
@@ -102,8 +102,8 @@ export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
     const body = rawBody.trim();
     throw new Error(
       body.length > 0
-        ? `Offline API vratilo chybu ${response.status}: ${body}`
-        : `Offline API vratilo chybu ${response.status}.`,
+        ? `Lokalne API vratilo chybu ${response.status}: ${body}`
+        : `Lokalne API vratilo chybu ${response.status}.`,
     );
   }
 
@@ -111,16 +111,16 @@ export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
   try {
     rawSongs = await response.json();
   } catch {
-    throw new Error("Offline API vratilo neplatne JSON data.");
+    throw new Error("Lokalne API vratilo neplatne JSON data.");
   }
 
   if (!Array.isArray(rawSongs)) {
     throw new Error(
-      "Offline API vratilo neocakavany format dat (ocakavane pole skladieb).",
+      "Lokalne API vratilo neocakavany format dat (ocakavane pole skladieb).",
     );
   }
 
-  // Premapuj polia z SQLite na očakávané názvy
+  // Premapuj polia z backend JSON uloziska na očakávané názvy
   const songs: Song[] = rawSongs.map((row: any) => ({
     id: row.id,
     cisloP: String(row.cislo_p ?? "").trim(),
@@ -285,10 +285,6 @@ export async function getSongs(filter: string): Promise<Song[]> {
 
 export async function getVersion(): Promise<string> {
   const dataMode = getDataMode();
-
-  if (dataMode === "offline") {
-    return "offline-local-db";
-  }
 
   if (dataMode === "local") {
     return "local-json-file";

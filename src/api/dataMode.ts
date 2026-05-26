@@ -1,12 +1,19 @@
-export type DataMode = "online" | "offline" | "local";
+export type DataMode = "online" | "local";
 
 const DATA_MODE_STORAGE_KEY = "app.dataMode";
-const DEFAULT_MODE: DataMode = "offline";
+const DEFAULT_MODE: DataMode = "local";
 
 function normalizeDataMode(raw: unknown): DataMode {
-  return raw === "online" || raw === "offline" || raw === "local"
-    ? raw
-    : DEFAULT_MODE;
+  if (raw === "online" || raw === "local") {
+    return raw;
+  }
+
+  // Keep backward compatibility with existing storage values.
+  if (raw === "offline") {
+    return "local";
+  }
+
+  return DEFAULT_MODE;
 }
 
 export function getDataMode(): DataMode {

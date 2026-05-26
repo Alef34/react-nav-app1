@@ -5,7 +5,7 @@ import { buildApiUrl } from "./apiBase";
 
 const LOCAL_DB_STORAGE_KEY = "songs.localDb.v1";
 
-const OFFLINE_API_BASE_URL = buildApiUrl("/songs");
+const LOCAL_API_BASE_URL = buildApiUrl("/songs");
 
 type DbSongRow = {
   id?: number;
@@ -44,7 +44,7 @@ type LocalDbState = {
   songs: LocalDbSongRow[];
 };
 
-type OfflineApiSongRow = {
+type LocalApiSongRow = {
   id?: number;
   cislo_p?: string;
   nazov?: string;
@@ -109,7 +109,7 @@ function getDefaultLocalDbState(): LocalDbState {
   };
 }
 
-function toOfflineApiSongPayload(
+function toLocalApiSongPayload(
   song: Song,
   options?: { includeVerseFontMultipliers?: boolean },
 ): {
@@ -140,7 +140,7 @@ function toOfflineApiSongPayload(
   };
 }
 
-function mapOfflineApiRowToSong(row: OfflineApiSongRow): Song {
+function mapLocalApiRowToSong(row: LocalApiSongRow): Song {
   return normalizeSong({
     id: parseSongId(row.id),
     cisloP: String(row.cislo_p ?? ""),
@@ -155,27 +155,27 @@ function mapOfflineApiRowToSong(row: OfflineApiSongRow): Song {
   });
 }
 
-function parseOfflineApiError(status: number, text: string): Error {
+function parseLocalApiError(status: number, text: string): Error {
   const body = text.trim();
   return new Error(
     body.length > 0
-      ? `Offline API vratilo chybu ${status}: ${body}`
-      : `Offline API vratilo chybu ${status}.`,
+      ? `Lokalne API vratilo chybu ${status}: ${body}`
+      : `Lokalne API vratilo chybu ${status}.`,
   );
 }
 
-async function fetchOfflineApiSongs(): Promise<OfflineApiSongRow[]> {
-  const response = await fetch(OFFLINE_API_BASE_URL);
+async function fetchLocalApiSongs(): Promise<LocalApiSongRow[]> {
+  const response = await fetch(LOCAL_API_BASE_URL);
   if (!response.ok) {
-    throw parseOfflineApiError(response.status, await response.text());
+    throw parseLocalApiError(response.status, await response.text());
   }
 
   const rows = (await response.json()) as unknown;
-  return Array.isArray(rows) ? (rows as OfflineApiSongRow[]) : [];
+  return Array.isArray(rows) ? (rows as LocalApiSongRow[]) : [];
 }
 
-async function loadAllSongsForAdminFromOfflineApi(): Promise<SongWithId[]> {
-  const rows = await fetchOfflineApiSongs();
+async function loadAllSongsForAdminFromLocalApi(): Promise<SongWithId[]> {
+  const rows = await fetchLocalApiSongs();
 
   const normalizedRows = rows.map((row) => ({
     id: parseSongId(row.id) ?? 0,
@@ -196,18 +196,18 @@ async function loadAllSongsForAdminFromOfflineApi(): Promise<SongWithId[]> {
     .filter((row) => row.id > 0);
 }
 
-async function loadSongForEditFromOfflineApi(
+async function loadSongForEditFromLocalApi(
   id: number,
 ): Promise<Song & { id: number }> {
-  const rows = await fetchOfflineApiSongs();
+  const rows = await fetchLocalApiSongs();
   const row = rows.find((item) => parseSongId(item.id) === id);
   if (!row) {
     throw new Error(
-      "Nacitanie skladby zlyhalo: skladba neexistuje v offline DB.",
+      "Nacitanie skladby zlyhalo: skladba neexistuje v lokalnom ulozisku.",
     );
   }
 
-  const song = mapOfflineApiRowToSong(row);
+  const song = mapLocalApiRowToSong(row);
   const parsedId = parseSongId(row.id);
   if (parsedId === undefined) {
     throw new Error("Nacitanie skladby zlyhalo: neplatne id.");
@@ -219,17 +219,17 @@ async function loadSongForEditFromOfflineApi(
   };
 }
 
-async function createSongInOfflineApi(song: Song): Promise<SongWithId> {
-  const payload = toOfflineApiSongPayload(song);
+async function createSongInLocalApi(song: Song): Promise<SongWithId> {
+  const payload = toLocalApiSongPayload(song);
 
-  const response = await fetch(OFFLINE_API_BASE_URL, {
+  const response = await fetch(LOCAL_API_BASE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    throw parseOfflineApiError(response.status, await response.text());
+    throw parseLocalApiError(response.status, await response.text());
   }
 
   const data = (await response.json()) as { id?: unknown };
@@ -247,15 +247,15 @@ async function createSongInOfflineApi(song: Song): Promise<SongWithId> {
   };
 }
 
-async function updateSongInOfflineApi(id: number, song: Song): Promise<void> {
-  const payload = toOfflineApiSongPayload(song, {
+async function updateSongInLocalApi(id: number, song: Song): Promise<void> {
+  const payload = toLocalApiSongPayload(song, {
     includeVerseFontMultipliers: Object.prototype.hasOwnProperty.call(
       song,
       "verseFontMultipliers",
     ),
   });
 
-  const response = await fetch(`${OFFLINE_API_BASE_URL}/${id}`, {
+  const response = await fetch(`${LOCAL_API_BASE_URL}/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -267,24 +267,24 @@ async function updateSongInOfflineApi(id: number, song: Song): Promise<void> {
 
     if (response.status === 404) {
       throw new Error(
-        "Offline API nema endpoint pre ulozenie editacie (PUT /api/songs/:id). Restartni offline backend (npm run dev:offline), aby sa nacitala nova verzia songs-api.cjs.",
+        "Lokalne API nema endpoint pre ulozenie editacie (PUT /api/songs/:id). Restartni backend (npm run dev:local), aby sa nacitala nova verzia songs-api.cjs.",
       );
     }
 
-    throw parseOfflineApiError(response.status, body);
+    throw parseLocalApiError(response.status, body);
   }
 }
 
-async function deleteSongsFromOfflineApi(ids: number[]): Promise<number> {
+async function deleteSongsFromLocalApi(ids: number[]): Promise<number> {
   let deletedCount = 0;
 
   for (const id of ids) {
-    const response = await fetch(`${OFFLINE_API_BASE_URL}/${id}`, {
+    const response = await fetch(`${LOCAL_API_BASE_URL}/${id}`, {
       method: "DELETE",
     });
 
     if (!response.ok) {
-      throw parseOfflineApiError(response.status, await response.text());
+      throw parseLocalApiError(response.status, await response.text());
     }
 
     deletedCount += 1;
@@ -301,7 +301,7 @@ function buildSongKey(song: Song): string {
     .trim();
 }
 
-async function upsertSongsToOfflineApi(payload: Udaje): Promise<number> {
+async function upsertSongsToLocalApi(payload: Udaje): Promise<number> {
   const normalizedSongs = (payload.piesne ?? [])
     .map((song) => normalizeSong(song))
     .filter(
@@ -316,12 +316,12 @@ async function upsertSongsToOfflineApi(payload: Udaje): Promise<number> {
     throw new Error("Import neobsahuje ziadne validne skladby.");
   }
 
-  const existingRows = await fetchOfflineApiSongs();
+  const existingRows = await fetchLocalApiSongs();
   const existingIds = new Set<number>();
   const existingKeys = new Set<string>();
 
   existingRows.forEach((row) => {
-    const mapped = mapOfflineApiRowToSong(row);
+    const mapped = mapLocalApiRowToSong(row);
     const mappedId = parseSongId(mapped.id);
     if (mappedId !== undefined) {
       existingIds.add(mappedId);
@@ -350,7 +350,7 @@ async function upsertSongsToOfflineApi(payload: Udaje): Promise<number> {
   });
 
   if (!response.ok) {
-    throw parseOfflineApiError(response.status, await response.text());
+    throw parseLocalApiError(response.status, await response.text());
   }
 
   const result = (await response.json()) as { imported?: number };
@@ -359,24 +359,24 @@ async function upsertSongsToOfflineApi(payload: Udaje): Promise<number> {
     : rowsToImport.length;
 }
 
-async function replaceSongsInOfflineApi(payload: Udaje): Promise<number> {
-  const deleteResponse = await fetch(OFFLINE_API_BASE_URL, {
+async function replaceSongsInLocalApi(payload: Udaje): Promise<number> {
+  const deleteResponse = await fetch(LOCAL_API_BASE_URL, {
     method: "DELETE",
   });
 
   if (!deleteResponse.ok) {
-    throw parseOfflineApiError(
+    throw parseLocalApiError(
       deleteResponse.status,
       await deleteResponse.text(),
     );
   }
 
-  return upsertSongsToOfflineApi(payload);
+  return upsertSongsToLocalApi(payload);
 }
 
 // Príklad fetchu piesní z lokálneho backendu
 export async function loadSongsFromLocalApi(filter: string): Promise<Song[]> {
-  const response = await fetch(OFFLINE_API_BASE_URL);
+  const response = await fetch(LOCAL_API_BASE_URL);
   const songs: Song[] = await response.json();
   // Prípadne filtrovanie podľa filter
   return songs.filter((song: Song) =>
@@ -495,9 +495,9 @@ function mapLocalRowToSong(row: LocalDbSongRow): Song {
   });
 }
 
-function shouldUseOfflineDb(): boolean {
+function shouldUseLocalStorage(): boolean {
   const mode = getDataMode();
-  return mode === "offline" || mode === "local" || !supabase;
+  return mode === "local" || !supabase;
 }
 
 async function loadSongsFromLocalDb(filter: string): Promise<Song[]> {
@@ -796,7 +796,7 @@ async function loadSongsFromSupabaseDirect(filter: string): Promise<Song[]> {
 }
 
 export async function loadSongsFromSupabase(filter: string): Promise<Song[]> {
-  if (shouldUseOfflineDb()) {
+  if (shouldUseLocalStorage()) {
     return loadSongsFromLocalDb(filter);
   }
 
@@ -821,10 +821,10 @@ function sortSongsForExport(items: Song[]): Song[] {
 }
 
 export async function loadSongsForExport(): Promise<Song[]> {
-  if (shouldUseOfflineDb()) {
+  if (shouldUseLocalStorage()) {
     try {
-      const rows = await fetchOfflineApiSongs();
-      return sortSongsForExport(rows.map((row) => mapOfflineApiRowToSong(row)));
+      const rows = await fetchLocalApiSongs();
+      return sortSongsForExport(rows.map((row) => mapLocalApiRowToSong(row)));
     } catch {
       return loadSongsFromLocalDb("");
     }
@@ -951,9 +951,9 @@ async function upsertSongsToSupabaseDirect(payload: Udaje): Promise<number> {
 }
 
 export async function upsertSongsToSupabase(payload: Udaje): Promise<number> {
-  if (shouldUseOfflineDb()) {
+  if (shouldUseLocalStorage()) {
     try {
-      return await upsertSongsToOfflineApi(payload);
+      return await upsertSongsToLocalApi(payload);
     } catch {
       return upsertSongsToLocalDb(payload);
     }
@@ -984,9 +984,9 @@ async function replaceSongsInSupabaseDirect(payload: Udaje): Promise<number> {
 }
 
 export async function replaceSongsInSupabase(payload: Udaje): Promise<number> {
-  if (shouldUseOfflineDb()) {
+  if (shouldUseLocalStorage()) {
     try {
-      return await replaceSongsInOfflineApi(payload);
+      return await replaceSongsInLocalApi(payload);
     } catch {
       return replaceSongsInLocalDb(payload);
     }
@@ -1040,9 +1040,9 @@ export async function syncLocalToSupabase(
 }
 
 export async function loadAllSongsForAdmin(): Promise<SongWithId[]> {
-  if (shouldUseOfflineDb()) {
+  if (shouldUseLocalStorage()) {
     try {
-      return await loadAllSongsForAdminFromOfflineApi();
+      return await loadAllSongsForAdminFromLocalApi();
     } catch {
       return loadAllSongsForAdminFromLocalDb();
     }
@@ -1071,9 +1071,9 @@ export async function loadAllSongsForAdmin(): Promise<SongWithId[]> {
 }
 
 export async function deleteSongsFromSupabase(ids: number[]): Promise<number> {
-  if (shouldUseOfflineDb()) {
+  if (shouldUseLocalStorage()) {
     try {
-      return await deleteSongsFromOfflineApi(ids);
+      return await deleteSongsFromLocalApi(ids);
     } catch {
       return deleteSongsFromLocalDb(ids);
     }
@@ -1107,20 +1107,20 @@ export async function deleteSongsFromSupabase(ids: number[]): Promise<number> {
 export async function loadSongForEdit(
   id: number,
 ): Promise<Song & { id: number }> {
-  if (shouldUseOfflineDb()) {
-    let offlineApiError: Error | null = null;
+  if (shouldUseLocalStorage()) {
+    let localApiError: Error | null = null;
 
     try {
-      return await loadSongForEditFromOfflineApi(id);
+      return await loadSongForEditFromLocalApi(id);
     } catch (error) {
-      offlineApiError = error instanceof Error ? error : null;
+      localApiError = error instanceof Error ? error : null;
     }
 
     try {
       return await loadSongForEditFromLocalDb(id);
     } catch {
-      if (offlineApiError) {
-        throw offlineApiError;
+      if (localApiError) {
+        throw localApiError;
       }
 
       throw new Error("Nacitanie skladby zlyhalo: nenajdena");
@@ -1165,20 +1165,20 @@ export async function updateSongInSupabase(
   id: number,
   song: Song,
 ): Promise<void> {
-  if (shouldUseOfflineDb()) {
-    let offlineApiError: Error | null = null;
+  if (shouldUseLocalStorage()) {
+    let localApiError: Error | null = null;
 
     try {
-      return await updateSongInOfflineApi(id, song);
+      return await updateSongInLocalApi(id, song);
     } catch (error) {
-      offlineApiError = error instanceof Error ? error : null;
+      localApiError = error instanceof Error ? error : null;
     }
 
     try {
       return await updateSongInLocalDb(id, song);
     } catch {
-      if (offlineApiError) {
-        throw offlineApiError;
+      if (localApiError) {
+        throw localApiError;
       }
 
       throw new Error("Ukladanie zlyhalo: skladba neexistuje.");
@@ -1251,9 +1251,9 @@ export async function createSongInSupabase(song: Song): Promise<SongWithId> {
     throw new Error("Skladba musi mat cislo, nazov a aspon jednu slohu.");
   }
 
-  if (shouldUseOfflineDb()) {
+  if (shouldUseLocalStorage()) {
     try {
-      return await createSongInOfflineApi(normalized);
+      return await createSongInLocalApi(normalized);
     } catch {
       return createSongInLocalDb(normalized);
     }
@@ -1313,11 +1313,11 @@ export async function updateSongOrderById(
         .filter((item) => item.length > 0)
     : [];
 
-  if (shouldUseOfflineDb()) {
+  if (shouldUseLocalStorage()) {
     let backendError: Error | null = null;
 
     try {
-      const response = await fetch(`${OFFLINE_API_BASE_URL}/${id}/poradie`, {
+      const response = await fetch(`${LOCAL_API_BASE_URL}/${id}/poradie`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poradie_sloh: normalizedOrder }),
@@ -1331,14 +1331,14 @@ export async function updateSongOrderById(
       const bodyText = rawBody.trim();
       backendError = new Error(
         bodyText.length > 0
-          ? `Offline API vratilo chybu ${response.status}: ${bodyText}`
-          : `Offline API vratilo chybu ${response.status}.`,
+          ? `Lokalne API vratilo chybu ${response.status}: ${bodyText}`
+          : `Lokalne API vratilo chybu ${response.status}.`,
       );
     } catch (error) {
       backendError =
         error instanceof Error
           ? error
-          : new Error("Offline API nie je dostupne.");
+          : new Error("Lokalne API nie je dostupne.");
     }
 
     // Fallback na localStorage DB, aby ukladanie fungovalo aj bez lokalneho API.
@@ -1354,7 +1354,7 @@ export async function updateSongOrderById(
         throw backendError;
       }
 
-      throw new Error("Ukladanie poradia zlyhalo v offline ulozisku.");
+      throw new Error("Ukladanie poradia zlyhalo v lokalnom ulozisku.");
     }
   }
 
@@ -1402,11 +1402,11 @@ export async function updateSongVerseFontMultiplierById(
     throw new Error("Ukladanie velkosti pisma zlyhalo: neplatna hodnota.");
   }
 
-  if (shouldUseOfflineDb()) {
+  if (shouldUseLocalStorage()) {
     let backendError: Error | null = null;
 
     try {
-      const response = await fetch(`${OFFLINE_API_BASE_URL}/${id}/verse-font`, {
+      const response = await fetch(`${LOCAL_API_BASE_URL}/${id}/verse-font`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1423,14 +1423,14 @@ export async function updateSongVerseFontMultiplierById(
       const bodyText = rawBody.trim();
       backendError = new Error(
         bodyText.length > 0
-          ? `Offline API vratilo chybu ${response.status}: ${bodyText}`
-          : `Offline API vratilo chybu ${response.status}.`,
+          ? `Lokalne API vratilo chybu ${response.status}: ${bodyText}`
+          : `Lokalne API vratilo chybu ${response.status}.`,
       );
     } catch (error) {
       backendError =
         error instanceof Error
           ? error
-          : new Error("Offline API nie je dostupne.");
+          : new Error("Lokalne API nie je dostupne.");
     }
 
     try {
@@ -1453,7 +1453,7 @@ export async function updateSongVerseFontMultiplierById(
         throw backendError;
       }
 
-      throw new Error("Ukladanie velkosti pisma zlyhalo v offline ulozisku.");
+      throw new Error("Ukladanie velkosti pisma zlyhalo v lokalnom ulozisku.");
     }
   }
 
