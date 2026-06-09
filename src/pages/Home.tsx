@@ -24,6 +24,7 @@ import {
 } from "../realtime/projectorChannel";
 import { useVersionStore } from "../state/versionStore";
 import {
+  updateSongInSupabase,
   updateSongOrderById,
   updateSongVerseFontMultiplierById,
 } from "../api/supabaseSongs";
@@ -33,6 +34,7 @@ const ALL_CATEGORIES = "Vsetky";
 const SEARCH_QUERY_STORAGE_KEY = "home.searchQuery";
 const SELECTED_CATEGORY_STORAGE_KEY = "home.selectedCategory";
 const SELECTED_PLAYLIST_FILTER_STORAGE_KEY = "home.selectedPlaylistFilter";
+const LITURGY_DATE_STORAGE_KEY = "home.liturgyDate";
 const PLAYLISTS_STORAGE_KEY = "home.playlists.v1";
 const SPLIT_BREAKPOINT = 820;
 const SPLIT_MIN_HEIGHT = 600;
@@ -49,6 +51,18 @@ const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"] as const;
 
 type PlaylistKey = (typeof PLAYLIST_KEYS)[number];
 type PlaylistsState = Record<PlaylistKey, string[]>;
+
+type DailyLiturgyReading = {
+  kind?: string;
+  text?: string;
+};
+
+type DailyLiturgyPayload = {
+  error?: string;
+  sourceUrl?: string;
+  readings?: DailyLiturgyReading[];
+  refrain?: string;
+};
 
 function createEmptyPlaylists(): PlaylistsState {
   return {
@@ -212,6 +226,16 @@ function normalizeCategory(value: string): string {
   return value.trim().toLocaleLowerCase();
 }
 
+function isPsalmCategory(value: string): boolean {
+  return (
+    String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase() === "zalm"
+  );
+}
+
 function getSongCategory(song: Song): string {
   if (song.kategoria && song.kategoria.trim().length > 0) {
     return song.kategoria.trim();
@@ -222,6 +246,132 @@ function getSongCategory(song: Song): string {
   }
 
   return "Nabozenske";
+}
+
+function getTodayDateInputValue(): string {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function splitTextByWordLimit(text: string, maxWords: number): string[] {
+  const normalized = String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const safeLimit = Math.max(20, Math.min(300, Math.round(maxWords || 80)));
+  const hardSplit = (input: string): string[] => {
+    const words = input.split(" ");
+    if (words.length <= safeLimit) {
+      return [input];
+    }
+
+    const items: string[] = [];
+    for (let index = 0; index < words.length; index += safeLimit) {
+      items.push(words.slice(index, index + safeLimit).join(" "));
+    }
+
+    return items;
+  };
+
+  const sentenceCandidates =
+    normalized.match(/[^.!?…]+(?:[.!?…]+|$)/g)?.map((part) => part.trim()) ??
+    [];
+  const sentences = sentenceCandidates.filter((part) => part.length > 0);
+
+  if (sentences.length === 0) {
+    return hardSplit(normalized);
+  }
+
+  const chunks: string[] = [];
+  let current = "";
+
+  const flushCurrent = () => {
+    const compact = current.trim();
+    if (compact.length > 0) {
+      chunks.push(compact);
+    }
+    current = "";
+  };
+
+  sentences.forEach((sentence) => {
+    const sentenceWordCount = sentence.split(" ").length;
+
+    if (sentenceWordCount > safeLimit) {
+      flushCurrent();
+      chunks.push(...hardSplit(sentence));
+      return;
+    }
+
+    if (!current) {
+      current = sentence;
+      return;
+    }
+
+    const combined = `${current} ${sentence}`;
+    if (combined.split(" ").length <= safeLimit) {
+      current = combined;
+      return;
+    }
+
+    flushCurrent();
+    current = sentence;
+  });
+
+  flushCurrent();
+
+  if (chunks.length === 0) {
+    return hardSplit(normalized);
+  }
+
+  return chunks;
+}
+
+function buildLiturgyVerses(
+  payload: DailyLiturgyPayload,
+  maxWordsPerVerse: number,
+): Song["slohy"] {
+  const readings = Array.isArray(payload.readings) ? payload.readings : [];
+  const normalized = readings
+    .map((reading) => String(reading?.text ?? "").trim())
+    .filter((text) => text.length > 0)
+    .flatMap((text) => splitTextByWordLimit(text, maxWordsPerVerse));
+
+  if (normalized.length > 0) {
+    return normalized.map((text, index) => ({
+      cisloS: `V${index + 1}`,
+      textik: text,
+    }));
+  }
+
+  const fallback = String(payload.refrain ?? "").trim();
+  return fallback.length > 0 ? [{ cisloS: "R", textik: fallback }] : [];
+}
+
+async function fetchTodayLiturgy(date: string): Promise<DailyLiturgyPayload> {
+  const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? date
+    : getTodayDateInputValue();
+  const query = new URLSearchParams({ den: safeDate });
+  const response = await fetch(
+    `${buildApiUrl("/liturgy/zalm-today")}?${query.toString()}`,
+  );
+  const payload = (await response.json()) as DailyLiturgyPayload;
+
+  if (!response.ok) {
+    const message =
+      typeof payload.error === "string" && payload.error.trim().length > 0
+        ? payload.error
+        : `Nacitanie liturgie zlyhalo (HTTP ${response.status}).`;
+    throw new Error(message);
+  }
+
+  return payload;
 }
 
 function getCategoryBadge(song: Song): string {
@@ -697,6 +847,7 @@ export default function Home() {
     chordSizeMultiplier,
     projectorFontSizeMultiplier,
     homeChordColor,
+    liturgyWordsPerVerse,
   } = useContext(SettingsContext) as SettingsContextType;
   const [searchQuery, setSearchQuery] = useState(() => {
     return localStorage.getItem(SEARCH_QUERY_STORAGE_KEY) ?? "";
@@ -714,6 +865,12 @@ export default function Home() {
   });
   const [selectedPlaylistEditor, setSelectedPlaylistEditor] =
     useState<PlaylistKey>("Playlist 1");
+  const [liturgyDate, setLiturgyDate] = useState(() => {
+    const stored = localStorage.getItem(LITURGY_DATE_STORAGE_KEY) ?? "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(stored)
+      ? stored
+      : getTodayDateInputValue();
+  });
   const [dataMode, setDataMode] = useState<DataMode>(() => getDataMode());
   const [playlists, setPlaylists] = useState<PlaylistsState>(() =>
     loadPlaylistsFromStorage(),
@@ -731,6 +888,11 @@ export default function Home() {
   const [verseOrderInput, setVerseOrderInput] = useState("");
   const [isSavingVerseOrder, setIsSavingVerseOrder] = useState(false);
   const [isSavingVerseFont, setIsSavingVerseFont] = useState(false);
+  const [isFillingPsalm, setIsFillingPsalm] = useState(false);
+  const [psalmFillFeedback, setPsalmFillFeedback] = useState<{
+    message: string;
+    tone: "ok" | "warn";
+  } | null>(null);
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === "undefined" ? 0 : window.innerWidth,
   );
@@ -785,6 +947,10 @@ export default function Home() {
       selectedPlaylistFilter,
     );
   }, [selectedPlaylistFilter]);
+
+  useEffect(() => {
+    localStorage.setItem(LITURGY_DATE_STORAGE_KEY, liturgyDate);
+  }, [liturgyDate]);
 
   useEffect(() => {
     const handleDataModeChanged = (event: Event) => {
@@ -1813,6 +1979,79 @@ export default function Home() {
     }
   }
 
+  async function handleFillPsalmOnHome() {
+    if (!selectedSong || isFillingPsalm) {
+      return;
+    }
+
+    const selectedId = getSongId(selectedSong);
+    if (selectedId === undefined) {
+      setPsalmFillFeedback({
+        message: "Skladba nema stabilne id, naplnenie nie je mozne.",
+        tone: "warn",
+      });
+      return;
+    }
+
+    setIsFillingPsalm(true);
+    setPsalmFillFeedback({
+      message: "Nacitavam liturgicke citania...",
+      tone: "ok",
+    });
+
+    try {
+      const liturgy = await fetchTodayLiturgy(liturgyDate);
+      const verses = buildLiturgyVerses(liturgy, liturgyWordsPerVerse);
+
+      if (verses.length === 0) {
+        throw new Error("Liturgicke citania su prazdne.");
+      }
+
+      const nextSong: Song = {
+        ...selectedSong,
+        source:
+          String(liturgy.sourceUrl ?? "").trim().length > 0
+            ? String(liturgy.sourceUrl)
+            : selectedSong.source,
+        poradieSloh: verses.map((verse) => verse.cisloS),
+        slohy: verses,
+      };
+
+      await updateSongInSupabase(selectedId, nextSong);
+
+      queryClient.setQueryData<SongsData | undefined>(
+        ["songs", verziaDb],
+        (previous) => {
+          if (!previous) {
+            return previous;
+          }
+
+          return previous.map((song) =>
+            getSongId(song) === selectedId ? { ...song, ...nextSong } : song,
+          );
+        },
+      );
+
+      setSelectedSong(nextSong);
+      setSelectedVerse(0);
+      setSelectedVerseCursor(0);
+      setVerseOrderInput(formatVerseOrderInput(nextSong));
+      setPsalmFillFeedback({
+        message: "Zalm bol naplneny z dnesnych citani.",
+        tone: "ok",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Naplnenie zalmu zlyhalo.";
+      setPsalmFillFeedback({ message, tone: "warn" });
+    } finally {
+      setIsFillingPsalm(false);
+      window.setTimeout(() => {
+        setPsalmFillFeedback(null);
+      }, 2600);
+    }
+  }
+
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) {
@@ -2552,6 +2791,43 @@ export default function Home() {
             >
               PROJ
             </button>
+            {selectedSong && isPsalmCategory(getSongCategory(selectedSong)) && (
+              <>
+                <input
+                  type="date"
+                  value={liturgyDate}
+                  onChange={(e) => setLiturgyDate(e.target.value)}
+                  style={{
+                    fontSize: isCompactSplitView ? 12 : 14,
+                    fontWeight: 600,
+                    padding: "7px 8px",
+                    borderRadius: 12,
+                    border: mutedBorder,
+                    backgroundColor: "var(--color-input-bg)",
+                    color: textColor,
+                    cursor: "pointer",
+                  }}
+                  title="Datum liturgickych citani"
+                />
+                <button
+                  onClick={() => void handleFillPsalmOnHome()}
+                  disabled={isFillingPsalm}
+                  style={{
+                    fontSize: isCompactSplitView ? 13 : 15,
+                    fontWeight: 700,
+                    padding: "8px 12px",
+                    borderRadius: 12,
+                    border: mutedBorder,
+                    backgroundColor: "#14532d",
+                    color: "#f8fafc",
+                    cursor: "pointer",
+                  }}
+                  title="Naplni slohy zalmu z vybranych liturgickych citani"
+                >
+                  {isFillingPsalm ? "Nacitavam..." : "Naplnit zalm"}
+                </button>
+              </>
+            )}
             <label
               style={{
                 display: "flex",
@@ -2597,6 +2873,25 @@ export default function Home() {
               }}
             >
               {projectorFeedback.message}
+            </div>
+          )}
+
+          {psalmFillFeedback && (
+            <div
+              style={{
+                margin: projectorFeedback ? "6px 10px 0" : "8px 10px 0",
+                padding: "6px 10px",
+                borderRadius: 10,
+                border: `1px solid var(--color-border)`,
+                backgroundColor:
+                  psalmFillFeedback.tone === "ok"
+                    ? "var(--color-success-bg)"
+                    : "var(--color-warning-bg)",
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              {psalmFillFeedback.message}
             </div>
           )}
 

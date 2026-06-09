@@ -1,6 +1,13 @@
 import { APP_VERSION } from "../version";
 import { loadSongsFromSupabase } from "../api/supabaseSongs";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
 
 import { Song, SongVerse, Udaje } from "../types/myTypes";
@@ -22,6 +29,10 @@ import {
   upsertSongsToSupabase,
 } from "../api/supabaseSongs";
 import { buildApiUrl } from "../api/apiBase";
+import {
+  SettingsContext,
+  SettingsContextType,
+} from "../context/SettingsContext";
 
 type ImportState = {
   status: "idle" | "loading" | "success" | "error";
@@ -52,12 +63,20 @@ type AddForm = {
   slohy: SongVerse[];
 };
 
+type DailyLiturgyReading = {
+  kind?: string;
+  title?: string;
+  citation?: string;
+  text?: string;
+};
+
 type DailyPsalmPayload = {
   title?: string;
   citation?: string;
   refrain?: string;
   text?: string;
   sourceUrl?: string;
+  readings?: DailyLiturgyReading[];
 };
 
 type PowerAction = "reboot" | "shutdown";
@@ -194,6 +213,111 @@ function buildPsalmVerseText(payload: DailyPsalmPayload): string {
   return String(payload.refrain ?? "").trim();
 }
 
+function splitTextByWordLimit(text: string, maxWords: number): string[] {
+  const normalized = String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const safeLimit = Math.max(20, Math.min(300, Math.round(maxWords || 80)));
+  const hardSplit = (input: string): string[] => {
+    const words = input.split(" ");
+    if (words.length <= safeLimit) {
+      return [input];
+    }
+
+    const items: string[] = [];
+    for (let index = 0; index < words.length; index += safeLimit) {
+      items.push(words.slice(index, index + safeLimit).join(" "));
+    }
+
+    return items;
+  };
+
+  const sentenceCandidates =
+    normalized.match(/[^.!?…]+(?:[.!?…]+|$)/g)?.map((part) => part.trim()) ??
+    [];
+  const sentences = sentenceCandidates.filter((part) => part.length > 0);
+
+  if (sentences.length === 0) {
+    return hardSplit(normalized);
+  }
+
+  const chunks: string[] = [];
+  let current = "";
+
+  const flushCurrent = () => {
+    const compact = current.trim();
+    if (compact.length > 0) {
+      chunks.push(compact);
+    }
+    current = "";
+  };
+
+  sentences.forEach((sentence) => {
+    const sentenceWordCount = sentence.split(" ").length;
+
+    if (sentenceWordCount > safeLimit) {
+      flushCurrent();
+      chunks.push(...hardSplit(sentence));
+      return;
+    }
+
+    if (!current) {
+      current = sentence;
+      return;
+    }
+
+    const combined = `${current} ${sentence}`;
+    if (combined.split(" ").length <= safeLimit) {
+      current = combined;
+      return;
+    }
+
+    flushCurrent();
+    current = sentence;
+  });
+
+  flushCurrent();
+
+  if (chunks.length === 0) {
+    return hardSplit(normalized);
+  }
+
+  return chunks;
+}
+
+function buildPsalmSongVerses(
+  payload: DailyPsalmPayload,
+  maxWordsPerVerse: number,
+): SongVerse[] {
+  const readings = Array.isArray(payload.readings) ? payload.readings : [];
+  const normalizedReadings = readings
+    .flatMap((item) =>
+      splitTextByWordLimit(String(item?.text ?? "").trim(), maxWordsPerVerse),
+    )
+    .filter((text) => text.length > 0);
+
+  if (normalizedReadings.length > 0) {
+    return normalizedReadings.map((text, index) => ({
+      cisloS: `V${index + 1}`,
+      textik: text,
+    }));
+  }
+
+  const fallback = buildPsalmVerseText(payload);
+  return [{ cisloS: "R", textik: fallback }];
+}
+
+function buildVerseOrderText(verses: SongVerse[]): string {
+  return verses
+    .map((verse) => String(verse.cisloS ?? "").trim())
+    .filter((label) => label.length > 0)
+    .join(", ");
+}
+
 async function fetchTodayPsalm(date: string): Promise<DailyPsalmPayload> {
   const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(date)
     ? date
@@ -216,6 +340,7 @@ async function fetchTodayPsalm(date: string): Promise<DailyPsalmPayload> {
     title?: unknown;
     refrain?: unknown;
     sourceUrl?: unknown;
+    readings?: unknown;
   };
 
   if (!response.ok) {
@@ -226,8 +351,30 @@ async function fetchTodayPsalm(date: string): Promise<DailyPsalmPayload> {
     throw new Error(message);
   }
 
-  if (typeof data.refrain !== "string" || data.refrain.trim().length === 0) {
-    throw new Error("Refren zalmu sa nepodarilo nacitat.");
+  const parsedReadings = Array.isArray(data.readings)
+    ? data.readings
+        .map((entry) => {
+          const item = entry as {
+            kind?: unknown;
+            title?: unknown;
+            citation?: unknown;
+            text?: unknown;
+          };
+          return {
+            kind: typeof item.kind === "string" ? item.kind : "",
+            title: typeof item.title === "string" ? item.title : "",
+            citation: typeof item.citation === "string" ? item.citation : "",
+            text: typeof item.text === "string" ? item.text : "",
+          };
+        })
+        .filter((item) => item.text.trim().length > 0)
+    : [];
+
+  if (
+    parsedReadings.length === 0 &&
+    (typeof data.refrain !== "string" || data.refrain.trim().length === 0)
+  ) {
+    throw new Error("Liturgicke citania sa nepodarilo nacitat.");
   }
 
   return {
@@ -236,6 +383,7 @@ async function fetchTodayPsalm(date: string): Promise<DailyPsalmPayload> {
     refrain: typeof data.refrain === "string" ? data.refrain : "",
     text: "",
     sourceUrl: typeof data.sourceUrl === "string" ? data.sourceUrl : "",
+    readings: parsedReadings,
   };
 }
 
@@ -244,6 +392,9 @@ export default function AdminImport({
 }: {
   crudOnly?: boolean;
 }) {
+  const { liturgyWordsPerVerse } = useContext(
+    SettingsContext,
+  ) as SettingsContextType;
   const [dataMode, setDataModeState] = useState<DataMode>(() => getDataMode());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -531,7 +682,7 @@ export default function AdminImport({
     setFillPsalmLoading(true);
     setDeleteState({
       status: "loading",
-      message: "Pripravujem skladbu Žalm...",
+      message: "Pripravujem liturgicke citania...",
     });
 
     const shouldLoadSongs = !adminSongsLoaded;
@@ -547,7 +698,8 @@ export default function AdminImport({
       }
 
       const psalm = await fetchTodayPsalm(todayDate);
-      const verseText = buildPsalmVerseText(psalm);
+      const verses = buildPsalmSongVerses(psalm, liturgyWordsPerVerse);
+      const verseOrder = buildVerseOrderText(verses);
       const existingPsalmSong = songsPool.find((song) =>
         isPsalmCategory(song.kategoria ?? ""),
       );
@@ -570,8 +722,10 @@ export default function AdminImport({
             String(psalm.sourceUrl ?? "").trim().length > 0
               ? String(psalm.sourceUrl)
               : String(songData.source ?? ""),
-          poradieSloh: ["R"],
-          slohy: [{ cisloS: "R", textik: verseText }],
+          poradieSloh: verseOrder
+            ? verseOrder.split(",").map((part) => part.trim())
+            : [],
+          slohy: verses,
         };
 
         await updateSongInSupabase(existingPsalmSong.id, updatedSong);
@@ -596,7 +750,7 @@ export default function AdminImport({
         setAddSaveState({ status: "idle", message: "" });
         setDeleteState({
           status: "success",
-          message: `Naplnena a ulozena existujuca skladba Žalm pre dnesok${
+          message: `Naplnene a ulozene existujuce liturgicke citania pre dnesok${
             psalm.citation ? ` (${psalm.citation})` : ""
           }.`,
         });
@@ -611,8 +765,10 @@ export default function AdminImport({
             .join(" "),
           kategoria: "Žalm",
           source: String(psalm.sourceUrl ?? ""),
-          poradieSloh: ["R"],
-          slohy: [{ cisloS: "R", textik: verseText }],
+          poradieSloh: verseOrder
+            ? verseOrder.split(",").map((part) => part.trim())
+            : [],
+          slohy: verses,
         };
 
         const created = await createSongInSupabase(newSong);
@@ -624,7 +780,7 @@ export default function AdminImport({
         setAddSaveState({ status: "idle", message: "" });
         setDeleteState({
           status: "success",
-          message: `Vytvorena, naplnena a ulozena nova skladba Žalm pre dnesok${
+          message: `Vytvorene, naplnene a ulozene nove liturgicke citania pre dnesok${
             psalm.citation ? ` (${psalm.citation})` : ""
           }.`,
         });
@@ -697,11 +853,12 @@ export default function AdminImport({
     setZalmLoadingTarget("add");
     setAddSaveState({
       status: "loading",
-      message: "Nacitavam refren zalmu...",
+      message: "Nacitavam liturgicke citania...",
     });
     try {
       const psalm = await fetchTodayPsalm(zalmDate);
-      const verseText = buildPsalmVerseText(psalm);
+      const verses = buildPsalmSongVerses(psalm, liturgyWordsPerVerse);
+      const verseOrder = buildVerseOrderText(verses);
       setAddForm({
         ...addForm,
         nazov:
@@ -720,12 +877,12 @@ export default function AdminImport({
         poradieSlohRaw:
           (addForm.poradieSlohRaw ?? "").trim().length > 0
             ? addForm.poradieSlohRaw
-            : "R",
-        slohy: [{ cisloS: "R", textik: verseText }],
+            : verseOrder,
+        slohy: verses,
       });
       setAddSaveState({
         status: "success",
-        message: `Refren bol nacitany pre datum ${zalmDate}${
+        message: `Liturgicke citania boli nacitane pre datum ${zalmDate}${
           psalm.citation ? ` (${psalm.citation})` : ""
         }.`,
       });
@@ -742,11 +899,12 @@ export default function AdminImport({
     setZalmLoadingTarget("edit");
     setEditSaveState({
       status: "loading",
-      message: "Nacitavam refren zalmu...",
+      message: "Nacitavam liturgicke citania...",
     });
     try {
       const psalm = await fetchTodayPsalm(zalmDate);
-      const verseText = buildPsalmVerseText(psalm);
+      const verses = buildPsalmSongVerses(psalm, liturgyWordsPerVerse);
+      const verseOrder = buildVerseOrderText(verses);
       setEditForm({
         ...editForm,
         nazov:
@@ -765,12 +923,12 @@ export default function AdminImport({
         poradieSlohRaw:
           (editForm.poradieSlohRaw ?? "").trim().length > 0
             ? editForm.poradieSlohRaw
-            : "R",
-        slohy: [{ cisloS: "R", textik: verseText }],
+            : verseOrder,
+        slohy: verses,
       });
       setEditSaveState({
         status: "success",
-        message: `Refren bol nacitany pre datum ${zalmDate}${
+        message: `Liturgicke citania boli nacitane pre datum ${zalmDate}${
           psalm.citation ? ` (${psalm.citation})` : ""
         }.`,
       });
@@ -1916,8 +2074,8 @@ export default function AdminImport({
                     }}
                   >
                     {zalmLoadingTarget === "edit"
-                      ? "Nacitavam refren..."
-                      : "Nacitat refren z lc.kbs.sk"}
+                      ? "Nacitavam citania..."
+                      : "Nacitat citania z lc.kbs.sk"}
                   </button>
                 </>
               )}
@@ -2222,8 +2380,8 @@ export default function AdminImport({
                     }}
                   >
                     {zalmLoadingTarget === "add"
-                      ? "Nacitavam refren..."
-                      : "Nacitat refren z lc.kbs.sk"}
+                      ? "Nacitavam citania..."
+                      : "Nacitat citania z lc.kbs.sk"}
                   </button>
                 </>
               )}

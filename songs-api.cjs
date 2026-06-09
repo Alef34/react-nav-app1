@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS = {
   colorScheme: "dark",
   showAkordy: false,
   showAkordyProjector: false,
+  liturgyWordsPerVerse: 80,
   verzia: "",
 };
 
@@ -100,6 +101,14 @@ function normalizeSettings(raw) {
         : DEFAULT_SETTINGS.colorScheme,
     showAkordy: Boolean(safe.showAkordy),
     showAkordyProjector: Boolean(safe.showAkordyProjector),
+    liturgyWordsPerVerse: Math.round(
+      normalizeNumber(
+        safe.liturgyWordsPerVerse,
+        20,
+        300,
+        DEFAULT_SETTINGS.liturgyWordsPerVerse,
+      ),
+    ),
     verzia: String(safe.verzia ?? DEFAULT_SETTINGS.verzia),
   };
 }
@@ -775,6 +784,104 @@ function parsePsalmFromLcKbsHtml(html) {
   };
 }
 
+function classifyLiturgyBlockKind(classNames, titleText) {
+  const classBlob = String(classNames ?? "").toLowerCase();
+  const titleBlob = String(titleText ?? "").toLowerCase();
+
+  if (classBlob.includes("lczalm") || titleBlob.includes("zalm")) {
+    return "psalm";
+  }
+
+  if (titleBlob.includes("evanjelia") || titleBlob.includes("evanjelium")) {
+    return "gospel";
+  }
+
+  return "reading";
+}
+
+function parseLiturgyReadingsFromLcKbsHtml(html) {
+  const source = String(html ?? "");
+  const bodyMatch = source.match(
+    /<div[^>]*class=['"][^'"]*lcBODY[^'"]*['"][^>]*>([\s\S]*?)<\/div>\s*<!--lcBODY-->/i,
+  );
+  const body = bodyMatch ? bodyMatch[1] : source;
+
+  const openingRegex =
+    /<div[^>]*id=['"]c_[^'"]+['"][^>]*class=['"]([^'"]*\blcCITANIE\b[^'"]*)['"][^>]*>/gi;
+  const readings = [];
+  let match = openingRegex.exec(body);
+
+  while (match) {
+    const openingTag = match[0];
+    const classNames = match[1] ?? "";
+    const sectionStart = match.index;
+    const contentStart = sectionStart + openingTag.length;
+    const sectionEnd = body.indexOf("</div><!--lcCITANIE-->", contentStart);
+    const safeEnd = sectionEnd >= 0 ? sectionEnd : body.length;
+    const section = body.slice(sectionStart, safeEnd);
+
+    const headingMatch = section.match(/<h4[^>]*>([\s\S]*?)<\/h4>/i);
+    const headingHtml = headingMatch ? headingMatch[1] : "";
+    const citationMatch = headingHtml.match(/<span[^>]*>([\s\S]*?)<\/span>/i);
+    const citation = citationMatch
+      ? htmlToPlainText(citationMatch[1]).replace(/\s+/g, " ").trim()
+      : "";
+    const title = htmlToPlainText(
+      headingHtml.replace(/<span[^>]*>[\s\S]*<\/span>/i, ""),
+    )
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const contentWithoutMeta = section
+      .replace(
+        /<p[^>]*class=['"][^'"]*lcRESPblock[^'"]*['"][^>]*>[\s\S]*?<\/p>/gi,
+        "",
+      )
+      .replace(
+        /<p[^>]*class=['"][^'"]*lcVPEblock[^'"]*['"][^>]*>[\s\S]*?<\/p>/gi,
+        "",
+      )
+      .replace(/<h4[^>]*>[\s\S]*?<\/h4>/i, "");
+
+    const refrainMatch = section.match(
+      /<p[^>]*class=['"][^'"]*lcRESPblock[^'"]*['"][^>]*>([\s\S]*?)<\/p>/i,
+    );
+    const refrain = refrainMatch
+      ? extractPrimaryRefrain(htmlToPlainText(refrainMatch[1]))
+      : "";
+
+    const kind = classifyLiturgyBlockKind(classNames, title);
+    const text =
+      kind === "psalm"
+        ? refrain || htmlToPlainText(contentWithoutMeta).replace(/\r/g, "")
+        : htmlToPlainText(contentWithoutMeta).replace(/\r/g, "");
+
+    if (text.trim().length > 0) {
+      readings.push({ kind, title, citation, text: text.trim() });
+    }
+
+    if (sectionEnd < 0) {
+      break;
+    }
+
+    openingRegex.lastIndex = sectionEnd;
+    match = openingRegex.exec(body);
+  }
+
+  if (readings.length === 0) {
+    throw new Error("V odpovedi lc.kbs.sk sa nenasli liturgicke citania.");
+  }
+
+  const psalmReading = readings.find((item) => item.kind === "psalm");
+  return {
+    title: "Liturgicke citania",
+    citation: psalmReading?.citation ?? "",
+    refrain: psalmReading?.text ?? "",
+    text: psalmReading?.text ?? "",
+    readings,
+  };
+}
+
 function extractPowerToken(req) {
   const directHeader = String(req.headers["x-admin-power-token"] ?? "").trim();
   if (directHeader.length > 0) {
@@ -844,9 +951,9 @@ app.get("/api/liturgy/zalm-today", async (req, res) => {
     }
 
     const html = await response.text();
-    const psalm = parsePsalmFromLcKbsHtml(html);
+    const liturgy = parseLiturgyReadingsFromLcKbsHtml(html);
     return res.json({
-      ...psalm,
+      ...liturgy,
       sourceUrl,
       fetchedAt: new Date().toISOString(),
     });

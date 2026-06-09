@@ -36888,19 +36888,46 @@
       "id": 1777,
       "cislo_p": "1",
       "nazov": "Responzoriovy zalm Ž 66, 1 -3a. 4-5. 6-7a",
-      "source": "https://lc.kbs.sk/?den=2026-05-16",
+      "source": "https://lc.kbs.sk/?den=2026-06-09",
       "kategoria": "Žalm",
       "poradie_sloh": [
-        "R"
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "V5",
+        "V6"
       ],
-      "verse_font_multipliers": {},
+      "verse_font_multipliers": {
+        "v1": 0.55
+      },
       "slohy": [
         {
-          "cisloS": "R",
-          "textik": "Boh je kráľom celej zeme, spievajme mu chválospev."
+          "cisloS": "V1",
+          "textik": "Múky z hrnca neubúdalo a v krčahu nechýbal olej podľa slova, ktoré Pán povedal prostredníctvom Eliáša Potok, pri ktorom sa skryl Eliáš, vyschol, lebo v krajine nepršalo. Vtedy mu zaznelo Pánovo slovo: „Vstaň a choď do Sidonskej Sarepty. A tam ostaneš, lebo som tam istej vdove prikázal, aby ťa chovala. “ Vstal teda a šiel do Sarepty. Keď prišiel k mestskej bráne, videl ženu, vdovu, ako zbiera drevo. Zavolal na ňu: „Prines mi v džbáne trochu vody na pitie."
+        },
+        {
+          "cisloS": "V2",
+          "textik": "“ Ako mu išla vziať, zavolal za ňou: „Dones mi, prosím, aj kúsok chleba! “ Ona odpovedala: „Ako žije Pán, tvoj Boh, nemám chleba. Mám len za priehrštie múky v hrnci a trochu oleja v krčahu. Práve zbieram zopár kúskov dreva a idem niečo pripraviť sebe i svojmu synovi. Keď to zjeme, môžeme umrieť. “ Eliáš jej povedal: „Neboj sa! Choď a urob, ako hovoríš. Lenže najprv z tej trochy múky urob malý podplamenník pre mňa a dones mi ho."
+        },
+        {
+          "cisloS": "V3",
+          "textik": "Sebe a svojmu synovi urobíš potom. Lebo takto hovorí Pán, Boh Izraela: ‚Múky z hrnca neubudne a v krčahu nebude chýbať olej až do dňa, keď Pán zošle dážď na zem. ‘“ Ona odišla a urobila, ako jej povedal Eliáš. A jedla ona, on i jej dom deň čo deň a múky z hrnca neubúdalo a v krčahu nechýbal olej podľa slova, ktoré Pán povedal prostredníctvom Eliáša. Počuli sme Božie slovo."
+        },
+        {
+          "cisloS": "V4",
+          "textik": "Pane, ukáž nám svetlo svojej tváre."
+        },
+        {
+          "cisloS": "V5",
+          "textik": "Vy ste svetlo sveta Ježiš povedal svojim učeníkom: „Vy ste soľ zeme. Ak soľ stratí chuť, čím ju osolia? Už nie je na nič, len ju vyhodiť von, aby ju ľudia pošliapali. Vy ste svetlo sveta. Mesto postavené na návrší sa nedá ukryť. Ani lampu nezažnú a nepostavia pod mericu, ale na svietnik, aby svietila všetkým, čo sú v dome. Nech tak svieti vaše svetlo pred ľuďmi, aby videli vaše dobré skutky a oslavovali vášho Otca, ktorý je na nebesiach."
+        },
+        {
+          "cisloS": "V6",
+          "textik": "“ Počuli sme slovo Pánovo."
         }
       ],
-      "updated_at": "2026-05-16 09:01:03"
+      "updated_at": "2026-06-09T18:55:42.715Z"
     }
   ],
   "playlists": {
@@ -36909,7 +36936,7 @@
     "Playlist 3": []
   },
   "settings": {
-    "fontSize": 30,
+    "fontSize": 20,
     "chordSizeMultiplier": 0.7,
     "projectorFontSizeMultiplier": 1,
     "projectorBgColor": "#000000",

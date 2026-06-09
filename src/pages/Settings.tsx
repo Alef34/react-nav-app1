@@ -166,6 +166,25 @@ export const Modal: React.FC = () => {
                   sx={{ "& .MuiSvgIcon-root": { fontSize: 50 } }}
                 />
               </div>
+              <div className="itemA item-1A">
+                <label
+                  htmlFor="liturgy-words-per-verse"
+                  style={{ fontSize: "x-large" }}
+                >
+                  Max slov na slohu (citania): {myProps.liturgyWordsPerVerse}
+                </label>
+                <input
+                  type="range"
+                  id="liturgy-words-per-verse"
+                  min="20"
+                  max="300"
+                  step="10"
+                  value={myProps.liturgyWordsPerVerse}
+                  onChange={(e) =>
+                    myProps.setLiturgyWordsPerVerse(Number(e.target.value))
+                  }
+                />
+              </div>
               <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
                 <label htmlFor="color-scheme" style={{ marginRight: 10 }}>
                   Tema:
