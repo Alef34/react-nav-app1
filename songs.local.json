@@ -23627,34 +23627,22 @@
       "slohy": [
         {
           "cisloS": "V1",
-          "textik": "[Ami], [G], [F], [F/E], [Dmi], [G], [C]\nKeď sa v [C]prítmí štyroch stien,\n[Emi]splnil môj tajný sen\na [F]držal som ju v náru[G]čí.\n[C]V tejto chvíli snáď,\nbude [Emi]láska pri nás stáť,\nale [F]za ostatné vôbec neru[G4]čí. [G]"
+          "textik": "[C]Keď sa v [C]prítmí štyroch stien,\n[Emi]splnil môj tajný sen\na [F]držal som ju v náru[G]čí.\n[C]V tejto chvíli snáď,\nbude [Emi]láska pri nás stáť,\nale [F]za ostatné vôbec neru[G4]čí. [G]"
         },
         {
           "cisloS": "V2",
-          "textik": "[Ami], [G], [F], [F/E], [Dmi], [G], [C]\nUž sme [C]traja miesto dvoch\nuž nespá[Emi]ja nás iba Boh\na [F]láska zdá sa úprim[G]ná.\nNo [C]prievan všedných dní,\nur[Emi]čil bozk posledný,\n[F]stále je v nás len sa ukrý[G4]va. [G]"
+          "textik": "[C] Už sme [C]traja miesto dvoch\nuž nespá[Emi]ja nás iba Boh\na [F]láska zdá sa úprim[G]ná.\nNo [C]prievan všedných dní,\nur[Emi]čil bozk posledný,\n[F]stále je v nás len sa ukrý[G4]va. [G]"
+        },
+        {
+          "cisloS": "R",
+          "textik": "Vždy [Ami]nás hodí [G]kamsi do hl [F]bín\nNepo[Dmi]dá žiadny [G]záchranný [C]pás\nMožno [Ami]zostane tu [G]po nej iba [F]splín\nTakto [Dmi]stále [G]skúša [C]nás."
         },
         {
           "cisloS": "V3",
-          "textik": "Ref.: Vždy [Ami]nás hodí [G]kamsi do hl [F]bín\n        Nepo[Dmi]dá žiadny [G]záchranný [C]pás\n        Možno [Ami]zostane tu [G]po nej iba [F]splín\n        Takto [Dmi]stále [G]skúša [C]nás."
-        },
-        {
-          "cisloS": "V4",
           "textik": "[F]Nie každé [C/E]črepy [Dmi]šťastie prine[C]sú\n[F]Spomienky [C/E]krásne [Dmi]tie stále [G]sú v [Ami]nás..."
-        },
-        {
-          "cisloS": "V5",
-          "textik": "[G], [F], [F/E], [Dmi], [G], [C]"
-        },
-        {
-          "cisloS": "V6",
-          "textik": "Ref.:Vždy [Ami]nás hodí [G]kamsi do hl[F]bín..."
-        },
-        {
-          "cisloS": "V7",
-          "textik": "....láska [Dmi]stále [G]skúša [C]nás..."
         }
       ],
-      "updated_at": "2026-04-19 14:23:45"
+      "updated_at": "2026-06-09T19:11:44.256Z"
     },
     {
       "id": 1456,
@@ -36945,6 +36933,7 @@
     "colorScheme": "dark",
     "showAkordy": true,
     "showAkordyProjector": false,
+    "liturgyWordsPerVerse": 80,
     "verzia": ""
   }
 }
