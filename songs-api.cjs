@@ -24,7 +24,7 @@ const POWER_CONTROL_TOKEN = String(
 ).trim();
 
 const app = express();
-const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"];
+const PLAYLIST_KEYS = ["Playlist 1"];
 const DEFAULT_SETTINGS = {
   fontSize: 30,
   chordSizeMultiplier: 1,
@@ -177,8 +177,6 @@ function createDefaultJsonState() {
     songs: [],
     playlists: {
       "Playlist 1": [],
-      "Playlist 2": [],
-      "Playlist 3": [],
     },
     settings: { ...DEFAULT_SETTINGS },
   };
@@ -312,8 +310,6 @@ function saveSettings(settings) {
 function getPlaylistsPayload() {
   const payload = {
     "Playlist 1": [],
-    "Playlist 2": [],
-    "Playlist 3": [],
   };
 
   if (USE_JSON_STORAGE) {
@@ -325,7 +321,11 @@ function getPlaylistsPayload() {
   }
 
   const rows = db
-    .prepare("SELECT name, song_ids FROM playlists WHERE name IN (?, ?, ?)")
+    .prepare(
+      `SELECT name, song_ids FROM playlists WHERE name IN (${PLAYLIST_KEYS.map(
+        () => "?",
+      ).join(", ")})`,
+    )
     .all(...PLAYLIST_KEYS);
 
   rows.forEach((row) => {

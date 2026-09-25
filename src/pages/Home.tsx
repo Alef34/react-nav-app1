@@ -47,10 +47,11 @@ const MIN_VERSE_FONT_MULTIPLIER = 0.5;
 const MAX_VERSE_FONT_MULTIPLIER = 2;
 const VERSE_FONT_STEP = 0.05;
 const ALL_PLAYLISTS_FILTER = "Vsetky playlisty";
-const PLAYLIST_KEYS = ["Playlist 1", "Playlist 2", "Playlist 3"] as const;
+const PLAYLIST_KEYS = ["Playlist 1"] as const;
 
 type PlaylistKey = (typeof PLAYLIST_KEYS)[number];
 type PlaylistsState = Record<PlaylistKey, string[]>;
+const SINGLE_PLAYLIST_KEY: PlaylistKey = "Playlist 1";
 
 type DailyLiturgyReading = {
   kind?: string;
@@ -67,8 +68,6 @@ type DailyLiturgyPayload = {
 function createEmptyPlaylists(): PlaylistsState {
   return {
     "Playlist 1": [],
-    "Playlist 2": [],
-    "Playlist 3": [],
   };
 }
 
@@ -102,8 +101,6 @@ function normalizePlaylistsFromPayload(raw: unknown): PlaylistsState | null {
   const parsed = raw as Partial<Record<PlaylistKey, unknown>>;
   return {
     "Playlist 1": normalizePlaylistValue(parsed?.["Playlist 1"]),
-    "Playlist 2": normalizePlaylistValue(parsed?.["Playlist 2"]),
-    "Playlist 3": normalizePlaylistValue(parsed?.["Playlist 3"]),
   };
 }
 
@@ -134,8 +131,6 @@ function loadPlaylistsFromStorage(): PlaylistsState {
     const parsed = JSON.parse(raw) as Partial<Record<PlaylistKey, unknown>>;
     return {
       "Playlist 1": normalizePlaylistValue(parsed?.["Playlist 1"]),
-      "Playlist 2": normalizePlaylistValue(parsed?.["Playlist 2"]),
-      "Playlist 3": normalizePlaylistValue(parsed?.["Playlist 3"]),
     };
   } catch {
     return createEmptyPlaylists();
@@ -151,8 +146,6 @@ async function loadPlaylistsFromLocalApi(): Promise<PlaylistsState> {
   const raw = (await response.json()) as Partial<Record<PlaylistKey, unknown>>;
   return {
     "Playlist 1": normalizePlaylistValue(raw?.["Playlist 1"]),
-    "Playlist 2": normalizePlaylistValue(raw?.["Playlist 2"]),
-    "Playlist 3": normalizePlaylistValue(raw?.["Playlist 3"]),
   };
 }
 
@@ -192,34 +185,6 @@ function clampSplitWidth(value: number): number {
     MIN_SPLIT_LEFT_WIDTH_PERCENT,
     Math.min(MAX_SPLIT_LEFT_WIDTH_PERCENT, Math.round(value)),
   );
-}
-
-function getDataModeBadgeStyle(mode: DataMode): {
-  label: string;
-  backgroundColor: string;
-  textColor: string;
-} {
-  if (mode === "online") {
-    return {
-      label: "SUPA",
-      backgroundColor: "#dcfce7",
-      textColor: "#166534",
-    };
-  }
-
-  if (mode === "local") {
-    return {
-      label: "JSON",
-      backgroundColor: "#dbeafe",
-      textColor: "#1d4ed8",
-    };
-  }
-
-  return {
-    label: "JSON",
-    backgroundColor: "#dbeafe",
-    textColor: "#1d4ed8",
-  };
 }
 
 function normalizeCategory(value: string): string {
@@ -863,8 +828,6 @@ export default function Home() {
       ALL_PLAYLISTS_FILTER
     );
   });
-  const [selectedPlaylistEditor, setSelectedPlaylistEditor] =
-    useState<PlaylistKey>("Playlist 1");
   const [liturgyDate, setLiturgyDate] = useState(() => {
     const stored = localStorage.getItem(LITURGY_DATE_STORAGE_KEY) ?? "";
     return /^\d{4}-\d{2}-\d{2}$/.test(stored)
@@ -907,6 +870,7 @@ export default function Home() {
   const applyingRemoteUiSyncRef = useRef(false);
   const lastSentSongIdRef = useRef<string | undefined>(undefined);
   const lastSentVerseFontSignatureRef = useRef<string>("");
+  const contentBoxRef = useRef<HTMLDivElement | null>(null);
   const [projectorFeedback, setProjectorFeedback] = useState<{
     message: string;
     tone: "ok" | "warn";
@@ -1244,8 +1208,6 @@ export default function Home() {
   const playlistResolvedCounts = useMemo(() => {
     const counts = {
       "Playlist 1": 0,
-      "Playlist 2": 0,
-      "Playlist 3": 0,
     } as Record<PlaylistKey, number>;
 
     PLAYLIST_KEYS.forEach((playlistKey) => {
@@ -1306,83 +1268,50 @@ export default function Home() {
     activePlaylistOrder,
   ]);
 
-  const selectedSongIdentityValue = selectedSong
-    ? getSongIdentity(selectedSong)
-    : "";
   const playlistMembershipByIdentity = useMemo(() => {
-    const membership = new Map<string, Set<string>>();
+    const membership = new Set<string>();
+    const playlistEntries = playlists[SINGLE_PLAYLIST_KEY] ?? [];
 
-    PLAYLIST_KEYS.forEach((playlistKey, playlistIndex) => {
-      const label = `P${playlistIndex + 1}`;
-      const playlistEntries = playlists[playlistKey] ?? [];
+    songsData.forEach((song) => {
+      const matches = playlistEntries.some((entry) =>
+        songMatchesPlaylistIdentity(song, entry),
+      );
+      if (!matches) {
+        return;
+      }
 
-      songsData.forEach((song) => {
-        const matches = playlistEntries.some((entry) =>
-          songMatchesPlaylistIdentity(song, entry),
-        );
-        if (!matches) {
-          return;
-        }
-
-        const canonical = getSongIdentity(song);
-        const current = membership.get(canonical) ?? new Set<string>();
-        current.add(label);
-        membership.set(canonical, current);
-      });
+      membership.add(getSongIdentity(song));
     });
 
-    const output = new Map<string, string[]>();
-    membership.forEach((labels, songIdentity) => {
-      output.set(songIdentity, Array.from(labels));
-    });
-
-    return output;
+    return membership;
   }, [playlists, songsData]);
-  const selectedEditorPlaylistSongs = playlists[selectedPlaylistEditor] ?? [];
-  const selectedSongInEditorPlaylist =
-    selectedSongIdentityValue.length > 0 &&
-    selectedEditorPlaylistSongs.some((playlistIdentity) =>
-      selectedSong
-        ? songMatchesPlaylistIdentity(selectedSong, playlistIdentity)
-        : false,
+
+  function togglePlaylistMembership(song: Song) {
+    const isInPlaylist = playlistMembershipByIdentity.has(
+      getSongIdentity(song),
     );
 
-  function addSelectedSongToPlaylist() {
-    if (!selectedSongIdentityValue) {
-      return;
-    }
-
     setPlaylists((previous) => {
-      const current = previous[selectedPlaylistEditor] ?? [];
+      const current = previous[SINGLE_PLAYLIST_KEY] ?? [];
+
+      if (isInPlaylist) {
+        return {
+          ...previous,
+          [SINGLE_PLAYLIST_KEY]: current.filter(
+            (item) => !songMatchesPlaylistIdentity(song, item),
+          ),
+        };
+      }
+
       const nextSet = new Set(
-        current.filter((item) =>
-          selectedSong
-            ? !songMatchesPlaylistIdentity(selectedSong, item)
-            : true,
-        ),
+        current.filter((item) => !songMatchesPlaylistIdentity(song, item)),
       );
-      nextSet.add(selectedSongIdentityValue);
+      nextSet.add(getSongIdentity(song));
       return {
         ...previous,
-        [selectedPlaylistEditor]: Array.from(nextSet),
+        [SINGLE_PLAYLIST_KEY]: Array.from(nextSet),
       };
     });
-  }
-
-  function removeSelectedSongFromPlaylist() {
-    if (!selectedSongIdentityValue) {
-      return;
-    }
-
-    setPlaylists((previous) => ({
-      ...previous,
-      [selectedPlaylistEditor]: (previous[selectedPlaylistEditor] ?? []).filter(
-        (item) =>
-          selectedSong
-            ? !songMatchesPlaylistIdentity(selectedSong, item)
-            : true,
-      ),
-    }));
   }
 
   function reorderPlaylistBySongIdentity(
@@ -1755,6 +1684,55 @@ export default function Home() {
     }
 
     navigate("/akordy", { state: { song: selectedSong } });
+  }
+
+  function handleSplitDividerDragStart(clientX: number) {
+    const container = contentBoxRef.current;
+    if (!container) {
+      return;
+    }
+
+    const rect = container.getBoundingClientRect();
+
+    const applyClientX = (x: number) => {
+      const percent = ((x - rect.left) / rect.width) * 100;
+      setSplitLeftWidthPercent(clampSplitWidth(percent));
+    };
+
+    applyClientX(clientX);
+
+    const handleMouseMove = (event: MouseEvent) => applyClientX(event.clientX);
+    const handleTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (touch) {
+        applyClientX(touch.clientX);
+      }
+    };
+    const stopDragging = () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", stopDragging);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", stopDragging);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", stopDragging);
+    window.addEventListener("touchmove", handleTouchMove);
+    window.addEventListener("touchend", stopDragging);
+  }
+
+  function handleSplitDividerMouseDown(event: React.MouseEvent) {
+    event.preventDefault();
+    handleSplitDividerDragStart(event.clientX);
+  }
+
+  function handleSplitDividerTouchStart(event: React.TouchEvent) {
+    const touch = event.touches[0];
+    if (!touch) {
+      return;
+    }
+
+    handleSplitDividerDragStart(touch.clientX);
   }
 
   function handleVerseOrderInputChange(raw: string) {
@@ -2164,7 +2142,6 @@ export default function Home() {
   const selectedVerseMultiplierPercent = Math.round(
     selectedVerseMultiplier * 100,
   );
-  const dataModeBadge = getDataModeBadgeStyle(dataMode);
 
   if (isLoading) {
     return (
@@ -2239,6 +2216,68 @@ export default function Home() {
           flexWrap: isCompactSplitView ? "wrap" : "nowrap",
         }}
       >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: "0 0 auto",
+            height: isCompactSplitView ? 62 : 80,
+            gap: 4,
+          }}
+        >
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            style={{
+              flex: "1 1 0",
+              minHeight: 0,
+              fontSize: isCompactSplitView ? 14 : 16,
+              padding: "0 10px",
+              borderRadius: 10,
+              border: mutedBorder,
+              backgroundColor: panelBackground,
+              color: textColor,
+            }}
+            title="Typ piesne"
+          >
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() =>
+              setSelectedPlaylistFilter((previous) =>
+                previous === SINGLE_PLAYLIST_KEY
+                  ? ALL_PLAYLISTS_FILTER
+                  : SINGLE_PLAYLIST_KEY,
+              )
+            }
+            style={{
+              flex: "1 1 0",
+              minHeight: 0,
+              fontSize: isCompactSplitView ? 14 : 16,
+              fontWeight: 800,
+              padding: "0 10px",
+              borderRadius: 10,
+              border: mutedBorder,
+              backgroundColor:
+                selectedPlaylistFilter === SINGLE_PLAYLIST_KEY
+                  ? activeTabBackground
+                  : "var(--color-input-bg)",
+              color:
+                selectedPlaylistFilter === SINGLE_PLAYLIST_KEY
+                  ? "white"
+                  : textColor,
+              cursor: "pointer",
+            }}
+            title="Zobrazit/skryt obsah playlistu"
+          >
+            PL ({playlistResolvedCounts[SINGLE_PLAYLIST_KEY]})
+          </button>
+        </div>
         <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
           <input
             type="text"
@@ -2315,233 +2354,12 @@ export default function Home() {
       </div>
 
       <div
-        id="filterBox"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 10,
-          flex: "0 0 auto",
-          margin: 0,
-        }}
-      >
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          style={{
-            fontSize: 20,
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: mutedBorder,
-            backgroundColor: panelBackground,
-            color: textColor,
-          }}
-        >
-          {categories.map((category) => (
-            <option key={category} value={category}>
-              {category}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={selectedPlaylistFilter}
-          onChange={(e) => setSelectedPlaylistFilter(e.target.value)}
-          style={{
-            fontSize: 20,
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: mutedBorder,
-            backgroundColor: panelBackground,
-            color: textColor,
-          }}
-          title="Filter podla playlistu"
-        >
-          <option value={ALL_PLAYLISTS_FILTER}>{ALL_PLAYLISTS_FILTER}</option>
-          {PLAYLIST_KEYS.map((key) => (
-            <option key={key} value={key}>
-              {key} ({playlistResolvedCounts[key]})
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={selectedPlaylistEditor}
-          onChange={(e) =>
-            setSelectedPlaylistEditor(e.target.value as PlaylistKey)
-          }
-          style={{
-            fontSize: 16,
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: mutedBorder,
-            backgroundColor: panelBackground,
-            color: textColor,
-          }}
-          title="Playlist pre pridanie alebo odobratie skladby"
-        >
-          {PLAYLIST_KEYS.map((key) => (
-            <option key={key} value={key}>
-              {key}
-            </option>
-          ))}
-        </select>
-
-        <button
-          onClick={addSelectedSongToPlaylist}
-          disabled={!selectedSong || selectedSongInEditorPlaylist}
-          style={{
-            fontSize: 16,
-            fontWeight: 700,
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: mutedBorder,
-            backgroundColor: "var(--color-input-bg)",
-            color: textColor,
-            cursor: "pointer",
-          }}
-          title="Pridat aktualne vybratu skladbu do playlistu"
-        >
-          + Do playlistu
-        </button>
-
-        <button
-          onClick={removeSelectedSongFromPlaylist}
-          disabled={!selectedSong || !selectedSongInEditorPlaylist}
-          style={{
-            fontSize: 16,
-            fontWeight: 700,
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: mutedBorder,
-            backgroundColor: "var(--color-input-bg)",
-            color: textColor,
-            cursor: "pointer",
-          }}
-          title="Odobrat aktualne vybratu skladbu z playlistu"
-        >
-          - Z playlistu
-        </button>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 20,
-            fontWeight: 700,
-          }}
-          title="Pocet skladieb a aktivny datovy rezim"
-        >
-          <span>
-            {filteredData.length} / {songsData.length}
-          </span>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 74,
-              borderRadius: 999,
-              padding: "3px 10px",
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: "0.05em",
-              backgroundColor: dataModeBadge.backgroundColor,
-              color: dataModeBadge.textColor,
-              border: "1px solid rgba(0,0,0,0.16)",
-            }}
-          >
-            {dataModeBadge.label}
-          </span>
-        </div>
-
-        {isSplitView && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: isCompactSplitView ? 14 : 16,
-              fontWeight: 700,
-            }}
-          >
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              Sirka zoznamu: {splitLeftWidthPercent}%
-              <input
-                type="range"
-                min={MIN_SPLIT_LEFT_WIDTH_PERCENT}
-                max={MAX_SPLIT_LEFT_WIDTH_PERCENT}
-                step={1}
-                value={splitLeftWidthPercent}
-                onChange={(e) =>
-                  setSplitLeftWidthPercent(
-                    clampSplitWidth(Number(e.target.value)),
-                  )
-                }
-              />
-            </label>
-
-            <button
-              type="button"
-              onClick={() => void handleAdjustSelectedVerseFont(-1)}
-              disabled={!selectedSong || isSavingVerseFont}
-              style={{
-                borderRadius: 10,
-                border: mutedBorder,
-                backgroundColor: "var(--color-input-bg)",
-                color: textColor,
-                fontWeight: 800,
-                fontSize: 16,
-                padding: "5px 10px",
-                cursor: "pointer",
-                minWidth: 40,
-              }}
-              title="Zmensit pismo pre aktualnu slohu na DTP"
-            >
-              -
-            </button>
-
-            <span
-              style={{
-                minWidth: 64,
-                textAlign: "center",
-                fontWeight: 800,
-              }}
-              title="Percento pre aktualnu slohu na DTP"
-            >
-              {selectedVerseMultiplierPercent}%
-            </span>
-
-            <button
-              type="button"
-              onClick={() => void handleAdjustSelectedVerseFont(1)}
-              disabled={!selectedSong || isSavingVerseFont}
-              style={{
-                borderRadius: 10,
-                border: mutedBorder,
-                backgroundColor: "var(--color-input-bg)",
-                color: textColor,
-                fontWeight: 800,
-                fontSize: 16,
-                padding: "5px 10px",
-                cursor: "pointer",
-                minWidth: 40,
-              }}
-              title="Zvacsit pismo pre aktualnu slohu na DTP"
-            >
-              +
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div
         id="contentBox"
+        ref={contentBoxRef}
         style={{
           display: "flex",
           flexDirection: isSplitView ? "row" : "column",
-          gap: 10,
+          gap: isSplitView ? 0 : 10,
           flex: "1 1 auto",
           minHeight: 0,
           margin: 0,
@@ -2576,8 +2394,8 @@ export default function Home() {
               const isDraggingItem =
                 rightDragSongIdentity !== null &&
                 rightDragSongIdentity === itemIdentity;
-              const playlistBadges =
-                playlistMembershipByIdentity.get(itemIdentity) ?? [];
+              const isInPlaylist =
+                playlistMembershipByIdentity.has(itemIdentity);
               const categoryBadge = getCategoryBadge(item);
 
               return (
@@ -2612,114 +2430,180 @@ export default function Home() {
                   <div
                     style={{
                       display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      gap: 4,
-                      padding: "9px 12px 10px",
+                      flexDirection: "row",
+                      alignItems: "stretch",
                     }}
                   >
                     <div
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 6,
-                        flexWrap: "wrap",
+                        justifyContent: "center",
+                        flex: "0 0 auto",
+                        minWidth: 52,
+                        padding: "0 12px",
+                        fontSize: 28,
+                        fontWeight: 900,
+                        lineHeight: 1,
+                        color: isSelected ? "white" : textColor,
                       }}
                     >
-                      <span
+                      {item.cisloP}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        gap: 4,
+                        flex: "1 1 auto",
+                        minWidth: 0,
+                        padding: "9px 12px 10px",
+                      }}
+                    >
+                      <div
                         style={{
-                          display: "inline-flex",
+                          display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          minWidth: 44,
-                          padding: "4px 10px",
-                          borderRadius: 10,
-                          fontSize: 12,
-                          fontWeight: 800,
-                          letterSpacing: "0.04em",
-                          lineHeight: 1,
-                          backgroundColor: isSelected
-                            ? "rgba(255,255,255,0.22)"
-                            : panelBackground,
-                          color: isSelected ? "white" : textColor,
+                          gap: 6,
+                          flexWrap: "wrap",
                         }}
                       >
-                        {item.cisloP}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 800,
-                          borderRadius: 999,
-                          padding: "2px 7px",
-                          border: "1px solid rgba(0,0,0,0.25)",
-                          backgroundColor: isSelected ? "#ede9fe" : "#f1f5f9",
-                          color: "#334155",
-                          letterSpacing: "0.03em",
-                        }}
-                        title={`Kategoria: ${getSongCategory(item)}`}
-                      >
-                        {categoryBadge}
-                      </span>
-                      {playlistBadges.map((badge) => (
                         <span
-                          key={`${itemIdentity}-${badge}`}
                           style={{
                             fontSize: 11,
                             fontWeight: 800,
                             borderRadius: 999,
                             padding: "2px 7px",
                             border: "1px solid rgba(0,0,0,0.25)",
-                            backgroundColor: isSelected ? "#dbeafe" : "#dcfce7",
-                            color: "#166534",
+                            backgroundColor: isSelected ? "#ede9fe" : "#f1f5f9",
+                            color: "#334155",
                             letterSpacing: "0.03em",
                           }}
-                          title={`Skladba je v ${badge}`}
+                          title={`Kategoria: ${getSongCategory(item)}`}
                         >
-                          {badge}
+                          {categoryBadge}
                         </span>
-                      ))}
-                    </div>
-                    <span
-                      style={{
-                        display: "-webkit-box",
-                        WebkitBoxOrient: "vertical",
-                        WebkitLineClamp: 2,
-                        overflow: "hidden",
-                        textAlign: "start",
-                        fontSize: 16,
-                        fontWeight: 700,
-                        lineHeight: 1.15,
-                        width: "100%",
-                        color: isSelected ? "white" : textColor,
-                      }}
-                      title={`${item.cisloP}. ${item.nazov}`}
-                    >
-                      {item.nazov}
-                    </span>
-                    {hasCustomVerseOrder(item) && (
+                        {isInPlaylist && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 800,
+                              borderRadius: 999,
+                              padding: "2px 7px",
+                              border: "1px solid rgba(0,0,0,0.25)",
+                              backgroundColor: isSelected
+                                ? "#dbeafe"
+                                : "#dcfce7",
+                              color: "#166534",
+                              letterSpacing: "0.03em",
+                            }}
+                            title="Skladba je v playliste"
+                          >
+                            PL
+                          </span>
+                        )}
+                      </div>
                       <span
                         style={{
-                          fontSize: 11,
+                          display: "-webkit-box",
+                          WebkitBoxOrient: "vertical",
+                          WebkitLineClamp: 2,
+                          overflow: "hidden",
+                          textAlign: "start",
+                          fontSize: 16,
                           fontWeight: 700,
-                          borderRadius: 999,
-                          padding: "2px 8px",
-                          border: "1px solid rgba(0,0,0,0.25)",
-                          backgroundColor: isSelected ? "#dbeafe" : "#fef3c7",
-                          color: "#7c2d12",
-                          marginRight: 8,
+                          lineHeight: 1.15,
+                          width: "100%",
+                          color: isSelected ? "white" : textColor,
                         }}
-                        title="Skladba ma vlastne poradie sloh"
+                        title={`${item.cisloP}. ${item.nazov}`}
                       >
-                        PORADIE
+                        {item.nazov}
                       </span>
-                    )}
+                      {hasCustomVerseOrder(item) && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            borderRadius: 999,
+                            padding: "2px 8px",
+                            border: "1px solid rgba(0,0,0,0.25)",
+                            backgroundColor: isSelected ? "#dbeafe" : "#fef3c7",
+                            color: "#7c2d12",
+                            marginRight: 8,
+                          }}
+                          title="Skladba ma vlastne poradie sloh"
+                        >
+                          PORADIE
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        togglePlaylistMembership(item);
+                      }}
+                      style={{
+                        flex: "0 0 auto",
+                        alignSelf: "center",
+                        width: 36,
+                        height: 36,
+                        marginRight: 10,
+                        borderRadius: 10,
+                        border: "1px solid rgba(0,0,0,0.25)",
+                        backgroundColor: isInPlaylist
+                          ? "#fee2e2"
+                          : "rgba(255,255,255,0.4)",
+                        color: isInPlaylist ? "#7f1d1d" : "#166534",
+                        fontWeight: 900,
+                        fontSize: 18,
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                      title={
+                        isInPlaylist
+                          ? "Odobrat z playlistu"
+                          : "Pridat do playlistu"
+                      }
+                    >
+                      {isInPlaylist ? "-" : "+"}
+                    </button>
                   </div>
                 </li>
               );
             })}
           </ul>
         </div>
+
+        {isSplitView && (
+          <div
+            onMouseDown={handleSplitDividerMouseDown}
+            onTouchStart={handleSplitDividerTouchStart}
+            style={{
+              flex: "0 0 auto",
+              width: 12,
+              margin: "0 -1px",
+              cursor: "col-resize",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              touchAction: "none",
+              zIndex: 1,
+            }}
+            title="Tahaj pre zmenu sirky zoznamu"
+          >
+            <div
+              style={{
+                width: 4,
+                height: "40%",
+                borderRadius: 2,
+                backgroundColor: "var(--color-border)",
+              }}
+            />
+          </div>
+        )}
 
         <div
           id="previewBox"
@@ -2746,6 +2630,40 @@ export default function Home() {
               backgroundColor: panelBackground,
             }}
           >
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flex: "0 0 auto",
+                fontSize: isCompactSplitView ? 16 : 18,
+                fontWeight: 900,
+                padding: isCompactSplitView ? "14px 16px" : "16px 20px",
+                borderRadius: 12,
+                border: mutedBorder,
+                backgroundColor: isProjectorBlackout
+                  ? "#111827"
+                  : "var(--color-input-bg)",
+                color: isProjectorBlackout ? "#f9fafb" : textColor,
+                cursor: "pointer",
+                userSelect: "none",
+              }}
+              title="BLACK rezim drzi ciernu obrazovku, kym ho nevypnes"
+            >
+              <input
+                type="checkbox"
+                checked={isProjectorBlackout}
+                onChange={(e) =>
+                  handleProjectorBlackoutToggle(e.target.checked)
+                }
+                style={{
+                  width: isCompactSplitView ? 22 : 26,
+                  height: isCompactSplitView ? 22 : 26,
+                  cursor: "pointer",
+                }}
+              />
+              BLACK
+            </label>
             <button
               onClick={handleOpenFullAkordy}
               disabled={!selectedSong}
@@ -2770,27 +2688,61 @@ export default function Home() {
                 ? `${selectedSong.cisloP}. ${selectedSong.nazov}`
                 : "Vyber skladbu zo zoznamu"}
             </button>
+
             <button
-              onClick={handleOpenProjector}
-              disabled={!selectedSong}
+              type="button"
+              onClick={() => void handleAdjustSelectedVerseFont(-1)}
+              disabled={!selectedSong || isSavingVerseFont}
               style={{
-                fontSize: isCompactSplitView ? 14 : 16,
-                fontWeight: 700,
-                padding: "8px 12px",
-                borderRadius: 12,
+                flex: "0 0 auto",
+                borderRadius: 10,
                 border: mutedBorder,
-                backgroundColor: isProjectorConnected ? "#8fd694" : "#f28b82",
-                color: "black",
+                backgroundColor: "var(--color-input-bg)",
+                color: textColor,
+                fontWeight: 800,
+                fontSize: 16,
+                padding: "8px 12px",
                 cursor: "pointer",
+                minWidth: 40,
               }}
-              title={
-                isProjectorConnected
-                  ? "Projektor je online"
-                  : "Projektor je offline"
-              }
+              title="Zmensit pismo pre aktualnu slohu na DTP"
             >
-              PROJ
+              -
             </button>
+
+            <span
+              style={{
+                flex: "0 0 auto",
+                minWidth: 48,
+                textAlign: "center",
+                fontWeight: 800,
+              }}
+              title="Percento pre aktualnu slohu na DTP"
+            >
+              {selectedVerseMultiplierPercent}%
+            </span>
+
+            <button
+              type="button"
+              onClick={() => void handleAdjustSelectedVerseFont(1)}
+              disabled={!selectedSong || isSavingVerseFont}
+              style={{
+                flex: "0 0 auto",
+                borderRadius: 10,
+                border: mutedBorder,
+                backgroundColor: "var(--color-input-bg)",
+                color: textColor,
+                fontWeight: 800,
+                fontSize: 16,
+                padding: "8px 12px",
+                cursor: "pointer",
+                minWidth: 40,
+              }}
+              title="Zvacsit pismo pre aktualnu slohu na DTP"
+            >
+              +
+            </button>
+
             {selectedSong && isPsalmCategory(getSongCategory(selectedSong)) && (
               <>
                 <input
@@ -2828,33 +2780,32 @@ export default function Home() {
                 </button>
               </>
             )}
-            <label
+
+            <button
+              type="button"
+              onClick={handleOpenProjector}
+              disabled={!selectedSong}
+              aria-label={
+                isProjectorConnected
+                  ? "Projektor je online"
+                  : "Projektor je offline"
+              }
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 10px",
-                borderRadius: 12,
-                border: mutedBorder,
-                backgroundColor: isProjectorBlackout
-                  ? "#111827"
-                  : "var(--color-input-bg)",
-                color: isProjectorBlackout ? "#f9fafb" : textColor,
-                fontWeight: 800,
-                fontSize: isCompactSplitView ? 12 : 13,
-                userSelect: "none",
+                flex: "0 0 auto",
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                border: "1px solid rgba(0,0,0,0.35)",
+                backgroundColor: isProjectorConnected ? "#22c55e" : "#ef4444",
+                padding: 0,
+                cursor: "pointer",
               }}
-              title="BLACK rezim drzi ciernu obrazovku, kym ho nevypnes"
-            >
-              <input
-                type="checkbox"
-                checked={isProjectorBlackout}
-                onChange={(e) =>
-                  handleProjectorBlackoutToggle(e.target.checked)
-                }
-              />
-              BLACK
-            </label>
+              title={
+                isProjectorConnected
+                  ? "Projektor je online (klikni pre znovuodoslanie)"
+                  : "Projektor je offline"
+              }
+            />
           </div>
 
           {projectorFeedback && (
@@ -3047,8 +2998,10 @@ export default function Home() {
                 key={`${verse.cisloS}-${index}`}
                 onClick={() => selectVerse(index)}
                 style={{
-                  flex: "1 0 70px",
-                  minWidth: 70,
+                  flex: "1 0 110px",
+                  minWidth: 110,
+                  display: "flex",
+                  alignItems: "stretch",
                   borderRadius: 12,
                   border: mutedBorder,
                   backgroundColor:
@@ -3056,25 +3009,44 @@ export default function Home() {
                       ? activeTabBackground
                       : "var(--color-input-bg)",
                   color: selectedVerse === index ? "white" : textColor,
-                  padding: "8px 6px",
+                  padding: 0,
                   cursor: "pointer",
+                  overflow: "hidden",
                 }}
                 title={verse.textik}
               >
-                <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.92 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flex: "0 0 auto",
+                    minWidth: 32,
+                    padding: "0 8px",
+                    fontSize: 22,
+                    fontWeight: 900,
+                    lineHeight: 1,
+                    color: selectedVerse === index ? "white" : textColor,
+                  }}
+                >
                   {verse.cisloS}
                 </div>
                 <div
                   style={{
-                    fontSize: 12,
-                    fontWeight: 500,
+                    flex: "1 1 auto",
+                    minWidth: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "8px 6px",
+                    fontSize: 16,
+                    fontWeight: 600,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     opacity: 0.95,
                   }}
                 >
-                  {buildVersePreviewText(verse.textik ?? "", 30) ||
+                  {buildVersePreviewText(verse.textik ?? "", 18) ||
                     "(prazdna sloha)"}
                 </div>
               </button>

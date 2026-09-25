@@ -36919,9 +36919,10 @@
     }
   ],
   "playlists": {
-    "Playlist 1": [],
-    "Playlist 2": [],
-    "Playlist 3": []
+    "Playlist 1": [
+      "id:1658",
+      "id:903"
+    ]
   },
   "settings": {
     "fontSize": 20,
