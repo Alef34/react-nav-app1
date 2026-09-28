@@ -3,6 +3,11 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { readFileSync } from "node:fs";
 
+const httpsOptions = {
+  key: readFileSync("./certs/local-key.pem"),
+  cert: readFileSync("./certs/local-cert.pem"),
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -56,11 +61,9 @@ export default defineConfig({
   server: {
     port: 5179,
     strictPort: true,
-    host: true,
-    https: {
-      key: readFileSync("./certs/local-key.pem"),
-      cert: readFileSync("./certs/local-cert.pem"),
-    },
+    host: "0.0.0.0",
+    https: httpsOptions,
+
     proxy: {
       "/api": {
         target: "http://127.0.0.1:3001",
@@ -69,6 +72,11 @@ export default defineConfig({
     },
   },
   preview: {
+    host: "0.0.0.0",
+    port: 5179,
+    strictPort: true,
+    https: httpsOptions,
+
     proxy: {
       "/api": {
         target: "http://127.0.0.1:3001",
