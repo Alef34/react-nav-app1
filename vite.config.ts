@@ -73,7 +73,7 @@ export default defineConfig({
   },
   preview: {
     host: "0.0.0.0",
-    port: 5179,
+    port: 5180,
     strictPort: true,
     https: httpsOptions,
 
