@@ -378,6 +378,7 @@ export default function ProjectorView() {
                   IP ({entry.iface}): <strong>{entry.address}</strong>
                 </div>
               ))}
+              ver:{versionNumberOnly}
             </div>
           )}
         </div>
@@ -394,7 +395,9 @@ export default function ProjectorView() {
             <div
               style={{
                 margin: 0,
-                color: projectorTextColor,
+                color: projectorShowFrame
+                  ? projectorTextColor
+                  : projectorBgColor,
                 fontSize: Math.round(height * 0.02),
                 opacity: 0.9,
               }}
@@ -432,7 +435,7 @@ export default function ProjectorView() {
           zIndex: 9999,
           fontSize: 12,
           opacity: 0.45,
-          color: projectorTextColor,
+          color: projectorShowFrame ? projectorTextColor : projectorBgColor,
           pointerEvents: "none",
         }}
       >
