@@ -144,6 +144,7 @@ export default function Akordy1() {
   });
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
   const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
+  const [isProjectorInfo, setIsProjectorInfo] = useState(false);
   const applyingRemotePayloadRef = useRef(false);
   const lastSentSongIdRef = useRef<string | undefined>(undefined);
   const [projectorFeedback, setProjectorFeedback] = useState<{
@@ -212,6 +213,7 @@ export default function Akordy1() {
       }
 
       setIsProjectorBlackout(payload.blackout === true);
+      setIsProjectorInfo(payload.showInfo === true);
 
       const incomingSong = payload.song;
       if (!incomingSong) {
@@ -347,6 +349,27 @@ export default function Akordy1() {
       }
       setProjectorFeedback({ message: "BLACK rezim vypnuty.", tone: "ok" });
     }
+
+    window.setTimeout(() => {
+      setProjectorFeedback(null);
+    }, 2200);
+  }
+
+  function handleProjectorInfoToggle(checked: boolean) {
+    setIsProjectorInfo(checked);
+    sendProjectorPayload({ showInfo: checked });
+
+    const connected = getProjectorChannelConnectionState();
+    setProjectorFeedback(
+      checked
+        ? {
+            message: connected
+              ? "Projektor prepnuty na uvodnu obrazovku (siet/IP)."
+              : getProjectorUnavailableMessage(),
+            tone: connected ? "ok" : "warn",
+          }
+        : { message: "Navrat k premietaniu skladby.", tone: "ok" },
+    );
 
     window.setTimeout(() => {
       setProjectorFeedback(null);
@@ -695,6 +718,32 @@ export default function Akordy1() {
             onChange={(e) => handleProjectorBlackoutToggle(e.target.checked)}
           />
           BLACK
+        </label>
+        <label
+          style={{
+            ...getStyles(btnSize).button,
+            width: "auto",
+            minWidth: Math.round(btnSize * 2.2),
+            padding: "0 8px",
+            backgroundColor: isProjectorInfo ? "#1d4ed8" : panelBackground,
+            border: `1px solid ${borderColor}`,
+            color: isProjectorInfo ? "#f9fafb" : textColor,
+            fontSize: Math.round(btnSize * 0.34),
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            userSelect: "none",
+          }}
+          title="Zobrazi na projektore uvodnu obrazovku so sietou a IP adresami"
+        >
+          <input
+            type="checkbox"
+            checked={isProjectorInfo}
+            onChange={(e) => handleProjectorInfoToggle(e.target.checked)}
+          />
+          INFO
         </label>
         <button
           style={{

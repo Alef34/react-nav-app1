@@ -36936,6 +36936,7 @@
     "colorScheme": "dark",
     "showAkordy": true,
     "showAkordyProjector": false,
+    "projectorShowFrame": false,
     "liturgyWordsPerVerse": 80,
     "verzia": ""
   }

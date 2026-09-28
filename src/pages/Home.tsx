@@ -866,6 +866,7 @@ export default function Home() {
   });
   const [isProjectorConnected, setIsProjectorConnected] = useState(false);
   const [isProjectorBlackout, setIsProjectorBlackout] = useState(false);
+  const [isProjectorInfo, setIsProjectorInfo] = useState(false);
   const applyingRemotePayloadRef = useRef(false);
   const applyingRemoteUiSyncRef = useRef(false);
   const lastSentSongIdRef = useRef<string | undefined>(undefined);
@@ -1086,6 +1087,7 @@ export default function Home() {
       }
 
       setIsProjectorBlackout(payload.blackout === true);
+      setIsProjectorInfo(payload.showInfo === true);
 
       const incomingSongId =
         typeof payload.songId === "number"
@@ -1672,6 +1674,27 @@ export default function Home() {
       sendProjectorPayload({ blackout: false });
       setProjectorFeedback({ message: "BLACK rezim vypnuty.", tone: "ok" });
     }
+
+    window.setTimeout(() => {
+      setProjectorFeedback(null);
+    }, 2200);
+  }
+
+  function handleProjectorInfoToggle(checked: boolean) {
+    setIsProjectorInfo(checked);
+    sendProjectorPayload({ showInfo: checked });
+
+    const connected = getProjectorChannelConnectionState();
+    setProjectorFeedback(
+      checked
+        ? {
+            message: connected
+              ? "Projektor prepnuty na uvodnu obrazovku (siet/IP)."
+              : getProjectorUnavailableMessage(),
+            tone: connected ? "ok" : "warn",
+          }
+        : { message: "Navrat k premietaniu skladby.", tone: "ok" },
+    );
 
     window.setTimeout(() => {
       setProjectorFeedback(null);
@@ -2664,6 +2687,7 @@ export default function Home() {
               />
               BLACK
             </label>
+
             <button
               onClick={handleOpenFullAkordy}
               disabled={!selectedSong}
@@ -2805,6 +2829,17 @@ export default function Home() {
                   ? "Projektor je online (klikni pre znovuodoslanie)"
                   : "Projektor je offline"
               }
+            />
+
+            <input
+              type="checkbox"
+              checked={isProjectorInfo}
+              onChange={(e) => handleProjectorInfoToggle(e.target.checked)}
+              style={{
+                width: 22,
+                height: 22,
+                cursor: "pointer",
+              }}
             />
           </div>
 

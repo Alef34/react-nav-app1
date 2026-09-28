@@ -92,6 +92,20 @@ export const Modal: React.FC = () => {
                   }
                 />
               </div>
+              <div className="itemA item-1A" style={{ fontSize: "x-large" }}>
+                <label htmlFor="projector-frame" style={{ flex: 2 }}>
+                  Ramcek okolo textu (Projektor):
+                </label>
+                <Checkbox
+                  inputProps={{ "aria-label": "Ramcek okolo textu projektor" }}
+                  id="projector-frame"
+                  checked={myProps.projectorShowFrame}
+                  onChange={(e) => {
+                    myProps.setProjectorShowFrame(e.target.checked);
+                  }}
+                  sx={{ "& .MuiSvgIcon-root": { fontSize: 50 } }}
+                />
+              </div>
               <div className="itemA item-1A">
                 <label
                   htmlFor="projector-bg-color"

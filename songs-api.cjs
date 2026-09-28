@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS = {
   colorScheme: "dark",
   showAkordy: false,
   showAkordyProjector: false,
+  projectorShowFrame: true,
   liturgyWordsPerVerse: 80,
   verzia: "",
 };
@@ -101,6 +102,10 @@ function normalizeSettings(raw) {
         : DEFAULT_SETTINGS.colorScheme,
     showAkordy: Boolean(safe.showAkordy),
     showAkordyProjector: Boolean(safe.showAkordyProjector),
+    projectorShowFrame:
+      safe.projectorShowFrame === undefined
+        ? DEFAULT_SETTINGS.projectorShowFrame
+        : Boolean(safe.projectorShowFrame),
     liturgyWordsPerVerse: Math.round(
       normalizeNumber(
         safe.liturgyWordsPerVerse,

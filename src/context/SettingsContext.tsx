@@ -28,6 +28,8 @@ export type SettingsContextType = {
   setShowAkordy: React.Dispatch<React.SetStateAction<boolean>>;
   showAkordyProjector: boolean;
   setShowAkordyProjector: React.Dispatch<React.SetStateAction<boolean>>;
+  projectorShowFrame: boolean;
+  setProjectorShowFrame: React.Dispatch<React.SetStateAction<boolean>>;
   liturgyWordsPerVerse: number;
   setLiturgyWordsPerVerse: React.Dispatch<React.SetStateAction<number>>;
   verzia: string;
@@ -48,6 +50,7 @@ type StoredSettings = {
   colorScheme: ColorScheme;
   showAkordy: boolean;
   showAkordyProjector: boolean;
+  projectorShowFrame: boolean;
   liturgyWordsPerVerse: number;
   verzia: string;
 };
@@ -62,6 +65,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
   colorScheme: "dark",
   showAkordy: false,
   showAkordyProjector: false,
+  projectorShowFrame: true,
   liturgyWordsPerVerse: 80,
   verzia: "",
 };
@@ -131,6 +135,10 @@ function normalizeStoredSettings(
     colorScheme: safe.colorScheme === "light" ? "light" : "dark",
     showAkordy: Boolean(safe.showAkordy),
     showAkordyProjector: Boolean(safe.showAkordyProjector),
+    projectorShowFrame:
+      safe.projectorShowFrame === undefined
+        ? DEFAULT_SETTINGS.projectorShowFrame
+        : Boolean(safe.projectorShowFrame),
     liturgyWordsPerVerse: Math.round(
       Number.isFinite(Number(safe.liturgyWordsPerVerse))
         ? Math.min(300, Math.max(20, Number(safe.liturgyWordsPerVerse)))
@@ -186,6 +194,9 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
   const [showAkordyProjector, setShowAkordyProjector] = useState<boolean>(
     DEFAULT_SETTINGS.showAkordyProjector,
   );
+  const [projectorShowFrame, setProjectorShowFrame] = useState<boolean>(
+    DEFAULT_SETTINGS.projectorShowFrame,
+  );
   const [liturgyWordsPerVerse, setLiturgyWordsPerVerse] = useState<number>(
     DEFAULT_SETTINGS.liturgyWordsPerVerse,
   );
@@ -205,6 +216,7 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
         colorScheme,
         showAkordy,
         showAkordyProjector,
+        projectorShowFrame,
         liturgyWordsPerVerse,
         verzia,
       }),
@@ -218,6 +230,7 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
       colorScheme,
       showAkordy,
       showAkordyProjector,
+      projectorShowFrame,
       liturgyWordsPerVerse,
       verzia,
     ],
@@ -242,6 +255,7 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
         setColorScheme(apiSettings.colorScheme);
         setShowAkordy(apiSettings.showAkordy);
         setShowAkordyProjector(apiSettings.showAkordyProjector);
+        setProjectorShowFrame(apiSettings.projectorShowFrame);
         setLiturgyWordsPerVerse(apiSettings.liturgyWordsPerVerse);
         setVerzia(apiSettings.verzia);
         lastSavedPayloadRef.current = JSON.stringify(apiSettings);
@@ -306,6 +320,7 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
         setColorScheme(apiSettings.colorScheme);
         setShowAkordy(apiSettings.showAkordy);
         setShowAkordyProjector(apiSettings.showAkordyProjector);
+        setProjectorShowFrame(apiSettings.projectorShowFrame);
         setLiturgyWordsPerVerse(apiSettings.liturgyWordsPerVerse);
         setVerzia(apiSettings.verzia);
       } catch {
@@ -352,6 +367,8 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
         setShowAkordy,
         showAkordyProjector,
         setShowAkordyProjector,
+        projectorShowFrame,
+        setProjectorShowFrame,
         liturgyWordsPerVerse,
         setLiturgyWordsPerVerse,
         verzia,

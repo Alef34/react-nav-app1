@@ -113,6 +113,7 @@ export default function ProjectorView() {
   const projectorTextColor = settingsContext?.projectorTextColor ?? "white";
   const homeChordColor = settingsContext?.homeChordColor ?? "#0000ff";
   const showAkordy = settingsContext?.showAkordyProjector ?? false;
+  const projectorShowFrame = settingsContext?.projectorShowFrame ?? true;
   const [isCursorVisible, setIsCursorVisible] = useState(true);
   const [networkInfo, setNetworkInfo] = useState<{
     ips: { iface: string; address: string }[];
@@ -239,6 +240,7 @@ export default function ProjectorView() {
 
   const song = resolvedSong;
   const isBlackout = payload.blackout === true;
+  const isInfoScreen = payload.showInfo === true;
   const verseIndex = payload.selectedView ?? 0;
   const activeVerseMultiplier = resolveVerseProjectorMultiplier(
     song,
@@ -287,7 +289,7 @@ export default function ProjectorView() {
     return match?.[1] ?? APP_VERSION;
   }, []);
 
-  if (isBlackout) {
+  if (isBlackout && !isInfoScreen) {
     return (
       <div
         style={{
@@ -334,7 +336,7 @@ export default function ProjectorView() {
         </div>
       ) : null}
 
-      {!song ? (
+      {!song || isInfoScreen ? (
         <div style={{ margin: "auto", textAlign: "center" }}>
           <h1
             style={{
@@ -352,7 +354,9 @@ export default function ProjectorView() {
               color: projectorTextColor,
             }}
           >
-            V hlavnom okne otvor skladbu a klikni na tlacidlo PROJ.
+            {isInfoScreen && song
+              ? "Premietanie beží na pozadí, vypni INFO pre navrat k projekcii."
+              : "V hlavnom okne otvor skladbu a klikni na tlacidlo PROJ."}
           </p>
           {networkInfo && (
             <div
@@ -405,7 +409,7 @@ export default function ProjectorView() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              border: "1px solid #f0cc70",
+              border: projectorShowFrame ? "1px solid #f0cc70" : "none",
               borderRadius: 10,
               padding: 0,
             }}

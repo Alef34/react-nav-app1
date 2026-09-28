@@ -9,6 +9,7 @@ export interface ProjectorPayload {
   selectedView?: number;
   showAkordy?: boolean;
   blackout?: boolean;
+  showInfo?: boolean;
   searchQuery?: string;
   selectedCategory?: string;
   selectedPlaylistFilter?: string;
@@ -198,6 +199,10 @@ function sanitizeProjectorPayload(
 
   if (typeof candidate.blackout === "boolean") {
     output.blackout = candidate.blackout;
+  }
+
+  if (typeof candidate.showInfo === "boolean") {
+    output.showInfo = candidate.showInfo;
   }
 
   if (typeof candidate.searchQuery === "string") {
