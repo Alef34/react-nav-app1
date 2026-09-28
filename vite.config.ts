@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { readFileSync } from "node:fs";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -56,6 +57,10 @@ export default defineConfig({
     port: 5179,
     strictPort: true,
     host: true,
+    https: {
+      key: readFileSync("./certs/local-key.pem"),
+      cert: readFileSync("./certs/local-cert.pem"),
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:3001",
