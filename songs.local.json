@@ -36920,12 +36920,14 @@
   ],
   "playlists": {
     "Playlist 1": [
-      "id:1658",
-      "id:903"
+      "id:726",
+      "id:848",
+      "id:1029",
+      "id:1153"
     ]
   },
   "settings": {
-    "fontSize": 20,
+    "fontSize": 28,
     "chordSizeMultiplier": 0.7,
     "projectorFontSizeMultiplier": 1,
     "projectorBgColor": "#000000",

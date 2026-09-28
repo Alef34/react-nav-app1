@@ -358,7 +358,7 @@ export default function ProjectorView() {
             <div
               style={{
                 marginTop: 24,
-                fontSize: Math.round(height * 0.025),
+                fontSize: Math.round(height * 0.05),
                 opacity: 0.75,
                 color: projectorTextColor,
                 lineHeight: 1.6,
