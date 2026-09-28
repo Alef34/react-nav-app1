@@ -62,7 +62,7 @@ export default defineConfig({
     port: 5179,
     strictPort: true,
     host: "0.0.0.0",
-    https: httpsOptions,
+    //https: httpsOptions,
 
     proxy: {
       "/api": {
@@ -75,7 +75,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5180,
     strictPort: true,
-    https: httpsOptions,
+    //https: httpsOptions,
 
     proxy: {
       "/api": {
