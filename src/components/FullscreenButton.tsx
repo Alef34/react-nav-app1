@@ -46,7 +46,7 @@ const FullscreenButton: React.FC = () => {
         fontWeight: "bold",
       }}
     >
-      {isFullscreen ? "📺 Odistiť obrazovku" : "📱 Fullscreen"}
+      {isFullscreen ? "📺" : "📱"}
     </button>
   );
 };
