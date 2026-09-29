@@ -163,3 +163,4 @@ sudo journalctl -u rpi-connect-healthcheck.service -f
 sluzbu spuštam v /etc/systemd/system/react-nav-projector.service
 Je tam aj tokoen na reboot
 83539411
+SilneHeslO123;

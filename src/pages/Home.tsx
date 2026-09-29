@@ -5,6 +5,8 @@ import { GiSettingsKnobs } from "react-icons/gi";
 import { useLocation, useNavigate } from "react-router-dom";
 //import { localData } from "../localData";
 
+import FullscreenButton from "../components/FullscreenButton";
+
 import { Song, SongsData } from "../types/myTypes";
 import SongView from "../components/Song";
 import { getSongs } from "../api/dataSources";
@@ -2225,6 +2227,7 @@ export default function Home() {
         backgroundColor: pageBackground,
       }}
     >
+      <FullscreenButton />
       <div
         id="inputBox"
         style={{
