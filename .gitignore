@@ -25,6 +25,9 @@ dist-ssr
 
 # Local SQLite database
 songs.db
+
 JKS.json
 songs.json
 songsJks.json
+songs.local.json
+songs.local.migrated.json

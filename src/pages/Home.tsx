@@ -3051,29 +3051,34 @@ export default function Home() {
               flex: 1,
               minHeight: 0,
               overflowY: "auto",
-              padding: "10px",
+              padding: "16px 10px 10px",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              flexDirection: "column",
+              justifyContent: "flex-start",
             }}
           >
             {selectedSong ? (
-              <SongView
-                text={selectedSong.slohy[selectedVerse]?.textik ?? ""}
-                showChords={showAkordy}
-                zadanaVelkost={Math.min(
-                  80,
-                  Math.max(20, Number(fontSize) || 30),
-                )}
-                chordColor={homeChordColor}
-                chordSizeMultiplier={chordSizeMultiplier}
-              />
+              <div
+                style={{ margin: "auto 0", width: "100%", paddingTop: "8px" }}
+              >
+                <SongView
+                  text={selectedSong.slohy[selectedVerse]?.textik ?? ""}
+                  showChords={showAkordy}
+                  zadanaVelkost={Math.min(
+                    80,
+                    Math.max(20, Number(fontSize) || 30),
+                  )}
+                  chordColor={homeChordColor}
+                  chordSizeMultiplier={chordSizeMultiplier}
+                />
+              </div>
             ) : (
               <div
                 style={{
                   color: mutedText,
                   fontSize: 24,
                   textAlign: "center",
+                  margin: "auto 0",
                 }}
               >
                 Vyber skladbu zo zoznamu vlavo.
