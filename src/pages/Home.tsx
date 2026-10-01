@@ -27,6 +27,7 @@ import {
 } from "../realtime/projectorChannel";
 import { useVersionStore } from "../state/versionStore";
 import {
+  createSongInSupabase,
   updateSongInSupabase,
   updateSongOrderById,
   updateSongVerseFontMultiplierById,
@@ -58,12 +59,16 @@ const SINGLE_PLAYLIST_KEY: PlaylistKey = "Playlist 1";
 
 type DailyLiturgyReading = {
   kind?: string;
+  title?: string;
+  citation?: string;
   text?: string;
 };
 
 type DailyLiturgyPayload = {
   error?: string;
   sourceUrl?: string;
+  title?: string;
+  citation?: string;
   readings?: DailyLiturgyReading[];
   refrain?: string;
 };
@@ -2021,18 +2026,14 @@ export default function Home() {
   }
 
   async function handleFillPsalmOnHome() {
-    if (!selectedSong || isFillingPsalm) {
+    if (isFillingPsalm) {
       return;
     }
 
-    const selectedId = getSongId(selectedSong);
-    if (selectedId === undefined) {
-      setPsalmFillFeedback({
-        message: "Skladba nema stabilne id, naplnenie nie je mozne.",
-        tone: "warn",
-      });
-      return;
-    }
+    const targetSong =
+      selectedSong && isPsalmCategory(getSongCategory(selectedSong))
+        ? selectedSong
+        : songsData.find((song) => isPsalmCategory(getSongCategory(song)));
 
     setIsFillingPsalm(true);
     setPsalmFillFeedback({
@@ -2048,35 +2049,81 @@ export default function Home() {
         throw new Error("Liturgicke citania su prazdne.");
       }
 
-      const nextSong: Song = {
-        ...selectedSong,
-        source:
-          String(liturgy.sourceUrl ?? "").trim().length > 0
-            ? String(liturgy.sourceUrl)
-            : selectedSong.source,
-        poradieSloh: verses.map((verse) => verse.cisloS),
-        slohy: verses,
-      };
+      const songTitle =
+        [
+          String(liturgy.title ?? "").trim(),
+          String(liturgy.citation ?? "").trim(),
+        ]
+          .filter((part) => part.length > 0)
+          .join(" ") || "Žalm";
 
-      await updateSongInSupabase(selectedId, nextSong);
+      if (targetSong && getSongId(targetSong) !== undefined) {
+        const selectedId = getSongId(targetSong)!;
+        const nextSong: Song = {
+          ...targetSong,
+          nazov:
+            (targetSong.nazov ?? "").trim().length > 0
+              ? targetSong.nazov
+              : songTitle,
+          kategoria: "Žalm",
+          source:
+            String(liturgy.sourceUrl ?? "").trim().length > 0
+              ? String(liturgy.sourceUrl)
+              : targetSong.source,
+          poradieSloh: verses.map((verse) => verse.cisloS),
+          slohy: verses,
+        };
 
-      queryClient.setQueryData<SongsData | undefined>(
-        ["songs", verziaDb],
-        (previous) => {
-          if (!previous) {
-            return previous;
-          }
+        await updateSongInSupabase(selectedId, nextSong);
 
-          return previous.map((song) =>
-            getSongId(song) === selectedId ? { ...song, ...nextSong } : song,
-          );
-        },
-      );
+        queryClient.setQueryData<SongsData | undefined>(
+          ["songs", verziaDb],
+          (previous) => {
+            if (!previous) {
+              return previous;
+            }
 
-      setSelectedSong(nextSong);
-      setSelectedVerse(0);
-      setSelectedVerseCursor(0);
-      setVerseOrderInput(formatVerseOrderInput(nextSong));
+            return previous.map((song) =>
+              getSongId(song) === selectedId ? { ...song, ...nextSong } : song,
+            );
+          },
+        );
+
+        setSelectedSong(nextSong);
+        setSelectedSongIdentity(getSongIdentity(nextSong));
+        setSelectedVerse(0);
+        setSelectedVerseCursor(0);
+        setVerseOrderInput(formatVerseOrderInput(nextSong));
+        lastSentSongIdRef.current = "";
+      } else {
+        const newSong: Song = {
+          cisloP: "1",
+          nazov: songTitle,
+          kategoria: "Žalm",
+          source: String(liturgy.sourceUrl ?? ""),
+          poradieSloh: verses.map((verse) => verse.cisloS),
+          slohy: verses,
+        };
+
+        const created = await createSongInSupabase(newSong);
+        const createdSong: Song = {
+          ...newSong,
+          id: created.id,
+        };
+
+        queryClient.setQueryData<SongsData | undefined>(
+          ["songs", verziaDb],
+          (previous) => (previous ? [...previous, createdSong] : [createdSong]),
+        );
+
+        setSelectedSong(createdSong);
+        setSelectedSongIdentity(getSongIdentity(createdSong));
+        setSelectedVerse(0);
+        setSelectedVerseCursor(0);
+        setVerseOrderInput(formatVerseOrderInput(createdSong));
+        lastSentSongIdRef.current = "";
+      }
+
       setPsalmFillFeedback({
         message: "Zalm bol naplneny z dnesnych citani.",
         tone: "ok",
@@ -2399,22 +2446,67 @@ export default function Home() {
             }}
           />
         </button>
-        <button
-          onClick={handleGoToAdmin}
+        <div
           style={{
-            fontSize: isCompactSplitView ? 16 : 20,
-            fontWeight: 700,
-            padding: isCompactSplitView ? "0 12px" : "0 16px",
-            borderRadius: 14,
-            border: mutedBorder,
-            backgroundColor: surfaceBackground,
-            color: textColor,
-            cursor: "pointer",
-            height: isCompactSplitView ? 48 : undefined,
+            display: "flex",
+            flexDirection: "column",
+            flex: "0 0 auto",
+            height: isCompactSplitView ? 62 : 80,
+            gap: 4,
+            justifyContent: "center",
           }}
         >
-          Admin
-        </button>
+          <button
+            onClick={handleGoToAdmin}
+            style={{
+              flex: isPsalmCategory(selectedCategory) ? "1 1 0" : "1 1 auto",
+              minHeight: 0,
+              fontSize: isCompactSplitView ? 14 : 18,
+              fontWeight: 700,
+              padding: isCompactSplitView ? "0 10px" : "0 16px",
+              borderRadius: 12,
+              border: mutedBorder,
+              backgroundColor: surfaceBackground,
+              color: textColor,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: isPsalmCategory(selectedCategory)
+                ? undefined
+                : isCompactSplitView
+                ? 48
+                : 52,
+            }}
+          >
+            Admin
+          </button>
+          {isPsalmCategory(selectedCategory) && (
+            <button
+              onClick={() => void handleFillPsalmOnHome()}
+              disabled={isFillingPsalm}
+              style={{
+                flex: "1 1 0",
+                minHeight: 0,
+                fontSize: isCompactSplitView ? 12 : 14,
+                fontWeight: 700,
+                padding: isCompactSplitView ? "0 8px" : "0 12px",
+                borderRadius: 10,
+                border: mutedBorder,
+                backgroundColor: "#14532d",
+                color: "#f8fafc",
+                cursor: isFillingPsalm ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              title="Naplni text zalmu z dnesnych liturgickych citani"
+            >
+              {isFillingPsalm ? "Nacitavam..." : "Napln zalm"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div

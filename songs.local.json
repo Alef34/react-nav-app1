@@ -36876,7 +36876,7 @@
       "id": 1777,
       "cislo_p": "1",
       "nazov": "Responzoriovy zalm Ž 66, 1 -3a. 4-5. 6-7a",
-      "source": "https://lc.kbs.sk/?den=2026-06-09",
+      "source": "https://lc.kbs.sk/?den=2026-09-28",
       "kategoria": "Žalm",
       "poradie_sloh": [
         "V1",
@@ -36884,7 +36884,9 @@
         "V3",
         "V4",
         "V5",
-        "V6"
+        "V6",
+        "V7",
+        "V8"
       ],
       "verse_font_multipliers": {
         "v1": 0.55
@@ -36892,30 +36894,38 @@
       "slohy": [
         {
           "cisloS": "V1",
-          "textik": "Múky z hrnca neubúdalo a v krčahu nechýbal olej podľa slova, ktoré Pán povedal prostredníctvom Eliáša Potok, pri ktorom sa skryl Eliáš, vyschol, lebo v krajine nepršalo. Vtedy mu zaznelo Pánovo slovo: „Vstaň a choď do Sidonskej Sarepty. A tam ostaneš, lebo som tam istej vdove prikázal, aby ťa chovala. “ Vstal teda a šiel do Sarepty. Keď prišiel k mestskej bráne, videl ženu, vdovu, ako zbiera drevo. Zavolal na ňu: „Prines mi v džbáne trochu vody na pitie."
+          "textik": "Pán dal, Pán vzal; nech je zvelebené meno Pánovo V ktorýsi deň prišli Boží synovia a postavili sa pred Pána; bol medzi nimi aj satan. Pán mu povedal: „Skadiaľ prichádzaš? “ On odvetil: „Chodil som sem i tam po celej zemi. “ A Pán mu vravel: „Všimol si si môjho služobníka Jóba? Niet mu podobného na zemi. Je to človek jednoduchý a priamy, bojí sa Boha a chráni sa zlého."
         },
         {
           "cisloS": "V2",
-          "textik": "“ Ako mu išla vziať, zavolal za ňou: „Dones mi, prosím, aj kúsok chleba! “ Ona odpovedala: „Ako žije Pán, tvoj Boh, nemám chleba. Mám len za priehrštie múky v hrnci a trochu oleja v krčahu. Práve zbieram zopár kúskov dreva a idem niečo pripraviť sebe i svojmu synovi. Keď to zjeme, môžeme umrieť. “ Eliáš jej povedal: „Neboj sa! Choď a urob, ako hovoríš. Lenže najprv z tej trochy múky urob malý podplamenník pre mňa a dones mi ho."
+          "textik": "“ Satan mu odvetil: „Vari sa Jób bez príčiny bojí Boha? Neohradil si zo všetkých strán jeho i jeho dom i všetko, čo má? Požehnávaš prácu jeho rúk a jeho majetok vzrastá v krajine. Len vystri ruku a dotkni sa trochu všetkého, čo má, a uvidíš, či ti bude aj potom dobrorečiť! “ Tu Pán povedal satanovi: „Hľa, všetko, čo má, je v tvojich rukách, ale naňho rukou nesiahaj. “ A satan odišiel spred Pánovej tváre."
         },
         {
           "cisloS": "V3",
-          "textik": "Sebe a svojmu synovi urobíš potom. Lebo takto hovorí Pán, Boh Izraela: ‚Múky z hrnca neubudne a v krčahu nebude chýbať olej až do dňa, keď Pán zošle dážď na zem. ‘“ Ona odišla a urobila, ako jej povedal Eliáš. A jedla ona, on i jej dom deň čo deň a múky z hrnca neubúdalo a v krčahu nechýbal olej podľa slova, ktoré Pán povedal prostredníctvom Eliáša. Počuli sme Božie slovo."
+          "textik": "A keď v ktorýsi deň Jóbovi synovia a dcéry jedli a pili víno v dome svojho prvorodeného brata, prišiel k nemu posol a povedal: „Voly orali a pri nich sa pásli oslice; vtedy vtrhli Sabejci, ulúpili ich a sluhov pobili mečom. Len ja som unikol, aby som ti to oznámil. “ Kým ešte hovoril, už prichádzal iný a vravel: „Boží oheň padol z neba, zasiahol ovce i valachov a pohltil ich. Len ja som unikol, aby som ti to oznámil."
         },
         {
           "cisloS": "V4",
-          "textik": "Pane, ukáž nám svetlo svojej tváre."
+          "textik": "“ Ale ani on ešte neskončil a už prichádzal iný so slovami: „Vtrhli tri tlupy Chaldejcov, prepadli ťavy, ulúpili ich a pastierov pobili mečom. Len ja som unikol, aby som ti to oznámil. “ Ani on to ešte nedopovedal, keď vošiel iný a hlásil: „Tvoji synovia a dcéry jedli a pili víno v dome svojho prvorodeného brata. Zrazu sa od púšte strhol mohutný víchor, oprel sa o štyri uhly domu, ten sa zrútil, tvoje deti privalil a ony zomreli."
         },
         {
           "cisloS": "V5",
-          "textik": "Vy ste svetlo sveta Ježiš povedal svojim učeníkom: „Vy ste soľ zeme. Ak soľ stratí chuť, čím ju osolia? Už nie je na nič, len ju vyhodiť von, aby ju ľudia pošliapali. Vy ste svetlo sveta. Mesto postavené na návrší sa nedá ukryť. Ani lampu nezažnú a nepostavia pod mericu, ale na svietnik, aby svietila všetkým, čo sú v dome. Nech tak svieti vaše svetlo pred ľuďmi, aby videli vaše dobré skutky a oslavovali vášho Otca, ktorý je na nebesiach."
+          "textik": "Len ja som unikol, aby som ti to oznámil. “ Tu Jób vstal, roztrhol si rúcho, oholil si hlavu, padol na zem, klaňal sa a riekol: „Nahý som vyšiel z lona svojej matky a nahý sa ta vrátim. Pán dal, Pán vzal; stalo sa, ako sa Pánovi páčilo. Nech je zvelebené meno Pánovo. “ Pri tomto všetkom Jób nezhrešil svojimi ústami a nevyriekol nič hlúpe proti Bohu. Počuli sme Božie slovo."
         },
         {
           "cisloS": "V6",
-          "textik": "“ Počuli sme slovo Pánovo."
+          "textik": "Nakloň ku mne svoj sluch a vypočuj moje slová."
+        },
+        {
+          "cisloS": "V7",
+          "textik": "Kto je medzi vami najmenší, ten je veľký Učeníkom napadla myšlienka, kto z nich je väčší. Ale Ježiš poznal zmýšľanie ich srdca, vzal dieťa, postavil ho vedľa seba a povedal im: „Kto prijme toto dieťa v mojom mene, mňa prijíma. A kto prijíma mňa, prijíma toho, ktorý ma poslal. Lebo kto je medzi vami najmenší, ten je veľký. “ Vtedy povedal Ján: „Učiteľ, videli sme kohosi, ako v tvojom mene vyháňa zlých duchov."
+        },
+        {
+          "cisloS": "V8",
+          "textik": "Bránili sme mu to, veď nechodí s nami. “ Ježiš mu vravel: „Nebráňte mu, lebo kto nie je proti vám, je za vás! “ Počuli sme slovo Pánovo."
         }
       ],
-      "updated_at": "2026-06-09T18:55:42.715Z"
+      "updated_at": "2026-10-01T06:21:43.638Z"
     }
   ],
   "playlists": {
