@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 //import novePiesne, { fetchDataTQ } from "../components/Udaje";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GiSettingsKnobs } from "react-icons/gi";
+import { RxDragHandleDots2 } from "react-icons/rx";
 import { useLocation, useNavigate } from "react-router-dom";
 //import { localData } from "../localData";
 
@@ -841,11 +842,9 @@ export default function Home() {
     loadPlaylistsFromStorage(),
   );
   const [playlistsReady, setPlaylistsReady] = useState(false);
-  const [rightDragSongIdentity, setRightDragSongIdentity] = useState<
-    string | null
-  >(null);
-  const [rightDragPlaylistKey, setRightDragPlaylistKey] =
-    useState<PlaylistKey | null>(null);
+  const [dragSongIdentity, setDragSongIdentity] = useState<string | null>(null);
+  const dragSongIdentityRef = useRef<string | null>(null);
+  const dragPlaylistKeyRef = useRef<PlaylistKey | null>(null);
   const [selectedSongIdentity, setSelectedSongIdentity] = useState("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedVerse, setSelectedVerse] = useState(0);
@@ -1350,49 +1349,88 @@ export default function Home() {
     });
   }
 
-  function handlePlaylistRightMouseDown(
-    event: React.MouseEvent,
+  function handleDragHandlePointerDown(
+    event: React.PointerEvent,
     songIdentity: string,
   ) {
-    if (event.button !== 2 || activePlaylistKey === null) {
+    if (event.pointerType === "mouse" && event.button !== 0) {
       return;
     }
 
     event.preventDefault();
-    setRightDragSongIdentity(songIdentity);
-    setRightDragPlaylistKey(activePlaylistKey);
-  }
+    event.stopPropagation();
 
-  function handlePlaylistRightDragEnter(songIdentity: string) {
-    if (!rightDragSongIdentity || !rightDragPlaylistKey) {
+    if (activePlaylistKey === null) {
+      setSelectedPlaylistFilter(SINGLE_PLAYLIST_KEY);
+      setProjectorFeedback({
+        message: "Prepnuté do playlistu — potiahnutím zmeň poradie.",
+        tone: "ok",
+      });
+      window.setTimeout(() => setProjectorFeedback(null), 2500);
       return;
     }
 
-    if (rightDragSongIdentity === songIdentity) {
-      return;
-    }
-
-    reorderPlaylistBySongIdentity(
-      rightDragPlaylistKey,
-      rightDragSongIdentity,
-      songIdentity,
-    );
-    setRightDragSongIdentity(songIdentity);
+    dragSongIdentityRef.current = songIdentity;
+    dragPlaylistKeyRef.current = activePlaylistKey;
+    setDragSongIdentity(songIdentity);
   }
 
   useEffect(() => {
-    if (!rightDragSongIdentity) {
+    if (!dragSongIdentity) {
       return;
     }
 
-    const finishDrag = () => {
-      setRightDragSongIdentity(null);
-      setRightDragPlaylistKey(null);
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!dragSongIdentityRef.current || !dragPlaylistKeyRef.current) {
+        return;
+      }
+
+      const listBox = document.getElementById("listBox");
+      if (listBox) {
+        const rect = listBox.getBoundingClientRect();
+        if (event.clientY < rect.top + 45) {
+          listBox.scrollTop -= 10;
+        } else if (event.clientY > rect.bottom - 45) {
+          listBox.scrollTop += 10;
+        }
+      }
+
+      const elementUnderPointer = document.elementFromPoint(
+        event.clientX,
+        event.clientY,
+      );
+      const targetRow = elementUnderPointer?.closest("[data-song-identity]");
+      const targetIdentity = targetRow?.getAttribute("data-song-identity");
+
+      if (!targetIdentity || targetIdentity === dragSongIdentityRef.current) {
+        return;
+      }
+
+      reorderPlaylistBySongIdentity(
+        dragPlaylistKeyRef.current,
+        dragSongIdentityRef.current,
+        targetIdentity,
+      );
     };
 
-    window.addEventListener("mouseup", finishDrag);
-    return () => window.removeEventListener("mouseup", finishDrag);
-  }, [rightDragSongIdentity]);
+    const finishDrag = () => {
+      dragSongIdentityRef.current = null;
+      dragPlaylistKeyRef.current = null;
+      setDragSongIdentity(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, {
+      passive: false,
+    });
+    window.addEventListener("pointerup", finishDrag);
+    window.addEventListener("pointercancel", finishDrag);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", finishDrag);
+      window.removeEventListener("pointercancel", finishDrag);
+    };
+  }, [dragSongIdentity]);
 
   useEffect(() => {
     if (filteredData.length === 0) {
@@ -2406,51 +2444,42 @@ export default function Home() {
             border: mutedBorder,
           }}
         >
-          <ul
-            style={{ listStyleType: "none", padding: 0, margin: 8 }}
-            onContextMenu={(event) => {
-              if (activePlaylistKey !== null) {
-                event.preventDefault();
-              }
-            }}
-          >
-            {filteredData?.map((item, index) => {
+          <ul style={{ listStyleType: "none", padding: 0, margin: 8 }}>
+            {filteredData?.map((item) => {
               const itemIdentity = getSongIdentity(item);
               const isSelected = selectedSongIdentity === itemIdentity;
               const isDraggingItem =
-                rightDragSongIdentity !== null &&
-                rightDragSongIdentity === itemIdentity;
+                dragSongIdentity !== null && dragSongIdentity === itemIdentity;
               const isInPlaylist =
                 playlistMembershipByIdentity.has(itemIdentity);
               const categoryBadge = getCategoryBadge(item);
 
               return (
                 <li
-                  key={`${itemIdentity}-${index}`}
+                  key={itemIdentity}
+                  data-song-identity={itemIdentity}
                   onClick={() => handleClickSkokNaPiesen(item)}
-                  onMouseDown={(event) =>
-                    handlePlaylistRightMouseDown(event, itemIdentity)
-                  }
-                  onMouseEnter={() =>
-                    handlePlaylistRightDragEnter(itemIdentity)
-                  }
                   style={{
                     padding: 0,
                     marginTop: "6px",
-                    cursor:
-                      activePlaylistKey !== null
-                        ? isDraggingItem
-                          ? "grabbing"
-                          : "grab"
-                        : "pointer",
+                    cursor: "pointer",
                     color: textColor,
                     borderRadius: 14,
                     backgroundColor: isSelected
                       ? activeTabBackground
                       : itemBackground,
                     listStylePosition: "inside",
-                    border: itemBorder,
+                    border: isDraggingItem ? "3px dashed #3b82f6" : itemBorder,
+                    opacity: isDraggingItem ? 0.75 : 1,
+                    transform: isDraggingItem ? "scale(1.02)" : undefined,
+                    transition: isDraggingItem
+                      ? "none"
+                      : "transform 0.15s ease, opacity 0.15s ease",
+                    boxShadow: isDraggingItem
+                      ? "0 6px 16px rgba(0,0,0,0.35)"
+                      : undefined,
                     overflow: "hidden",
+                    userSelect: isDraggingItem ? "none" : undefined,
                   }}
                 >
                   <div
@@ -2565,37 +2594,78 @@ export default function Home() {
                         </span>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        togglePlaylistMembership(item);
-                      }}
+                    <div
                       style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "space-between",
                         flex: "0 0 auto",
-                        alignSelf: "center",
-                        width: 36,
-                        height: 36,
-                        marginRight: 10,
-                        borderRadius: 10,
-                        border: "1px solid rgba(0,0,0,0.25)",
-                        backgroundColor: isInPlaylist
-                          ? "#fee2e2"
-                          : "rgba(255,255,255,0.4)",
-                        color: isInPlaylist ? "#7f1d1d" : "#166534",
-                        fontWeight: 900,
-                        fontSize: 18,
-                        cursor: "pointer",
-                        padding: 0,
+                        width: 38,
+                        padding: "6px 4px 6px 0",
+                        gap: 2,
                       }}
-                      title={
-                        isInPlaylist
-                          ? "Odobrat z playlistu"
-                          : "Pridat do playlistu"
-                      }
                     >
-                      {isInPlaylist ? "-" : "+"}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          togglePlaylistMembership(item);
+                        }}
+                        style={{
+                          width: 28,
+                          height: 26,
+                          borderRadius: 8,
+                          border: "1px solid rgba(0,0,0,0.25)",
+                          backgroundColor: isInPlaylist
+                            ? "#fee2e2"
+                            : "rgba(255,255,255,0.4)",
+                          color: isInPlaylist ? "#7f1d1d" : "#166534",
+                          fontWeight: 900,
+                          fontSize: 16,
+                          lineHeight: "24px",
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        title={
+                          isInPlaylist
+                            ? "Odobrat z playlistu"
+                            : "Pridat do playlistu"
+                        }
+                      >
+                        {isInPlaylist ? "-" : "+"}
+                      </button>
+                      <div
+                        role="button"
+                        aria-label="Presunúť pieseň v zozname"
+                        title={
+                          activePlaylistKey !== null
+                            ? "Zatlač a potiahni pre zmenu poradia"
+                            : "Pre zmenu poradia prepni do playlistu (PL)"
+                        }
+                        onPointerDown={(event) =>
+                          handleDragHandlePointerDown(event, itemIdentity)
+                        }
+                        onClick={(event) => event.stopPropagation()}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 28,
+                          height: 24,
+                          cursor: isDraggingItem ? "grabbing" : "grab",
+                          touchAction: "none",
+                          userSelect: "none",
+                          color: isSelected ? "white" : textColor,
+                          opacity: activePlaylistKey !== null ? 0.9 : 0.35,
+                        }}
+                      >
+                        <RxDragHandleDots2 size={20} />
+                      </div>
+                    </div>
                   </div>
                 </li>
               );
